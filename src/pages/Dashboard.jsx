@@ -1,4 +1,4 @@
-import { useDisclosure, Alert, Progress, Button } from '@heroui/react';
+import { useDisclosure, Accordion, AccordionItem, Alert, Progress, Button } from '@heroui/react';
 import AppLayout from '../components/layout/AppLayout';
 import PageLayout from '../components/layout/PageLayout';
 import {
@@ -17,7 +17,6 @@ import dayjs from 'dayjs';
 import DraggableList from '../components/tasks/DraggableList.jsx';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
-import { Accordion, AccordionItem } from '@heroui/accordion';
 import TaskCard from '../components/tasks/TaskCard.jsx';
 import DatePicker from '../components/form/DatePicker.jsx';
 import toast from 'react-hot-toast';
@@ -62,8 +61,10 @@ function DashboardPage() {
     });
     const { data: overdueTasks, refetch: refetchOverdue } = useTasks(currentWorkspace, {
         statusList: ['pending'],
+        assignees: filters.assignees,
         endDate: dayjs().endOf('day').subtract(1, 'day').toISOString(),
     });
+
     const { mutateAsync: updateMultipleTasks } = useUpdateMultipleTasks(currentWorkspace);
     const listDate = dayjs().startOf('day').tz(dayjs.tz.guess(), true).toISOString();
     const confettiShownRef = useRef(false);
@@ -72,7 +73,7 @@ function DashboardPage() {
     const taskOverloadMessageRef = useRef('');
 
     const hasOVerdueTasks = overdueTasks?.length > 0;
-    const hasTooManyTasks = todayTasks?.length > 5;
+    const hasTooManyTasks = todayTasks?.length > 6;
     const [hideTasks, setHideTasks] = useState(false);
 
     // Calculate completed tasks count and percentage
@@ -215,11 +216,15 @@ function DashboardPage() {
     }, [today]);
 
     useEffect(() => {
-        if (completedPercentage === 100) {
+        if (completedPercentage === 100 && todayTasks?.length > 0) {
+            // Hide the task list when all tasks are completed.
             setIsTaskAlertDismissed(true);
             setHideTasks(true);
+        } else {
+            // IMPORTANT: Show the task list again if the percentage is no longer 100.
+            setHideTasks(false);
         }
-    }, [completedPercentage]);
+    }, [completedPercentage, todayTasks]);
 
     return (
         <AppLayout>

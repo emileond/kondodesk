@@ -182,7 +182,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
 
             setIsUploading(false);
         },
-        [task.id, currentWorkspace?.workspace_id],
+        [task.id, currentWorkspace?.workspace_id, queryClient],
     );
 
     const handleAttachmentClick = useCallback(() => {
@@ -203,9 +203,9 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                     selectedPriority?.value !== null && selectedPriority?.value !== undefined
                         ? parseInt(selectedPriority.value)
                         : null,
-                assignee: selectedUser || null,
+                assignee: selectedUser?.value || null,
             };
-
+            
             // Check if the data has actually changed
             const hasDescriptionChanged =
                 (updates.description || null) !== (task.description || null);
@@ -346,7 +346,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                                 <div className="flex items-center justify-between pb-1">
                                     <div className="flex gap-2">
                                         <DatePicker
-                                            defaultValue={selectedDate}
+                                            value={selectedDate}
                                             onChange={setSelectedDate}
                                         />
                                         <ProjectSelect

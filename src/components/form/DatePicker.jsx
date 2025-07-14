@@ -4,9 +4,31 @@ import { useState, useMemo, useEffect } from 'react';
 import { DayPicker } from 'react-day-picker';
 import { RiCalendarEventLine, RiArchiveStackLine } from 'react-icons/ri';
 
-const DatePicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) => {
-    const [selectedDate, setSelectedDate] = useState(defaultValue);
-    const [isOpen, setIsOpen] = useState(false); // Track popover state
+const DatePicker = ({ value, defaultValue, trigger, placement = 'bottom', onChange }) => {
+    // Initialize state from props, prioritizing the controlled `value`
+    const [selectedDate, setSelectedDate] = useState(value !== undefined ? value : defaultValue);
+    const [isOpen, setIsOpen] = useState(false);
+
+    // 💡 KEY FIX: This effect syncs the internal state with the `value` prop from the parent.
+    // This is crucial for when you switch tasks in the modal.
+    useEffect(() => {
+        // We check `value !== undefined` to allow the component to handle `null` (for "Backlog") as a valid value.
+        if (value !== undefined) {
+            setSelectedDate(value);
+        }
+    }, [value]); // The dependency array ensures this runs ONLY when the parent's `value` prop changes.
+
+    const handleDateChange = (newDate) => {
+        // Update the internal state immediately for a responsive UI
+        setSelectedDate(newDate);
+
+        // Notify the parent component of the change
+        if (onChange) {
+            onChange(newDate);
+        }
+        // Close the popover after a selection is made
+        setIsOpen(false);
+    };
 
     const triggerText = useMemo(() => {
         if (!selectedDate) return 'Backlog';
@@ -25,18 +47,8 @@ const DatePicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) =
         }
     }, [selectedDate]);
 
-    useEffect(() => {
-        if (onChange) {
-            onChange(selectedDate);
-        }
-    }, [selectedDate]);
-
     return (
-        <Popover
-            placement={placement}
-            isOpen={isOpen}
-            onOpenChange={setIsOpen} // Control open state
-        >
+        <Popover placement={placement} isOpen={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger>
                 {trigger || (
                     <Button
@@ -44,7 +56,7 @@ const DatePicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) =
                         variant="light"
                         className="text-default-600"
                         startContent={<RiCalendarEventLine fontSize="1rem" />}
-                        onPress={() => setIsOpen(true)} // Open popover
+                        onPress={() => setIsOpen(true)}
                     >
                         {triggerText}
                     </Button>
@@ -57,10 +69,7 @@ const DatePicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) =
                         className="w-full text-default-600"
                         variant="light"
                         startContent={<RiArchiveStackLine fontSize="1rem" />}
-                        onPress={() => {
-                            setSelectedDate(null);
-                            setIsOpen(false); // Close popover
-                        }}
+                        onPress={() => handleDateChange(null)} // Use the new handler
                     >
                         Add to backlog
                     </Button>
@@ -68,10 +77,8 @@ const DatePicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) =
                     <DayPicker
                         mode="single"
                         selected={selectedDate}
-                        onDayClick={(date) => {
-                            setSelectedDate(date);
-                            setIsOpen(false); // Close popover
-                        }}
+                        onDayClick={handleDateChange} // Use the new handler
+                        // (rest of your classNames props)
                         classNames={{
                             months: 'relative flex flex-wrap justify-center gap-8',
                             month_caption:

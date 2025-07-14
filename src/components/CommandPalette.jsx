@@ -15,7 +15,6 @@ import {
     RiQuestionLine,
     RiPaletteLine,
     RiLightbulbLine,
-    RiRobot2Line,
     RiExternalLinkLine,
 } from 'react-icons/ri';
 import { useFuzzySearchTasks } from '../hooks/react-query/tasks/useTasks.js';
@@ -28,7 +27,6 @@ import UFuzzy from '@leeoniya/ufuzzy';
 import TaskCard from './tasks/TaskCard.jsx';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { handleHelpClick } from '../utils/charla/handleHelpClick.js';
-import { useNavigate } from 'react-router-dom';
 
 const CommandPalette = () => {
     const [currentWorkspace] = useCurrentWorkspace();
@@ -42,7 +40,6 @@ const CommandPalette = () => {
     const [activeSection, setActiveSection] = useState('commands'); // 'commands' or 'tasks'
     const searchInputRef = useRef(null);
     const [parent] = useAutoAnimate();
-    const navigate = useNavigate();
 
     // Commands list
     const ICON_SIZE = '1.2rem';
