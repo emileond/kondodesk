@@ -86,16 +86,14 @@ export async function onRequestPost(context) {
         // Exchange code for access token
         const tokenData = await ky
             .post('https://app.asana.com/-/oauth_token', {
-                json: {
+                // Use URLSearchParams to send a form-encoded body
+                body: new URLSearchParams({
+                    grant_type: 'authorization_code',
                     client_id: context.env.ASANA_CLIENT_ID,
                     client_secret: context.env.ASANA_CLIENT_SECRET,
-                    code: code,
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/asana',
-                    grant_type: 'authorization_code',
-                },
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                    code: code,
+                }),
             })
             .json();
 
@@ -195,12 +193,15 @@ export async function onRequestPost(context) {
             try {
                 // Fetch tasks assigned to the current user in this workspace
                 const tasksResponse = await ky
-                    .get(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`, {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            Accept: 'application/json',
+                    .get(
+                        `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`,
+                        {
+                            headers: {
+                                Authorization: `Bearer ${access_token}`,
+                                Accept: 'application/json',
+                            },
                         },
-                    })
+                    )
                     .json();
 
                 const tasks = tasksResponse.data || [];
@@ -265,14 +266,14 @@ export async function onRequestPost(context) {
                             filters: [
                                 {
                                     resource_type: 'task',
-                                    action: 'added'
+                                    action: 'added',
                                 },
                                 {
                                     resource_type: 'task',
-                                    action: 'changed'
-                                }
-                            ]
-                        }
+                                    action: 'changed',
+                                },
+                            ],
+                        },
                     },
                     headers: {
                         Authorization: `Bearer ${access_token}`,
