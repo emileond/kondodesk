@@ -77,7 +77,6 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
             setSelectedMilestone(defaultMilestone ? { value: defaultMilestone } : null);
             setSelectedTags([]);
             setSelectedPriority(null);
-            setSelectedUser(null);
         }
     }, [isOpen, defaultDate, defaultProject, defaultMilestone, reset]);
 
