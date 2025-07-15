@@ -50,7 +50,6 @@ function DashboardPage() {
         tags: null,
         integration_source: null,
         priority: null,
-        assignees: null,
     });
     const queryClient = useQueryClient();
     const { data: todayTasks, refetch: refetchToday } = useTasks(currentWorkspace, {
