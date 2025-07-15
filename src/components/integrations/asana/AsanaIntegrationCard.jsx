@@ -55,7 +55,7 @@ const AsanaIntegrationCard = ({ isCompact }) => {
             'https://weekfuse.com/integrations/oauth/callback/asana',
         );
         const scope = encodeURIComponent(
-            'attachments:read projects:read stories:read tasks:read tasks:write tasks:delete teams:read users:read webhooks:read webhooks:write workspaces:read ',
+            'attachments:read projects:read stories:read tasks:read tasks:write tasks:delete teams:read users:read webhooks:read workspaces:read ',
         );
 
         window.location.href = `https://app.asana.com/-/oauth_authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&state=${state}&scope=${scope}`;
