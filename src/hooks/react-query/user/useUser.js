@@ -32,10 +32,11 @@ const loginUser = async ({ email, password }) => {
 
 const signInWithOAuth = async ({ provider }) => {
     let redirectURL = `${import.meta.env.VITE_PUBLIC_URL}/auth`;
+
     let { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider,
         options: {
-            emailRedirectTo: redirectURL,
+            redirectTo: redirectURL,
         },
     });
 
