@@ -24,7 +24,7 @@ const UserSelect = ({
     const { data: members, isLoading } = useWorkspaceMembers(currentWorkspace);
     const { data: currentUser } = useUser();
     const [selectedUsers, setSelectedUsers] = useState([]);
-
+    
     // Filter members by role and status, then map to options
     const userOptions = useMemo(() => {
         if (!members) return [];
@@ -94,10 +94,6 @@ const UserSelect = ({
         if (defaultValue === null) return null;
         return userOptions.find((opt) => opt.value === defaultValue);
     }, [defaultValue, userOptions]);
-
-    if (members?.length < 2) {
-        return null;
-    }
 
     return isLoading ? (
         <Spinner color="default" variant="wave" size="sm" />
