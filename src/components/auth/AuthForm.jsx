@@ -33,21 +33,21 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
 
         if (view === 'signup') {
             // Await the email validation before proceeding
-            const res = await ky
-                .post('/api/signup-validation', {
-                    json: {
-                        email,
-                    },
-                })
-                .json();
-
-            const isValidEmail = res.status === 'deliverable';
-
-            if (!isValidEmail) {
-                setError('Invalid email, please use a valid email address');
-                setIsLoading(false);
-                return;
-            }
+            // const res = await ky
+            //     .post('/api/signup-validation', {
+            //         json: {
+            //             email,
+            //         },
+            //     })
+            //     .json();
+            //
+            // const isValidEmail = res.status === 'deliverable';
+            //
+            // if (!isValidEmail) {
+            //     setError('Invalid email, please use a valid email address');
+            //     setIsLoading(false);
+            //     return;
+            // }
             try {
                 const inviteToken = localStorage.getItem('pendingInvitationToken');
 
