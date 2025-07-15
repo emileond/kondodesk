@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import NavBar from '../components/marketing/Nav';
 import { Card, CardBody, CardFooter, Image } from '@heroui/react';
 import Footer from '../components/marketing/Footer.jsx';
+import dayjs from 'dayjs';
 
 const posts = import.meta.glob('../../blog/*.mdx', { eager: true });
 
@@ -36,7 +37,7 @@ function BlogPage() {
                                 <span className="text-sm text-default-500">
                                     {Intl.DateTimeFormat(navigator.language, {
                                         dateStyle: 'long',
-                                    }).format(new Date(post.date))}
+                                    }).format(dayjs(post.date))}
                                 </span>
                             </CardFooter>
                         </Card>

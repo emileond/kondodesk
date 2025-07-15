@@ -1,9 +1,10 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import NavBar from '../components/marketing/Nav';
-import { Image } from '@heroui/react';
+import { Divider, Image } from '@heroui/react';
 import { mdxComponents } from '../utils/mdxComponents.jsx';
 import Footer from '../components/marketing/Footer.jsx';
+import dayjs from 'dayjs';
 
 function BlogPost() {
     const { slug } = useParams(); // Get the "slug" from the URL
@@ -37,14 +38,27 @@ function BlogPost() {
     return (
         <div className="w-screen min-h-screen bg-content1">
             <NavBar />
-            <div className="w-full max-w-3xl mx-auto px-6 py-28 text-md sm:text-lg">
-                <Image
-                    width="100%"
-                    alt="Cover"
-                    className="object-cover w-full h-80 mb-9"
-                    src={postMetadata.image || 'https://placehold.co/600x400?text=Cover'}
-                />
-                <PostContent components={mdxComponents} />
+            <div className="w-full max-w-screen-md mx-auto px-6 py-28 text-md sm:text-lg">
+                <div className="pb-9 text-foreground">
+                    <Image
+                        width="100%"
+                        alt="Cover"
+                        className="object-cover w-full h-80 mb-9"
+                        src={postMetadata.image || 'https://placehold.co/600x400?text=Cover'}
+                    />
+                    <PostContent components={mdxComponents} />
+                </div>
+                <Divider className="my-3" />
+                <div className="flex flex-col gap-3 items-center py-9">
+                    <span className="text-sm text-default-600">
+                        {postMetadata?.author || 'Author'}
+                    </span>
+                    <span className="text-sm text-default-500">
+                        {Intl.DateTimeFormat(navigator.language, {
+                            dateStyle: 'long',
+                        }).format(dayjs(postMetadata.date))}
+                    </span>
+                </div>
             </div>
             <Footer />
         </div>

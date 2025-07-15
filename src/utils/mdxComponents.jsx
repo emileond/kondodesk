@@ -5,7 +5,7 @@ export const mdxComponents = {
     h4: (props) => <h4 className="text-xl font-medium mb-3 leading-snug" {...props} />,
     h5: (props) => <h5 className="text-lg font-medium mb-2 leading-snug" {...props} />,
     h6: (props) => <h6 className="text-base font-medium mb-2 leading-snug" {...props} />,
-    p: (props) => <p className="mb-6 text-gray-800 leading-relaxed " {...props} />,
+    p: (props) => <p className="mb-6 text-foreground leading-relaxed " {...props} />,
     a: (props) => (
         <a
             className="text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200"
