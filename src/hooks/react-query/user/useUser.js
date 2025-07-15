@@ -31,8 +31,12 @@ const loginUser = async ({ email, password }) => {
 };
 
 const signInWithOAuth = async ({ provider }) => {
+    let redirectURL = `${import.meta.env.VITE_PUBLIC_URL}/auth`;
     let { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider,
+        options: {
+            emailRedirectTo: redirectURL,
+        },
     });
 
     if (error) {
@@ -47,7 +51,7 @@ const logoutUser = async () => {
 
 const registerUser = async ({ email, password, inviteToken }) => {
     // base URL
-    let redirectURL = `${import.meta.env.VITE_PUBLIC_URL}/auth`; // Redirect to AuthPage to handle logic
+    let redirectURL = `${import.meta.env.VITE_PUBLIC_URL}/auth`;
 
     // If an invitation token exists, append it to the URL
     if (inviteToken) {
