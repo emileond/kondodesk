@@ -69,8 +69,17 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
     };
 
     useEffect(() => {
-        reset();
-    }, [onOpenChange]);
+        if (isOpen) {
+            // When the modal opens, reset the state to the new defaults passed in.
+            reset({ name: '', description: '' }); // Reset react-hook-form fields
+            setSelectedDate(defaultDate);
+            setSelectedProject(defaultProject ? { value: defaultProject } : null);
+            setSelectedMilestone(defaultMilestone ? { value: defaultMilestone } : null);
+            setSelectedTags([]);
+            setSelectedPriority(null);
+            setSelectedUser(null);
+        }
+    }, [isOpen, defaultDate, defaultProject, defaultMilestone, reset]);
 
     return (
         <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl">
@@ -96,7 +105,7 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
                                 }}
                             />
                             <div className="flex gap-2">
-                                <DatePicker defaultValue={defaultDate} onChange={setSelectedDate} />
+                                <DatePicker value={selectedDate} onChange={setSelectedDate} />
                                 <ProjectSelect
                                     onChange={setSelectedProject}
                                     defaultValue={defaultProject}

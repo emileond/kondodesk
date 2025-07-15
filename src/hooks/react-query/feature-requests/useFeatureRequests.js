@@ -11,6 +11,8 @@ const fetchFeatureRequests = async ({ statusList, id }) => {
         query = query.in('status', statusList); // Fetch multiple items
     }
 
+    query = query.order('created_at', { ascending: false });
+
     const { data, error } = await query;
 
     if (error) {
