@@ -21,21 +21,25 @@ const IntegrationSourceSelect = ({
     // All possible integration options
     const iconClass = 'w-5 h-5';
     const allSourceOptions = [
-        { label: 'GitHub', value: 'github', startContent: <Avatar className={iconClass} /> },
         {
-            label: 'Jira',
-            value: 'jira',
-            startContent: <Avatar className={iconClass} src="/integrations/jira.png" />,
-        },
-        {
-            label: 'Trello',
-            value: 'trello',
-            startContent: <Avatar className={iconClass} src="/integrations/trello.png" />,
+            label: 'Asana',
+            value: 'asana',
+            startContent: <Avatar className={iconClass} src="/integrations/asana.png" />,
         },
         {
             label: 'Clickup',
             value: 'clickup',
             startContent: <Avatar className={iconClass} src="/integrations/clickup.png" />,
+        },
+        {
+            label: 'GitHub',
+            value: 'github',
+            startContent: <Avatar className={iconClass} src="/integrations/github.png" />,
+        },
+        {
+            label: 'Jira',
+            value: 'jira',
+            startContent: <Avatar className={iconClass} src="/integrations/jira.png" />,
         },
         {
             label: 'Tick tick',
@@ -47,11 +51,16 @@ const IntegrationSourceSelect = ({
             value: 'todoist',
             startContent: <Avatar className={iconClass} src="/integrations/todoist.png" />,
         },
+        {
+            label: 'Trello',
+            value: 'trello',
+            startContent: <Avatar className={iconClass} src="/integrations/trello.png" />,
+        },
     ];
 
     // Only fetch active integrations if user_id is provided
     const { data: activeIntegrations, isLoading } = useActiveIntegrations(user?.id);
-    
+
     // Filter options based on active integrations if user_id is provided
     // Otherwise, show all options
     const sourceOptions =

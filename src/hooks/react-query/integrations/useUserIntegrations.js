@@ -61,18 +61,13 @@ const deleteIntegration = async ({ id, installation_id, type }) => {
             });
             console.log('ClickUp integration deletion API call successful.');
         } else if (type === 'jira' && id) {
-            // For Jira, we also delete from the database
-            const { error: dbError } = await supabaseClient
-                .from('user_integrations')
-                .delete()
-                .eq('id', id);
-
-            if (dbError) {
-                console.error('Failed to delete Jira integration from database:', dbError);
-                throw new Error(
-                    `Failed to delete Jira integration from database: ${dbError.message}`,
-                );
-            }
+            await ky.delete('/api/jira/auth', {
+                json: { id },
+            });
+        } else if (type === 'asana' && id) {
+            await ky.delete('/api/asana/auth', {
+                json: { id },
+            });
         } else {
             // Optional: Handle cases where type is not recognized or parameters are missing
             console.warn('Delete operation skipped: Invalid type or missing parameters.', {
