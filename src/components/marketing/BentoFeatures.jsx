@@ -7,6 +7,8 @@ import {
     RiCommandLine,
     RiCalendarScheduleLine,
     RiQuillPenAiLine,
+    RiHardDrive3Line,
+    RiTimerFlashLine,
 } from 'react-icons/ri';
 import { BentoGrid, BentoCard } from './BentoGrid.jsx';
 import { Image } from '@heroui/react';
@@ -21,9 +23,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: (
-                <Image src="/backlog.svg" alt="Backlog UI" width="90%" className="mx-auto" />
-            ),
+            background: '/bento-backlog.svg',
         },
         {
             Icon: RiBookletLine,
@@ -33,7 +33,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image src="/notes.png" alt="Collab UI" />,
+            background: '/bento-notes.svg',
         },
         {
             Icon: RiGroupLine,
@@ -43,7 +43,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image src="/collab.svg" alt="Collab UI" />,
+            background: '/bento-collab.svg',
         },
         {
             Icon: RiKanbanView,
@@ -53,7 +53,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <img alt="User interface" src="/views.png" />,
+            background: 'User interface',
         },
         {
             Icon: RiCalendarScheduleLine,
@@ -62,7 +62,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-2',
-            background: <Image src="/planner.svg" alt="Planner" />,
+            background: '/bento-plan.svg',
         },
         {
             Icon: RiPaintBrushLine,
@@ -71,7 +71,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image alt="ui themes" src="/themes-ui.png" />,
+            background: '/bento-theme.svg',
         },
         {
             Icon: RiCommandLine,
@@ -80,7 +80,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image alt="command palette" src="/command-palette.png" />,
+            background: '/bento-command.svg',
         },
         {
             Icon: RiQuillPenAiLine,
@@ -89,32 +89,38 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image alt="reflect ui" src="/reflect.png" />,
+            background: '/bento-reflect.svg',
         },
         {
-            Icon: RiQuillPenAiLine,
+            Icon: RiHardDrive3Line,
             name: 'File storage',
             description: 'Save files to your tasks.',
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-2',
-            background: <Image alt="upload files ui" src="/files.png" />,
+            background: '/bento-storage.svg',
         },
         {
-            Icon: RiQuillPenAiLine,
+            Icon: RiTimerFlashLine,
             name: 'Productivity tools',
             description:
                 'Productivity tools that help you get the most out of your day and avoid burnout.',
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <Image alt="reflect ui" src="/productivity-tools.png" />,
+            background: '/bento-pomodoro.svg',
         },
     ];
 
     return (
         <div className="max-w-6xl mx-auto py-32 px-6">
-            <h2 className="text-3xl font-bold text-center mb-12">Much more than just tasks</h2>
+            <div className="space-y-6 mb-12">
+                <h2 className="text-3xl font-bold text-center">Much more than just tasks</h2>
+                <p className="text-center text-default-500">
+                    Weekfuse is a thoughtfully curated suite of powerful features designed to work
+                    together, helping you stay organized, focused, and balanced.
+                </p>
+            </div>
             <BentoGrid>
                 {bentoFeatures.map((feature, idx) => (
                     <BentoCard key={idx} {...feature} />

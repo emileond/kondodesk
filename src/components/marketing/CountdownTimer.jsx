@@ -14,7 +14,7 @@ const CountdownItem = ({ value, label }) => {
                         transition={{ ease: 'circInOut', duration: 0.5 }}
                         className="absolute inset-0 flex items-center justify-center"
                     >
-                        <span className="text-2xl font-bold text-foreground">
+                        <span className="text-2xl font-black text-foreground">
                             {String(value).padStart(2, '0')}
                         </span>
                     </motion.div>
@@ -63,9 +63,8 @@ const CountdownTimer = ({ targetDate }) => {
     });
 
     return (
-        <div className="text-center py-3 bg-gradient-to-br from-primary-50/40 to-primary-100 border-2 border-primary-200 rounded-xl w-full max-w-screen-sm">
-            <span className="text-sm font-semibold text-primary">This offer ends soon!</span>
-            <div className="flex justify-center gap-6">
+        <div className="text-center py-2 bg-gradient-to-br from-primary-50/50 to-primary-100 border-2 border-primary-200 rounded-xl w-full max-w-screen-sm">
+            <div className="flex justify-center gap-3">
                 {timerComponents.length ? (
                     timerComponents
                 ) : (
