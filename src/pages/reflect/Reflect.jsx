@@ -15,18 +15,21 @@ import {
     ModalFooter,
     useDisclosure,
     Divider,
+    Alert,
+    Chip,
 } from '@heroui/react';
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
-import { RiAddFill } from 'react-icons/ri';
+import { RiAddFill, RiLightbulbLine } from 'react-icons/ri';
 import RangeDatepicker from '../../components/form/RangeDatepicker.jsx';
 import ProjectSelect from '../../components/form/ProjectSelect.jsx';
 import { toUTC } from '../../utils/dateUtils.js';
 import { useNavigate } from 'react-router-dom';
 import ReflectSessionCard from './ReflectSessionCard.jsx';
 import FeatureCarousel from '../../components/onboarding/FeatureCarousel.jsx';
+import AnimatedInsights from '../../components/marketing/AnimatedInsights.jsx';
 
 function ReflectPage() {
     const [currentWorkspace] = useCurrentWorkspace();
@@ -44,56 +47,73 @@ function ReflectPage() {
     // Define features for the carousel
     const carouselFeatures = [
         {
-            title: "Welcome to Reflect",
-            description: "Reflect helps you gain insights from your completed tasks and projects.",
-            content: (
-                <div className="text-center">
-                    <img 
-                        src="/images/reflect-intro.svg" 
-                        alt="Reflect Introduction" 
-                        className="max-w-xs mx-auto"
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://placehold.co/300x200/e2e8f0/64748b?text=Reflect+Introduction";
-                        }}
-                    />
-                </div>
-            )
+            title: 'Welcome to Reflect',
+            description:
+                'Go beyond your to-do list. Reflect helps you understand how you work, celebrating wins and uncovering hidden patterns.',
+            content: <AnimatedInsights />,
         },
         {
-            title: "Review Your Progress",
-            description: "Select a time period and projects to analyze your work patterns and achievements.",
+            title: 'Connect the Dots',
+            description:
+                'We provide the data, you provide the context. Combine stats with your own thoughts to create a complete picture of your progress.',
             content: (
-                <div className="text-center">
-                    <img 
-                        src="/images/reflect-review.svg" 
-                        alt="Review Progress" 
-                        className="max-w-xs mx-auto"
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://placehold.co/300x200/e2e8f0/64748b?text=Review+Progress";
-                        }}
-                    />
+                <div className="p-6 space-y-6 text-left bg-content2 rounded-xl">
+                    <div>
+                        <h5 className="font-semibold text-default-800">Your Insights</h5>
+                        <p className="text-sm text-default-600">✓ 25% more tasks on Wednesdays</p>
+                    </div>
+                    <div>
+                        <h5 className="font-semibold text-default-800">Your Thoughts</h5>
+                        <div className="w-full p-3 mt-1 text-sm text-left border rounded-lg bg-background border-default-200 text-default-500">
+                            "Felt really focused this week. The new project is energizing..."
+                        </div>
+                    </div>
                 </div>
-            )
+            ),
         },
         {
-            title: "AI-Powered Insights",
-            description: "Get personalized recommendations and identify opportunities for improvement.",
+            title: 'From Reflection to Action',
+            description:
+                'Our AI synthesizes everything into a clear summary with personalized, actionable recommendations to help you grow.',
             content: (
-                <div className="text-center">
-                    <img 
-                        src="/images/reflect-insights.svg" 
-                        alt="AI Insights" 
-                        className="max-w-xs mx-auto"
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://placehold.co/300x200/e2e8f0/64748b?text=AI+Insights";
+                <div className="space-y-3 scale-90">
+                    <Alert
+                        className="bg-content3"
+                        variant="faded"
+                        classNames={{
+                            alertIcon: 'text-primary',
                         }}
+                        icon={<RiLightbulbLine fontSize="1.2rem" />}
+                        title={
+                            <div className="flex items-center gap-3 mb-1">
+                                Plan Tomorrow, Tonight
+                                <Chip size="sm" variant="faded" color="primary">
+                                    Planning
+                                </Chip>
+                            </div>
+                        }
+                        description="End your day by outlining your top 3 priorities for tomorrow to start with clarity."
+                    />
+                    <Alert
+                        className="bg-content3"
+                        variant="faded"
+                        classNames={{
+                            alertIcon: 'text-primary',
+                        }}
+                        icon={<RiLightbulbLine fontSize="1.2rem" />}
+                        title={
+                            <div className="flex items-center gap-3 mb-1">
+                                Try the 25-Minute Focus
+                                <Chip size="sm" variant="faded" color="primary">
+                                    Focus
+                                </Chip>
+                            </div>
+                        }
+                        description="Work in focused 25-minute sprints followed by a 5-minute break to maintain energy."
                     />
                 </div>
-            )
-        }
+            ),
+        },
     ];
 
     // Check if this is the first visit to the Reflect page
@@ -150,10 +170,10 @@ function ReflectPage() {
     return (
         <AppLayout>
             {showCarousel && (
-                <FeatureCarousel 
-                    features={carouselFeatures} 
-                    onClose={handleCarouselClose} 
-                    backgroundImage="/images/reflect-bg.jpg" 
+                <FeatureCarousel
+                    features={carouselFeatures}
+                    onClose={handleCarouselClose}
+                    backgroundImage="/images/reflect-bg.jpg"
                 />
             )}
             <PageLayout

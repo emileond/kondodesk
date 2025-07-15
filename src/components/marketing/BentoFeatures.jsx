@@ -10,7 +10,6 @@ import {
 } from 'react-icons/ri';
 import { BentoGrid, BentoCard } from './BentoGrid.jsx';
 import { Image } from '@heroui/react';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 function FeaturesGrid() {
     const bentoFeatures = [
@@ -22,7 +21,9 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: (
+                <Image src="/backlog.svg" alt="Backlog UI" width="90%" className="mx-auto" />
+            ),
         },
         {
             Icon: RiBookletLine,
@@ -32,7 +33,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: <Image src="/notes.png" alt="Collab UI" />,
         },
         {
             Icon: RiGroupLine,
@@ -52,7 +53,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <img src="/ui-main.png"></img>,
+            background: <img alt="User interface" src="/views.png" />,
         },
         {
             Icon: RiCalendarScheduleLine,
@@ -66,11 +67,11 @@ function FeaturesGrid() {
         {
             Icon: RiPaintBrushLine,
             name: 'Themes',
-            description: 'Choose from 10+ themes to customize your experience.',
+            description: 'Choose from a variety of themes to match your personal style.',
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: <Image alt="ui themes" src="/themes-ui.png" />,
         },
         {
             Icon: RiCommandLine,
@@ -79,7 +80,7 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: <Image alt="command palette" src="/command-palette.png" />,
         },
         {
             Icon: RiQuillPenAiLine,
@@ -88,7 +89,16 @@ function FeaturesGrid() {
             href: '#',
             cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: <Image alt="reflect ui" src="/reflect.png" />,
+        },
+        {
+            Icon: RiQuillPenAiLine,
+            name: 'File storage',
+            description: 'Save files to your tasks.',
+            href: '#',
+            cta: 'Learn more',
+            className: 'col-span-3 lg:col-span-2',
+            background: <Image alt="upload files ui" src="/files.png" />,
         },
         {
             Icon: RiQuillPenAiLine,
@@ -97,17 +107,8 @@ function FeaturesGrid() {
                 'Productivity tools that help you get the most out of your day and avoid burnout.',
             href: '#',
             cta: 'Learn more',
-            className: 'col-span-3 lg:col-span-2',
-            background: <></>,
-        },
-        {
-            Icon: RiQuillPenAiLine,
-            name: 'File storage',
-            description: 'Save files to your tasks.',
-            href: '#',
-            cta: 'Learn more',
             className: 'col-span-3 lg:col-span-1',
-            background: <></>,
+            background: <Image alt="reflect ui" src="/productivity-tools.png" />,
         },
     ];
 

@@ -1,7 +1,17 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useScroll, useTransform, motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button, Chip } from '@heroui/react';
+import { Link } from 'react-router-dom';
+import {
+    RiArrowRightFill,
+    RiArrowRightLine,
+    RiArrowRightSFill,
+    RiArrowRightSLine,
+    RiFireFill,
+    RiRocket2Fill,
+    RiRocketFill,
+} from 'react-icons/ri';
 
 export const ContainerScroll = ({ children }) => {
     const containerRef = useRef(null);
@@ -44,19 +54,39 @@ export const ContainerScroll = ({ children }) => {
                     translate={translate}
                     titleComponent={
                         <>
-                            <h1 className="text-4xl font-semibold">
+                            <Chip
+                                as={Link}
+                                to="/signup"
+                                variant="flat"
+                                size="sm"
+                                color="primary"
+                                endContent={<RiArrowRightLine fontSize="1rem" />}
+                                className="mb-6"
+                            >
+                                Special launch offer. Pay once, use forever.
+                            </Chip>
+                            <div className="text-4xl font-semibold space-y-3">
                                 <span className="text-default-500">Achieve Your Goals,</span>
-                                <br />
-                                <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none text-default-800">
-                                    Find Your Flow.
-                                </span>
-                            </h1>
+                                <h1>
+                                    <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none text-default-800">
+                                        Find Your Flow.
+                                    </span>
+                                </h1>
+                            </div>
                             <p className="max-w-2xl text-lg mx-auto text-default-600 text-balance py-6">
                                 Weekfuse centralizes your tasks, plans your week, and guides your
                                 reflection so you can achieve more without the overwhelm
                             </p>
-                            <Button size="lg" color="primary" variant="shadow" className="mb-9">
-                                Get Started
+
+                            <Button
+                                as={Link}
+                                to="/signup"
+                                size="lg"
+                                color="primary"
+                                variant="shadow"
+                                className="mb-12"
+                            >
+                                Unlock Lifetime Access
                             </Button>
                         </>
                     }

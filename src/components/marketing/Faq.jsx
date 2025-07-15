@@ -5,34 +5,45 @@ export default function Faq() {
         {
             title: 'I already use Trello, Notion, Monday, etc. How is Weekfuse different?',
             content: (
-                <div className="text-muted-foreground py-1">
-                    <p className="mb-6">
-                        Those apps are great for teams and managing projects. But Weekfuse is built
-                        for you, the individual who juggles lots of projects.
+                <div className="text-muted-foreground py-1 space-y-6">
+                    <p>
+                        While tools like Notion and Monday are powerful for managing projects, they
+                        are built around the project first. Weekfuse is built around you and your
+                        time.
                     </p>
-
-                    <ul className="list-disc list-inside space-y-6">
+                    <p>Here’s how Weekfuse is different:</p>
+                    <ul className="list-inside space-y-6">
                         <li>
-                            <strong>One Place for Everything:</strong>
+                            <strong>A Single Source of Truth for Your Day</strong>
                             <p>
-                                Instead of making you switch apps, Weekfuse pulls in your tasks from
-                                where they already live (Jira, Trello, GitHub, ClickUp, and more).
-                                Now you see all your work in one spot. Less app-hopping, more doing.
+                                Instead of forcing you to live in a dozen different apps, Weekfuse
+                                acts as your calm, central hub. We integrate with Trello, Jira,
+                                GitHub, and more, pulling all your tasks into one unified view. This
+                                isn't about replacing your team's tools; it's about giving you
+                                personal clarity and control over your entire workload without the
+                                constant app-hopping.
                             </p>
                         </li>
                         <li>
-                            <strong>Built for You, Not a Team:</strong>
+                            <strong>We Prioritize People, Not Just Projects</strong>
                             <p>
-                                Most other tools are team-focused, which can feel noisy for one
-                                person. Weekfuse is designed to help you personally get organized
-                                and stay balanced, without all the extra team stuff you don't need.
+                                Traditional project management tools are excellent at tracking one
+                                thing: work. But you are not a machine. Weekfuse is designed to
+                                manage your most valuable resources: your time and energy. With
+                                features like AI-powered weekly planning and reflection sessions, we
+                                help you build sustainable habits, prevent burnout, and find a
+                                healthy work/life balance—a focus you won't find in a Gantt chart.
                             </p>
                         </li>
                         <li>
-                            <strong>Smart Planning & Reflection:</strong>
+                            <strong>Collaboration, Without the Chaos</strong>
                             <p>
-                                We use AI to help you plan your week and look back at what worked.
-                                It's about getting smarter, not just tracking tasks.
+                                We believe collaboration should bring clarity, not clutter. Instead
+                                of throwing you into a sea of shared boards and notifications, our
+                                features are designed for focused interaction. You start with your
+                                personal plan and then intentionally delegate tasks, share progress,
+                                or collaborate on specific items when needed. It’s about bringing
+                                people into your focused workflow, not getting lost in theirs.
                             </p>
                         </li>
                     </ul>
@@ -42,42 +53,46 @@ export default function Faq() {
         {
             title: 'Is Weekfuse a fit for me?',
             content: (
-                <div className="text-muted-foreground py-1">
-                    <p className="mb-6">Weekfuse is perfect for you if you:</p>
+                <div className="text-muted-foreground py-1 space-y-6">
+                    <p className="mb-6">
+                        Weekfuse is designed for the ambitious individual who values both high
+                        performance and personal well-being. If you're a knowledge worker,
+                        freelancer, founder, or creative professional trying to build a sustainable
+                        path to success, you're in the right place.
+                    </p>
 
-                    <ul className="list-disc list-inside space-y-6">
+                    <p>We're the perfect fit if you find yourself nodding along to this:</p>
+
+                    <ul className="list-inside space-y-6">
                         <li>
-                            <strong>Juggle multiple projects: </strong>
-                            This means a full-time job plus side gigs, freelance work, or even
-                            personal passion projects.
-                        </li>
-                        <li>
-                            <strong>Feel overwhelmed by scattered tasks: </strong>
+                            <strong>You Juggle Multiple Projects </strong>
                             <p>
-                                Your to-dos are all over the place across different apps, and you
-                                need one clear view.
+                                Your tasks aren't just from one source; they're from your 9-to-5,
+                                your freelance gig, your personal projects, etc. You need a system
+                                that can handle it all.
                             </p>
                         </li>
                         <li>
-                            <strong>Aim to make work-life balance a reality: </strong>
-                            <p>You aim to get things done without getting burnt out.</p>
-                        </li>
-                        <li>
-                            <strong>Like to plan ahead: </strong>
+                            <strong>You're Tired of "App Sprawl"</strong>
                             <p>
-                                You prefer to set up your week strategically, instead of just
-                                reacting to tasks.
+                                Your to-dos are scattered across emails, Slack, Trello, Jira...
+                                Creating more noise than clarity. You crave a single, calm place to
+                                see what's on your plate.
                             </p>
                         </li>
                         <li>
-                            <strong>Want to practice self-reflection: </strong>
-                            <p>You&#39;re open to reflecting on your work to get better</p>
+                            <strong>You Seek Balance, Not Burnout</strong>
+                            <p>
+                                You believe productivity isn't just about doing more—it's about
+                                doing what matters and having a life outside of work. You're looking
+                                for a tool that actively prevents burnout.
+                            </p>
                         </li>
                         <li>
-                            <strong>Appreciate intentionality: </strong>
+                            <strong>You're Proactive, Not Reactive</strong>
                             <p>
-                                Every feature is designed to help you focus on what matters most,
-                                without getting distracted.
+                                You'd rather plan your week with intention and reflect on your
+                                progress than spend your days constantly putting out fires.
                             </p>
                         </li>
                     </ul>
@@ -88,14 +103,15 @@ export default function Faq() {
             title: 'What integrations do you support?',
             content: (
                 <div className="text-muted-foreground">
-                    Currently Jira, Trello, GitHub, ClickUp, with more planned.
+                    Weekfuse currently integrates with Jira, Trello, GitHub, ClickUp, Tick tick and
+                    Todoist, with more integrations planned.
                 </div>
             ),
         },
         {
             title: 'How does the AI Auto-Planning work?',
             content: (
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground space-y-6">
                     <p>
                         Our AI is your smart planning assistant. When you're ready, it looks at your
                         pending tasks, due dates, and other factors to help you plan your week.
@@ -111,7 +127,7 @@ export default function Faq() {
         {
             title: 'How does the AI-Guided Reflections work?',
             content: (
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground space-y-6">
                     <p>
                         Our AI helps you learn from your week. Instead of just checking off tasks,
                         it asks you thoughtful questions to hlp you really think about your
@@ -125,44 +141,49 @@ export default function Faq() {
         {
             title: 'Is there research that supports this way of working?',
             content: (
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground space-y-6">
                     <p className="mb-6">
-                        Absolutely! The way Weekfuse helps you manage your work is built on
-                        well-known productivity methods and research-backed principles. We combine
-                        the best ideas from various frameworks:
+                        Absolutely. Weekfuse isn't based on fleeting trends; it's built on decades
+                        of proven research in cognitive psychology and productivity. We’ve
+                        integrated core principles from established methods into a single, intuitive
+                        system.
                     </p>
+                    <p>Here are the three research-backed pillars our platform is built on:</p>
                     <p className="mb-6">
-                        <ul className="list-disc list-inside space-y-6">
+                        <ul className="list-inside space-y-6">
                             <li>
-                                Focused Daily Planning: Inspired by rules like the 1-3-5 method (one
-                                big, three medium, five small tasks) and the Pareto Principle (80/20
-                                Rule), we encourage you to focus on the most impactful tasks,
-                                ensuring you get the most important work done first. This prevents
-                                overload and boosts your sense of achievement.
+                                <strong>Prioritize with Clarity (The 80/20 Rule)</strong>
+                                <p>
+                                    Our daily planning and timeblocking features are inspired by
+                                    principles like the Pareto Principle (80/20 Rule), which states
+                                    that roughly 80% of outcomes come from 20% of causes. Weekfuse
+                                    guides you to identify and execute those few critical tasks that
+                                    deliver the most impact, ensuring you're always moving the
+                                    needle on what truly matters.
+                                </p>
                             </li>
                             <li>
-                                The Power of Reflection: Our AI-guided reflections are based on
-                                extensive research showing that taking time to review your work and
-                                learn from your experiences significantly boosts performance,
-                                continuous improvement, and overall well-being.
+                                <strong>Build a Sustainable Rhythm (Energy Management)</strong>
+                                Peak productivity isn't about non-stop grinding; it's about managing
+                                your energy. We encourage work cycles that align with concepts like
+                                the Pomodoro Technique—short bursts of deep focus followed by
+                                restorative breaks. This approach is scientifically shown to improve
+                                concentration and prevent the burnout that is common with
+                                "always-on" work cultures.
                             </li>
                             <li>
-                                Sustainable Work Rhythms: Concepts like the Pomodoro Technique
-                                (focused work sprints with breaks) and agile principles emphasize
-                                creating a steady, productive rhythm that prevents burnout. Weekfuse
-                                helps you build these sustainable habits.
-                            </li>
-                            <li>
-                                Breaking Down Work: Whether it's "Today Focus" or the idea of
-                                breaking bigger projects into smaller, manageable tasks, this
-                                approach is proven to make work feel less overwhelming and more
-                                achievable.
+                                <strong>Improve Through Reflection (Feedback Loops)</strong>
+                                The fastest way to grow is to learn from your own experience.
+                                Research consistently shows that deliberate reflection is one of the
+                                most significant drivers of long-term performance improvement and
+                                personal well-being.
                             </li>
                         </ul>
                     </p>
                     <p className="mb-6">
-                        Weekfuse combines these proven methods with smart AI to give you a modern,
-                        effective system for personal productivity and work-life balance.
+                        By combining these proven pillars with smart AI, Weekfuse provides a system
+                        that doesn't just help you get work done—it helps you work smarter and
+                        healthier.
                     </p>
                 </div>
             ),
@@ -170,37 +191,48 @@ export default function Faq() {
         {
             title: "Why don't you offer a free plan?",
             content: (
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground space-y-6">
                     <p className="mb-6">
                         We&#39;ve made a deliberate choice to focus entirely on delivering a
                         high-quality experience for users truly committed to mastering their
                         productivity and work-life balance.
                     </p>
-                    <ul className="list-disc list-inside space-y-6 mb-6">
+                    <p>Here’s what that means for you:</p>
+                    <ul className="list-inside space-y-6">
                         <li>
-                            <strong>Focus on Value, Not Volume: </strong>Building and maintaining
-                            powerful AI features, robust integrations, and continuous improvements
-                            requires significant investment. This way, we can dedicate all our
-                            resources to making Weekfuse the best tool possible for our users,
-                            rather than splitting focus between free and paid tiers.
+                            <strong>Focus on Value, Not Volume: </strong>
+                            <p>
+                                Running a &#34;freemium" model means splitting resources between a
+                                free product and a paid one. By being a paid-only service, we can
+                                dedicate every ounce of our effort—from our powerful AI features to
+                                our dedicated customer support—to serving our members. You get a
+                                better, more reliable product because you are our sole focus.
+                            </p>
                         </li>
                         <li>
-                            <strong>No Compromises: </strong> A free tier can sometimes lead to
-                            compromises in development, features, or support. Our commitment is to
-                            provide an uninterrupted, ad-free, and consistently evolving product
-                            that deeply serves your productivity needs.
+                            <strong>Our Business Model Aligns with Your Interests</strong>
+                            <p>
+                                Our subscription model is straightforward: we only succeed if you
+                                find consistent value in Weekfuse. We don&#39;t have ads, and we
+                                will never sell your data. Your subscription directly funds our
+                                innovation and ensures we remain a long-term, trusted partner in
+                                your journey, not just another app with a hidden agenda.
+                            </p>
                         </li>
                         <li>
-                            <strong>Serious About Your Success: </strong> Weekfuse is designed for
-                            serious individuals who are ready to invest in tools that truly help
-                            them achieve their goals. We want to attract users who are committed to
-                            using the app to its full potential.
+                            <strong>A Commitment to a Higher Standard</strong>
+                            <p>
+                                We are building a tool for individuals who are ready to invest in a
+                                system that truly supports their goals and mental clarity. This
+                                commitment from our users allows us to maintain a higher standard
+                                for the product and the community.
+                            </p>
                         </li>
                     </ul>
                     <p>
-                        <strong>We do offer a generous free trial for all our plans, </strong>
-                        so you can fully experience everything Weekfuse has to offer and see if
-                        it&#39;s the right fit for you before making any commitment.
+                        We do offer a <strong>full-featured 14-day free trial.</strong> So you can
+                        experience everything Weekfuse has to offer, risk-free, and decide if
+                        it&#39;s the right investment for you.
                     </p>
                 </div>
             ),

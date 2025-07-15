@@ -29,7 +29,7 @@ const BentoCard = ({ name, className, background, Icon, description, href, cta, 
 
         {/* NEW: Gradient Overlay (z-5) */}
         {/* This sits on top of the background and below the text for readability. */}
-        <div className="pointer-events-none absolute inset-0 z-5 bg-gradient-to-t from-content2/90 from-30% to-content1/10" />
+        <div className="pointer-events-none absolute inset-0 z-5 bg-gradient-to-t from-content2/90 from-30% to-content1/20" />
 
         {/* Content Layer (z-10) */}
         <div className="pointer-events-none z-10 flex transform-gpu flex-col gap-1 p-6 transition-all duration-300 group-hover:-translate-y-5">
@@ -40,8 +40,7 @@ const BentoCard = ({ name, className, background, Icon, description, href, cta, 
             </p>
         </div>
 
-        {/* Optional: You can remove this hover effect if the gradient is sufficient */}
-        <div className="pointer-events-none absolute inset-0 transform-gpu transition-all duration-300 group-hover:bg-primary/[.04] " />
+        <div className="pointer-events-none absolute inset-0 transform-gpu transition-all duration-300 group-hover:bg-primary/[.1] " />
     </div>
 );
 

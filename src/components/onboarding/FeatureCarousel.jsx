@@ -122,13 +122,7 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
 
                 <ModalBody className="overflow-hidden min-h-[430px]">
                     <div className="absolute top-4 right-4 z-10">
-                        <Button
-                            isIconOnly
-                            variant="light"
-                            aria-label="Close"
-                            onPress={onClose}
-                            className="backdrop-blur-sm bg-white/30 hover:bg-white/50 transition-all"
-                        >
+                        <Button isIconOnly variant="light" aria-label="Close" onPress={onClose}>
                             <RiCloseLine size={20} />
                         </Button>
                     </div>
@@ -188,7 +182,7 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
                         </AnimatePresence>
                     </div>
                 </ModalBody>
-                <ModalFooter className="flex justify-between items-center p-6 relative z-10 backdrop-blur-sm bg-white/30">
+                <ModalFooter className="flex justify-between items-center p-6 relative z-10 backdrop-blur-sm bg-content1/30">
                     <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
                         <Button
                             isIconOnly
@@ -196,7 +190,6 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
                             aria-label="Previous"
                             onPress={goToPrevious}
                             isDisabled={currentIndex === 0 || isAnimating}
-                            className="relative overflow-hidden bg-white/30 backdrop-blur-sm"
                         >
                             <RiArrowLeftLine size={20} />
                         </Button>
@@ -253,7 +246,6 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
                             aria-label="Next"
                             onPress={goToNext}
                             isDisabled={isAnimating}
-                            className="relative overflow-hidden bg-white/30 backdrop-blur-sm"
                         >
                             <motion.div
                                 className="absolute inset-0 bg-primary-200/20"
