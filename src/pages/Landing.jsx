@@ -13,7 +13,7 @@ function LandingPage() {
         <div className="w-screen bg-content1">
             <NavBar />
             <ContainerScroll>
-                <img src="/ui-main.png" alt="UI" />
+                <video autoPlay muted loop id="bgvid" src="/ui-demo.mp4"></video>
             </ContainerScroll>
             {/*<Hero />*/}
             <Feature

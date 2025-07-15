@@ -3,15 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useScroll, useTransform, motion } from 'framer-motion';
 import { Button, Chip } from '@heroui/react';
 import { Link } from 'react-router-dom';
-import {
-    RiArrowRightFill,
-    RiArrowRightLine,
-    RiArrowRightSFill,
-    RiArrowRightSLine,
-    RiFireFill,
-    RiRocket2Fill,
-    RiRocketFill,
-} from 'react-icons/ri';
+import { RiArrowRightLine } from 'react-icons/ri';
 
 export const ContainerScroll = ({ children }) => {
     const containerRef = useRef(null);
@@ -41,7 +33,7 @@ export const ContainerScroll = ({ children }) => {
 
     return (
         <div
-            className="h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20 bg-gradient-to-b from-primary-50/50 to-primary-50/0"
+            className="flex items-center justify-center relative py-10 md:py-40 px-2 md:px-20 bg-gradient-to-b from-primary-50/50 to-primary-50/0"
             ref={containerRef}
         >
             <div
@@ -121,9 +113,9 @@ export const Card = ({ rotate, scale, children }) => {
                 boxShadow:
                     '0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003',
             }}
-            className="max-w-5xl -mt-12 mx-auto h-[30rem] md:h-[40rem] w-full border-4 border-[#6C6C6C] p-2 md:p-3 bg-[#222222] rounded-[30px] shadow-2xl"
+            className="max-w-5xl -mt-12 mx-auto w-full border-4 border-[#6C6C6C] p-2 md:p-3 bg-[#222222] rounded-[30px] shadow-2xl"
         >
-            <div className=" h-full w-full  overflow-hidden rounded-2xl bg-gray-100 dark:bg-zinc-900 md:rounded-2xl">
+            <div className="w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-zinc-900 md:rounded-2xl">
                 {children}
             </div>
         </motion.div>
