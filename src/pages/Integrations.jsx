@@ -10,6 +10,7 @@ import ClickupIntegrationCard from '../components/integrations/clickup/ClickupIn
 import MondayIntegrationCard from '../components/integrations/monday/MondayIntegrationCard.jsx';
 import TickTickIntegrationCard from '../components/integrations/ticktick/TickTickIntegrationCard.jsx';
 import TodoistIntegrationCard from '../components/integrations/todoist/TodoistIntegrationCard.jsx';
+import AsanaIntegrationCard from '../components/integrations/asana/AsanaIntegrationCard.jsx';
 
 function IntegrationsPage() {
     // Define all integrations with GitHub having dynamic status and handlers
@@ -45,10 +46,11 @@ function IntegrationsPage() {
                         Feature Requests Board
                     </Link>
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <GithubIntegrationCard />
                     <JiraIntegrationCard />
                     <TrelloIntegrationCard />
+                    <AsanaIntegrationCard />
                     <ClickupIntegrationCard />
                     <TickTickIntegrationCard />
                     <TodoistIntegrationCard />

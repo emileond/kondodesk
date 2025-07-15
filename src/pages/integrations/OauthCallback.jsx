@@ -262,6 +262,50 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleAsanaCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            // Verify state parameter to prevent CSRF attacks
+            const state = searchParams.get('state');
+            const storedState = localStorage.getItem('asana_oauth_state');
+
+            if (state !== storedState) {
+                throw new Error('State verification failed');
+            }
+
+            // Clear the stored state
+            localStorage.removeItem('asana_oauth_state');
+
+            await ky.post('/api/asana/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                    state,
+                },
+            });
+
+            toast.success('Asana Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'asana'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'asana'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Asana Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Asana:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -295,6 +339,9 @@ const OAuthCallback = () => {
                 break;
             case 'todoist':
                 handleTodoistCallback({ code });
+                break;
+            case 'asana':
+                handleAsanaCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');

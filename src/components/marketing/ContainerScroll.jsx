@@ -33,7 +33,7 @@ export const ContainerScroll = ({ children }) => {
 
     return (
         <div
-            className="flex items-center justify-center relative py-10 md:py-40 px-2 md:px-20 bg-gradient-to-b from-primary-50/50 to-primary-50/0"
+            className="flex items-center justify-center relative py-10 px-2 md:px-20 bg-gradient-to-b from-primary-50/50 to-primary-50/0"
             ref={containerRef}
         >
             <div
