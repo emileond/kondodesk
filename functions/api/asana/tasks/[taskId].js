@@ -9,7 +9,10 @@ export async function onRequestPut(context) {
         const { completed, user_id, workspace_id } = body;
 
         if (!taskId || completed === undefined || !user_id || !workspace_id) {
-            return Response.json({ success: false, error: 'Missing required data' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'Missing required data' },
+                { status: 400 },
+            );
         }
 
         // Initialize Supabase client
@@ -38,8 +41,8 @@ export async function onRequestPut(context) {
             await ky.put(`https://app.asana.com/api/1.0/tasks/${taskId}`, {
                 json: {
                     data: {
-                        completed: completed
-                    }
+                        completed: completed,
+                    },
                 },
                 headers: {
                     Authorization: `Bearer ${integration.access_token}`,
@@ -47,24 +50,34 @@ export async function onRequestPut(context) {
                 },
             });
 
-            // Update the task in our database as well
-            const { error: updateError } = await supabase
+            // 1. Fetch the current task to get its existing `external_data`
+            const { data: existingTask, error: fetchError } = await supabase
                 .from('tasks')
-                .update({
-                    external_data: supabase.rpc('jsonb_set', {
-                        target: supabase.raw('external_data'),
-                        path: '{completed}',
-                        new_value: JSON.stringify(completed)
-                    })
-                })
+                .select('external_data')
                 .eq('integration_source', 'asana')
                 .eq('external_id', taskId)
-                .eq('creator', user_id)
-                .eq('workspace_id', workspace_id);
+                .single();
 
-            if (updateError) {
-                console.error('Error updating task in database:', updateError);
-                // Don't return error here as the Asana update was successful
+            if (fetchError) {
+                console.error('Could not fetch task from DB to update its JSONB:', fetchError);
+                // Don't return an error, since the primary Asana update succeeded
+            } else {
+                // 2. Modify the JavaScript object in memory
+                // This preserves all other data in the JSONB field.
+                const updatedExternalData = existingTask.external_data || {};
+                updatedExternalData.completed = completed;
+
+                // 3. Send the entire modified object back to Supabase
+                const { error: updateError } = await supabase
+                    .from('tasks')
+                    .update({
+                        external_data: updatedExternalData,
+                    })
+                    .eq('external_id', taskId); // Match on the unique external ID
+
+                if (updateError) {
+                    console.error('Error updating task in database:', updateError);
+                }
             }
 
             return Response.json({ success: true });
