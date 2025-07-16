@@ -2,10 +2,7 @@ import { Button, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter } f
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useUpdateTask } from '../../hooks/react-query/tasks/useTasks.js';
-import {
-    useDeleteTaskAttachment,
-    useTasksAttachments,
-} from '../../hooks/react-query/tasks/useTasksAttachments.js';
+import { useTasksAttachments } from '../../hooks/react-query/tasks/useTasksAttachments.js';
 import { useQueryClient } from '@tanstack/react-query';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import toast from 'react-hot-toast';
@@ -32,7 +29,6 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
     const { mutateAsync: updateTask, isPending } = useUpdateTask(currentWorkspace);
     const { data: members } = useWorkspaceMembers(currentWorkspace);
     const { data: attachments = [] } = useTasksAttachments(task?.id);
-    const { mutateAsync: deleteAttachment } = useDeleteTaskAttachment();
     const queryClient = useQueryClient();
     const [isCompleted, setIsCompleted] = useState(task.status === 'completed');
     const [selectedDate, setSelectedDate] = useState(task?.date ? new Date(task.date) : null);
@@ -89,21 +85,6 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                 date: taskDate,
             });
 
-            if (members && task.assignee) {
-                const assigneeObject = members.find((member) => member.user_id === task.assignee);
-                setSelectedUser(
-                    assigneeObject
-                        ? {
-                              label: assigneeObject.name || assigneeObject.email,
-                              value: assigneeObject.user_id,
-                              avatar: assigneeObject.avatar,
-                          }
-                        : null,
-                );
-            } else {
-                setSelectedUser(null); // Reset if no assignee or members
-            }
-
             let initialDescription = null;
             if (task.description && typeof task.description === 'string') {
                 try {
@@ -116,6 +97,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
             }
 
             // Batch state updates for better performance
+            setSelectedUser(task?.assignee);
             setDescription(initialDescription);
             setSelectedDate(taskDate);
             setIsCompleted(task.status === 'completed');
@@ -124,8 +106,6 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
             setSelectedTags(tagsData);
             setSelectedPriority(priorityData);
             setIsNameEditing(false);
-
-            // Attachments are now loaded using the useTasksAttachments hook
         }
     }, [isOpen, task, reset, members]);
 
@@ -203,7 +183,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                     selectedPriority?.value !== null && selectedPriority?.value !== undefined
                         ? parseInt(selectedPriority.value)
                         : null,
-                assignee: selectedUser?.value || null,
+                assignee: selectedUser || null,
             };
 
             // Check if the data has actually changed

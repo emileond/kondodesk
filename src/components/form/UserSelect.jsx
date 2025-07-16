@@ -24,7 +24,7 @@ const UserSelect = ({
     const { data: members, isLoading } = useWorkspaceMembers(currentWorkspace);
     const { data: currentUser } = useUser();
     const [selectedUsers, setSelectedUsers] = useState([]);
-    
+
     // Filter members by role and status, then map to options
     const userOptions = useMemo(() => {
         if (!members) return [];
@@ -75,8 +75,8 @@ const UserSelect = ({
                 const defaultVal = multiSelect
                     ? [currentUserOption.value]
                     : currentUserOption.value;
-                setSelectedUsers(defaultVal); // Only store the value(s)
-                onChange(defaultVal); // Only pass value(s)
+                setSelectedUsers(defaultVal);
+                onChange(defaultVal);
             }
         }
     }, [
@@ -88,12 +88,6 @@ const UserSelect = ({
         multiSelect,
         defaultToAllUsers,
     ]);
-
-    // DERIVE the option object to display from the defaultValue prop
-    const selectedOptionObject = useMemo(() => {
-        if (defaultValue === null) return null;
-        return userOptions.find((opt) => opt.value === defaultValue);
-    }, [defaultValue, userOptions]);
 
     return isLoading ? (
         <Spinner color="default" variant="wave" size="sm" />
