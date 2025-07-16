@@ -164,6 +164,21 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                 // Instead, we show the status selection modal when syncStatus is "prompt"
                 // and handle the status update in handleClickUpStatus
                 break;
+
+            case 'asana':
+                try {
+                    const completed = newStatus === 'completed';
+                    await ky.put(`/api/asana/tasks/${task.external_id}`, {
+                        json: {
+                            completed,
+                            user_id: user.id,
+                            workspace_id: currentWorkspace?.workspace_id,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Asana task:', error);
+                }
+                break;
         }
     };
 

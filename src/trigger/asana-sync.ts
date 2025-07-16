@@ -118,13 +118,20 @@ export const asanaSync = task({
                 try {
                     // Fetch tasks assigned to the current user in this workspace
                     // Using pagination to handle large numbers of tasks
-                    let offset = 0;
+                    let offset = null;
                     const limit = 100;
-                    let hasMore = true;
 
-                    while (hasMore) {
+                    do {
+                        // Base URL without the offset
+                        let url = `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&limit=${limit}&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`;
+
+                        // *** Only add the offset parameter if it exists ***
+                        if (offset) {
+                            url += `&offset=${offset}`;
+                        }
+
                         const tasksResponse = await ky
-                            .get(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&limit=${limit}&offset=${offset}&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`, {
+                            .get(url, {
                                 headers: {
                                     Authorization: `Bearer ${access_token}`,
                                     Accept: 'application/json',
@@ -133,11 +140,6 @@ export const asanaSync = task({
                             .json();
 
                         const tasks = tasksResponse.data || [];
-                        
-                        if (tasks.length === 0) {
-                            hasMore = false;
-                            break;
-                        }
 
                         const upsertPromises = tasks.map((task) => {
                             return supabase.from('tasks').upsert(
@@ -154,7 +156,8 @@ export const asanaSync = task({
                                     project_id: project_id,
                                 },
                                 {
-                                    onConflict: 'integration_source, external_id, host, workspace_id',
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
                                 },
                             );
                         });
@@ -163,13 +166,8 @@ export const asanaSync = task({
                         allUpsertPromises = [...allUpsertPromises, ...upsertPromises];
                         allTasksData = [...allTasksData, ...tasks];
 
-                        // Check if we have more tasks to fetch
-                        if (tasks.length < limit) {
-                            hasMore = false;
-                        } else {
-                            offset += limit;
-                        }
-                    }
+                        offset = tasksResponse.next_page ? tasksResponse.next_page.offset : null;
+                    } while (offset);
                 } catch (workspaceError) {
                     logger.error(`Error processing workspace ${workspace.gid}:`, workspaceError);
                     // Continue with other workspaces even if one fails
@@ -200,63 +198,63 @@ export const asanaSync = task({
             }
 
             // Check and refresh webhooks for each workspace
-            logger.log('Checking webhooks for refresh');
-            for (const workspace of workspaces) {
-                try {
-                    // Fetch existing webhooks for this workspace
-                    const webhooksResponse = await ky
-                        .get(`https://app.asana.com/api/1.0/webhooks?workspace=${workspace.gid}`, {
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                Accept: 'application/json',
-                            },
-                        })
-                        .json();
-
-                    const webhooks = webhooksResponse.data || [];
-                    const webhookUrl = 'https://weekfuse.com/webhooks/asana';
-                    
-                    // Check if our webhook exists
-                    const existingWebhook = webhooks.find(
-                        (webhook) => webhook.target === webhookUrl && webhook.resource === workspace.gid
-                    );
-
-                    if (!existingWebhook) {
-                        // Create new webhook if it doesn't exist
-                        await ky.post('https://app.asana.com/api/1.0/webhooks', {
-                            json: {
-                                data: {
-                                    resource: workspace.gid,
-                                    target: webhookUrl,
-                                    filters: [
-                                        {
-                                            resource_type: 'task',
-                                            action: 'added'
-                                        },
-                                        {
-                                            resource_type: 'task',
-                                            action: 'changed'
-                                        }
-                                    ]
-                                }
-                            },
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        });
-
-                        logger.log(`Webhook created successfully for workspace ${workspace.gid}`);
-                    } else {
-                        logger.log(`Webhook already exists for workspace ${workspace.gid}`);
-                    }
-                } catch (webhookError) {
-                    logger.error(
-                        `Error checking/creating webhook for workspace ${workspace.gid}: ${webhookError.message}`,
-                    );
-                    // Continue with other workspaces even if webhook creation fails for one
-                }
-            }
+            // logger.log('Checking webhooks for refresh');
+            // for (const workspace of workspaces) {
+            //     try {
+            //         // Fetch existing webhooks for this workspace
+            //         const webhooksResponse = await ky
+            //             .get(`https://app.asana.com/api/1.0/webhooks?workspace=${workspace.gid}`, {
+            //                 headers: {
+            //                     Authorization: `Bearer ${access_token}`,
+            //                     Accept: 'application/json',
+            //                 },
+            //             })
+            //             .json();
+            //
+            //         const webhooks = webhooksResponse.data || [];
+            //         const webhookUrl = 'https://weekfuse.com/webhooks/asana';
+            //
+            //         // Check if our webhook exists
+            //         const existingWebhook = webhooks.find(
+            //             (webhook) => webhook.target === webhookUrl && webhook.resource === workspace.gid
+            //         );
+            //
+            //         if (!existingWebhook) {
+            //             // Create new webhook if it doesn't exist
+            //             await ky.post('https://app.asana.com/api/1.0/webhooks', {
+            //                 json: {
+            //                     data: {
+            //                         resource: workspace.gid,
+            //                         target: webhookUrl,
+            //                         filters: [
+            //                             {
+            //                                 resource_type: 'task',
+            //                                 action: 'added'
+            //                             },
+            //                             {
+            //                                 resource_type: 'task',
+            //                                 action: 'changed'
+            //                             }
+            //                         ]
+            //                     }
+            //                 },
+            //                 headers: {
+            //                     Authorization: `Bearer ${access_token}`,
+            //                     'Content-Type': 'application/json',
+            //                 },
+            //             });
+            //
+            //             logger.log(`Webhook created successfully for workspace ${workspace.gid}`);
+            //         } else {
+            //             logger.log(`Webhook already exists for workspace ${workspace.gid}`);
+            //         }
+            //     } catch (webhookError) {
+            //         logger.error(
+            //             `Error checking/creating webhook for workspace ${workspace.gid}: ${webhookError.message}`,
+            //         );
+            //         // Continue with other workspaces even if webhook creation fails for one
+            //     }
+            // }
 
             logger.log(
                 `Successfully synced Asana integration for workspace ${payload.workspace_id}`,
