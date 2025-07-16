@@ -30,7 +30,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
     const { data: members } = useWorkspaceMembers(currentWorkspace);
     const { data: attachments = [] } = useTasksAttachments(task?.id);
     const queryClient = useQueryClient();
-    const [isCompleted, setIsCompleted] = useState(task.status === 'completed');
+    const [currentStatus, setCurrentStatus] = useState(task.status);
     const [selectedDate, setSelectedDate] = useState(task?.date ? new Date(task.date) : null);
     const [description, setDescription] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -100,7 +100,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
             setSelectedUser(task?.assignee);
             setDescription(initialDescription);
             setSelectedDate(taskDate);
-            setIsCompleted(task.status === 'completed');
+            setCurrentStatus(task.status || 'pending');
             setSelectedProject(task.project_id ? { value: task.project_id } : null);
             setSelectedMilestone(task.milestone_id ? { value: task.milestone_id } : null);
             setSelectedTags(tagsData);
@@ -174,6 +174,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
             // Create the updates object
             const updates = {
                 name: data.name,
+                status: currentStatus,
                 description: description ? JSON.stringify(description) : null,
                 date: selectedDate ? dayjs(selectedDate).toISOString() : null,
                 project_id: selectedProject?.value || null,
@@ -240,8 +241,15 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                                 <div className="flex">
                                     <TaskCheckbox
                                         task={task}
-                                        isCompleted={isCompleted}
-                                        onChange={(val) => setIsCompleted(val)}
+                                        isCompleted={currentStatus === 'completed'}
+                                        onChange={(isNowCompleted) => {
+                                            // If the user checks the box, it's 'completed'.
+                                            // If they uncheck it, it becomes 'pending'.
+                                            // The 'in progress' status is preserved unless this checkbox is touched.
+                                            setCurrentStatus(
+                                                isNowCompleted ? 'completed' : 'pending',
+                                            );
+                                        }}
                                     />
                                     {isNameEditing && !isExternal ? (
                                         <Input

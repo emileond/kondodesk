@@ -55,10 +55,11 @@ const fetchTasks = async ({
         if (typeof priority === 'number') {
             query = query.eq('priority', priority);
         }
-        if (assignees) {
+
+        if (assignees === 'any') {
+        } else if (assignees) {
             query = query.in('assignee', assignees);
-        }
-        if (!assignees) {
+        } else if (!assignees) {
             query = query.is('assignee', null);
         }
 

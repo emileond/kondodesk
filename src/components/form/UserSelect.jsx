@@ -58,25 +58,24 @@ const UserSelect = ({
 
     // 2. MODIFY THE useEffect to respect the new prop
     useEffect(() => {
-        if (defaultToAllUsers && multiSelect && userOptions.length > 0 && defaultValue === null) {
-            const allValues = userOptions.map((opt) => opt.value);
-            setSelectedUsers(allValues);
-            onChange(allValues);
+        if (!userOptions.length || defaultValue !== null) return;
+
+        // PRIORITY 1: Default to all users
+        if (defaultToAllUsers && multiSelect) {
+            // Set internal state for display (show all avatars)
+            setSelectedUsers(userOptions);
+            // Send the "any" string to the parent filter
+            onChange('any');
         }
 
-        if (
-            defaultToCurrentUser &&
-            userOptions.length > 0 &&
-            currentUser &&
-            defaultValue === null
-        ) {
+        // PRIORITY 2: Default to the current user (only if defaultToAllUsers is false)
+        else if (defaultToCurrentUser && currentUser) {
             const currentUserOption = userOptions.find((opt) => opt.value === currentUser.id);
             if (currentUserOption) {
-                const defaultVal = multiSelect
-                    ? [currentUserOption.value]
-                    : currentUserOption.value;
+                const defaultVal = multiSelect ? [currentUserOption] : currentUserOption;
+                const defaultId = multiSelect ? [currentUserOption.value] : currentUserOption.value;
                 setSelectedUsers(defaultVal);
-                onChange(defaultVal);
+                onChange(defaultId);
             }
         }
     }, [
@@ -112,6 +111,10 @@ const UserSelect = ({
             }
             onChange={(value) => {
                 setSelectedUsers(value);
+                if (multiSelect) {
+                    const val = value?.length === members?.length ? 'any' : value;
+                    return onChange(val);
+                }
                 onChange(value);
             }}
             placement={placement}
