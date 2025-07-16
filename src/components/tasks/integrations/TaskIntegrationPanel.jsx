@@ -6,9 +6,21 @@ import TrelloTaskDetails from './trello/TrelloTaskDetails.jsx';
 import ClickupTaskDetails from './clickup/ClickupTaskDetails.jsx';
 import TickTickTaskDetails from './ticktick/TickTickTaskDetails.jsx';
 import TodoistTaskDetails from './todoist/TodoistTaskDetails.jsx';
+import AsanaTaskDetails from './asana/AsanaTaskDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
+        case 'asana':
+            return (
+                <Link
+                    className="font-medium text-blue-700 text-sm"
+                    isExternal
+                    showAnchorIcon
+                    href={external_data?.permalink_url}
+                >
+                    Open in Asana
+                </Link>
+            );
         case 'github':
             return (
                 <Link
@@ -101,6 +113,8 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
 
 export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
     switch (source) {
+        case 'asana':
+            return <AsanaTaskDetails external_data={external_data} />;
         case 'github':
             return <GithubTaskDetails external_data={external_data} />;
 

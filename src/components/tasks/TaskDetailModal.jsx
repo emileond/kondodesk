@@ -205,7 +205,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                         : null,
                 assignee: selectedUser?.value || null,
             };
-            
+
             // Check if the data has actually changed
             const hasDescriptionChanged =
                 (updates.description || null) !== (task.description || null);
@@ -247,7 +247,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
             onOpenChange={onOpenChange}
             size={isExternal ? '5xl' : '4xl'}
             scrollBehavior="inside"
-            className="p-3"
+            className="rounded-xl overflow-hidden"
         >
             <ModalContent>
                 <div className="flex gap-6">
