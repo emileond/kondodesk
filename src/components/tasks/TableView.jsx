@@ -1,10 +1,13 @@
 import { useMemo, useState, useCallback, memo, useEffect } from 'react'; // 1. Import useEffect
-import { Spinner, useDisclosure, Chip } from '@heroui/react';
+import { useDisclosure, User, Chip, Avatar } from '@heroui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import dayjs from 'dayjs';
 import DataGrid from '../common/DataGrid';
 import EntityChip from '../common/EntityChip';
 import TaskDetailModalWrapper from './TaskDetailModalWrapper';
+import { useWorkspaceMembers } from '../../hooks/react-query/teams/useWorkspaceMembers';
+import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
+import BoringAvatar from 'boring-avatars';
 
 // Memoized cell components (No changes needed here)
 const EmptyCell = memo(() => <span className="text-default-400">—</span>);
@@ -31,6 +34,33 @@ const TaskNameCell = memo(({ name, isCompleted }) => (
 ));
 TaskNameCell.displayName = 'TaskNameCell';
 
+const AssigneeCell = memo(({ assigneeId, members }) => {
+    if (!assigneeId || !members) return <EmptyCell />;
+
+    const assignee = members.find(member => member.user_id === assigneeId);
+    if (!assignee) return <EmptyCell />;
+
+    return (
+        <div className="flex items-center gap-2">
+            {assignee.avatar ? (
+                <Avatar
+                    src={`${assignee.avatar}/w=24?t=${assignee.updated_at}`}
+                    className="w-6 h-6"
+                />
+            ) : (
+                <BoringAvatar
+                    name={assignee.name || assignee.email}
+                    size={24}
+                    variant="beam"
+                    colors={['#fbbf24', '#735587', '#5bc0be', '#6366f1']}
+                />
+            )}
+            <span className="text-sm">{assignee.name || assignee.email}</span>
+        </div>
+    );
+});
+AssigneeCell.displayName = 'AssigneeCell';
+
 // Main TableView component
 const TableView = ({ items, pageKey = 'global' }) => {
     // 2. Accept a pageKey prop
@@ -45,6 +75,10 @@ const TableView = ({ items, pageKey = 'global' }) => {
         onOpen: onDetailModalOpen,
         onClose: onDetailModalClose,
     } = useDisclosure();
+
+    // Get workspace members for assignee display
+    const [currentWorkspace] = useCurrentWorkspace();
+    const { data: members } = useWorkspaceMembers(currentWorkspace);
 
     // 3. Create a dynamic storage key for sorting preferences
     const sortingStorageKey = useMemo(() => `taskTableSort_${pageKey}`, [pageKey]);
@@ -151,6 +185,14 @@ const TableView = ({ items, pageKey = 'global' }) => {
                 },
                 size: 120,
             }),
+            columnHelper.accessor('assignee', {
+                header: 'Assignee',
+                cell: ({ getValue }) => {
+                    const assigneeId = getValue();
+                    return <AssigneeCell assigneeId={assigneeId} members={members} />;
+                },
+                size: 180,
+            }),
             columnHelper.accessor('date', {
                 header: 'Date',
                 cell: ({ getValue, row }) => {
@@ -218,7 +260,7 @@ const TableView = ({ items, pageKey = 'global' }) => {
                 },
             }),
         ],
-        [columnHelper, taskStatus],
+        [columnHelper, taskStatus, members],
     );
 
     // Handle pagination state changes
