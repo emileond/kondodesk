@@ -1,5 +1,5 @@
-import { Card, CardBody, Spinner } from '@heroui/react';
-import { RiArrowUpFill } from 'react-icons/ri';
+import { Card, CardBody, Chip, Spinner } from '@heroui/react';
+import { RiArrowUpFill, RiCircleFill } from 'react-icons/ri';
 import { useUser } from '../../hooks/react-query/user/useUser.js';
 import {
     useVotesForFeatureRequest,
@@ -33,6 +33,13 @@ function FeatureRequestCard({ item, isRoadmapCard, onAnonUserVote }) {
         return navigate(`/feature-requests/${item?.id}`);
     };
 
+    const statusList = [
+        { key: 'idea', color: 'text-default-400' },
+        { key: 'planned', color: 'text-primary-400' },
+        { key: 'in progress', color: 'text-blue-400' },
+        { key: 'done', color: 'text-success-400' },
+    ];
+
     return (
         <Card
             shadow="none"
@@ -55,13 +62,30 @@ function FeatureRequestCard({ item, isRoadmapCard, onAnonUserVote }) {
                             </div>
                         )}
                     </div>
-                    <div className="p-4 space-y-2">
-                        <h4
-                            className="font-medium cursor-pointer hover:text-primary"
-                            onClick={handleNavigate}
-                        >
-                            {item.title}
-                        </h4>
+                    <div className="w-full p-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                            <h4
+                                className="font-medium cursor-pointer hover:text-primary"
+                                onClick={handleNavigate}
+                            >
+                                {item.title}
+                            </h4>
+                            <Chip
+                                size="sm"
+                                variant="light"
+                                key={item.key}
+                                startContent={
+                                    <RiCircleFill
+                                        className={
+                                            statusList.find((status) => item?.status === status.key)
+                                                ?.color
+                                        }
+                                    />
+                                }
+                            >
+                                {item?.status}
+                            </Chip>
+                        </div>
                         {isRoadmapCard ? (
                             <p className="text-sm text-default-500 line-clamp-3">
                                 {item.description}

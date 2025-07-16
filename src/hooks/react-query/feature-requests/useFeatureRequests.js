@@ -45,7 +45,7 @@ const fetchVotesForFeatureRequest = async (featureRequestId, userId) => {
 // Hook to fetch feature requests
 export const useFeatureRequests = (user, statusList) => {
     return useQuery({
-        queryKey: ['featureRequests', user?.id],
+        queryKey: ['featureRequests', user?.id, statusList],
         queryFn: () => fetchFeatureRequests({ statusList }),
         staleTime: 1000 * 60 * 120, // 2 hours
     });
@@ -209,5 +209,33 @@ export const useCommentsForFeatureRequest = (featureRequestId) => {
         queryKey: ['featureRequestComments', featureRequestId],
         queryFn: () => fetchCommentsForFeatureRequest(featureRequestId),
         staleTime: 1000 * 60 * 120, // 2 hrs
+    });
+};
+
+// Fuzzy search
+const searchFeatureRequests = async (searchText) => {
+    if (!searchText || searchText.trim() === '') {
+        return []; // Return empty array if search is empty
+    }
+
+    const { data, error } = await supabaseClient.rpc('search_feature_requests', {
+        search_text: searchText.trim(),
+    });
+
+    if (error) {
+        console.error('Error searching feature requests:', error);
+        throw new Error('Failed to search feature requests');
+    }
+    return data;
+};
+
+// Hook to perform the fuzzy search
+export const useSearchFeatureRequests = (searchText) => {
+    return useQuery({
+        queryKey: ['searchFeatureRequests', searchText],
+        queryFn: () => searchFeatureRequests(searchText),
+        // Only run the query if searchText has a value
+        enabled: !!searchText && searchText.trim() !== '',
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 };

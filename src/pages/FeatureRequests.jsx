@@ -15,20 +15,21 @@ import {
 } from '@heroui/react';
 import Footer from '../components/marketing/Footer.jsx';
 import { RiCircleFill } from 'react-icons/ri';
-import { useFeatureRequests } from '../hooks/react-query/feature-requests/useFeatureRequests.js';
+import {
+    useFeatureRequests,
+    useSearchFeatureRequests,
+} from '../hooks/react-query/feature-requests/useFeatureRequests.js';
 import { useCreateFeatureRequest } from '../hooks/react-query/feature-requests/useFeatureRequests.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import { useEffect, useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import AuthForm from '../components/auth/AuthForm.jsx';
 import FeatureRequestCard from '../components/roadmap/FeatureRequestCard.jsx';
-import uFuzzy from '@leeoniya/ufuzzy';
 
 function FeatureRequestsPage() {
     const [status, setStatus] = useState('idea');
     const { data: user } = useUser();
-    const { data: items, refetch, isPending: itemsPending } = useFeatureRequests(user, [status]);
     const { mutateAsync: createFeatureRequest, isPending } = useCreateFeatureRequest(user);
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
@@ -47,36 +48,13 @@ function FeatureRequestsPage() {
         defaultValue: '',
     });
 
-    // Initialize uFuzzy instance
-    const fuzzy = useMemo(
-        () =>
-            new uFuzzy({
-                intraMode: 1,
-                intraIns: 1,
-                intraSub: 1,
-                intraTrn: 1,
-                intraDel: 1,
-            }),
-        [],
-    );
+    const { data: statusItems, isPending: statusItemsPending } = useFeatureRequests(user, [status]);
+    const { data: searchedItems, isPending: searchPending } = useSearchFeatureRequests(titleValue);
 
-    // Filter items based on title input
-    const filteredItems = useMemo(() => {
-        if (!items || !titleValue.trim()) {
-            return items;
-        }
-
-        const haystack = items.map((item) => item.title);
-        const needle = titleValue.trim();
-
-        const idxs = fuzzy.filter(haystack, needle);
-
-        if (!idxs) {
-            return items;
-        }
-
-        return idxs.map((i) => items[i]);
-    }, [items, titleValue, fuzzy]);
+    // Determine which list to display
+    const isSearching = titleValue?.trim() !== '';
+    const displayedItems = isSearching ? searchedItems : statusItems;
+    const itemsPending = isSearching ? searchPending : statusItemsPending;
 
     const onSubmit = async (data) => {
         if (!user) {
@@ -110,10 +88,6 @@ function FeatureRequestsPage() {
         { key: 'in progress', color: 'text-blue-400' },
         { key: 'done', color: 'text-success-400' },
     ];
-
-    useEffect(() => {
-        refetch();
-    }, [status]);
 
     return (
         <div className="w-screen min-h-screen bg-content2/50">
@@ -228,12 +202,12 @@ function FeatureRequestsPage() {
                                     <Spinner size="lg" />
                                 </div>
                             )}
-                            {titleValue.trim() && filteredItems?.length === 0 && (
+                            {isSearching && !itemsPending && displayedItems?.length === 0 && (
                                 <div className="text-center py-4 text-default-500">
-                                    No similar suggestions found. Your idea might be unique!
+                                    {`No suggestions found for "${titleValue}". Your idea is unique.`}
                                 </div>
                             )}
-                            {filteredItems?.map((item) => (
+                            {displayedItems?.map((item) => (
                                 <FeatureRequestCard
                                     key={item.id}
                                     item={item}
