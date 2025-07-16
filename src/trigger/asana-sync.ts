@@ -35,15 +35,12 @@ export const asanaSync = task({
                 try {
                     const res = await ky
                         .post('https://app.asana.com/-/oauth_token', {
-                            json: {
+                            body: new URLSearchParams({
                                 client_id: process.env.ASANA_CLIENT_ID,
                                 client_secret: process.env.ASANA_CLIENT_SECRET,
                                 refresh_token: payload.refresh_token,
                                 grant_type: 'refresh_token',
-                            },
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            }),
                         })
                         .json();
 
