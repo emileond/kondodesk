@@ -306,6 +306,38 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleMicrosoftToDoCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            await ky.post('/api/microsoft/todo/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+
+            toast.success('Microsoft To Do Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'microsoft_todo'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'microsoft_todo'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Microsoft To Do Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Microsoft To Do:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -342,6 +374,9 @@ const OAuthCallback = () => {
                 break;
             case 'asana':
                 handleAsanaCallback({ code });
+                break;
+            case 'microsoft_todo':
+                handleMicrosoftToDoCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');

@@ -7,6 +7,7 @@ import ClickupTaskDetails from './clickup/ClickupTaskDetails.jsx';
 import TickTickTaskDetails from './ticktick/TickTickTaskDetails.jsx';
 import TodoistTaskDetails from './todoist/TodoistTaskDetails.jsx';
 import AsanaTaskDetails from './asana/AsanaTaskDetails.jsx';
+import MicrosoftToDoTaskDetails from './microsoft/todo/MicrosoftToDoTaskDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
@@ -108,6 +109,19 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                     </Link>
                 </div>
             );
+        case 'microsoft_todo':
+            return (
+                <div className="flex gap-1 items-center">
+                    <Link
+                        className="font-medium text-blue-700 text-sm"
+                        isExternal
+                        showAnchorIcon
+                        href={`https://to-do.office.com/tasks/id/${external_data?.id}/details`}
+                    >
+                        Open in Microsoft To Do
+                    </Link>
+                </div>
+            );
     }
 };
 
@@ -132,6 +146,8 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
 
         case 'todoist':
             return <TodoistTaskDetails external_data={external_data} />;
+        case 'microsoft_todo':
+            return <MicrosoftToDoTaskDetails task_id={task_id} external_data={external_data} />;
     }
 };
 

@@ -11,8 +11,11 @@ import MondayIntegrationCard from '../components/integrations/monday/MondayInteg
 import TickTickIntegrationCard from '../components/integrations/ticktick/TickTickIntegrationCard.jsx';
 import TodoistIntegrationCard from '../components/integrations/todoist/TodoistIntegrationCard.jsx';
 import AsanaIntegrationCard from '../components/integrations/asana/AsanaIntegrationCard.jsx';
+import MicrosoftToDoIntegrationCard from '../components/integrations/microsoft/todo/MicrosoftToDoIntegrationCard.jsx';
+import { useUser } from '../hooks/react-query/user/useUser.js';
 
 function IntegrationsPage() {
+    const { data: user } = useUser();
     // Define all integrations with GitHub having dynamic status and handlers
     const integrations = [
         {
@@ -54,6 +57,7 @@ function IntegrationsPage() {
                     <ClickupIntegrationCard />
                     <TickTickIntegrationCard />
                     <TodoistIntegrationCard />
+                    {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
                     {/*<MondayIntegrationCard />*/}
                     {integrations?.map((integration) => (
                         <IntegrationCard
