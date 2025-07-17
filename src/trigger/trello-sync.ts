@@ -68,44 +68,55 @@ export const trelloSync = task({
 
             // Process and store cards
             if (cardsData && Array.isArray(cardsData)) {
-                const upsertPromises = cardsData.map((card) => {
-                    // Convert markdown description to Tiptap format
-                    const tiptapDescription = card?.desc ? markdownToTipTap(card.desc) : null;
-
-                    return supabase.from('tasks').upsert(
-                        {
-                            name: card.name,
-                            description: tiptapDescription,
-                            workspace_id: payload.workspace_id,
-                            integration_source: 'trello',
-                            external_id: card.id,
-                            external_data: card,
-                            host: card.url,
-                            assignee: payload.user_id,
-                            creator: payload.user_id,
-                            project_id: project_id,
-                        },
-                        {
-                            onConflict: 'integration_source, external_id, host, workspace_id',
-                        },
-                    );
-                });
-
-                const results = await Promise.all(upsertPromises);
-
+                // Define a batch size
+                const BATCH_SIZE = 50;
                 let cardSuccessCount = 0;
                 let cardFailCount = 0;
 
-                results.forEach((result, index) => {
-                    if (result.error) {
-                        logger.error(
-                            `Upsert error for card ${cardsData[index].id}: ${result.error.message}`,
+                logger.log(
+                    `Starting to process ${cardsData.length} cards in batches of ${BATCH_SIZE}.`,
+                );
+
+                for (let i = 0; i < cardsData.length; i += BATCH_SIZE) {
+                    const batch = cardsData.slice(i, i + BATCH_SIZE);
+
+                    const upsertPromises = batch.map((card) => {
+                        const tiptapDescription = card?.desc ? markdownToTipTap(card.desc) : null;
+
+                        return supabase.from('tasks').upsert(
+                            {
+                                name: card.name,
+                                description: tiptapDescription,
+                                workspace_id: payload.workspace_id,
+                                integration_source: 'trello',
+                                external_id: card.id,
+                                external_data: card,
+                                host: card.url,
+                                assignee: payload.user_id,
+                                creator: payload.user_id,
+                                project_id: project_id,
+                            },
+                            {
+                                onConflict: 'integration_source, external_id, host, workspace_id',
+                            },
                         );
-                        cardFailCount++;
-                    } else {
-                        cardSuccessCount++;
-                    }
-                });
+                    });
+
+                    // Await the completion of the current batch before starting the next one
+                    const results = await Promise.all(upsertPromises);
+
+                    results.forEach((result, index) => {
+                        if (result.error) {
+                            // The card ID comes from the 'batch' array now
+                            logger.error(
+                                `Upsert error for card ${batch[index].id}: ${result.error.message}`,
+                            );
+                            cardFailCount++;
+                        } else {
+                            cardSuccessCount++;
+                        }
+                    });
+                }
 
                 logger.log(
                     `Processed ${cardsData.length} cards for workspace ${payload.workspace_id}: ${cardSuccessCount} succeeded, ${cardFailCount} failed`,

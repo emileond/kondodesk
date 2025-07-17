@@ -11,7 +11,7 @@ const supabase = createClient(
 );
 
 export const microsoftToDoSync = task({
-    id: 'microsoft-todo-sync',
+    id: 'microsoft_todo-sync',
     maxDuration: 3600, // 60 minutes max duration
     run: async (payload: any) => {
         logger.log('Starting Microsoft To Do sync task');
@@ -32,7 +32,7 @@ export const microsoftToDoSync = task({
             // Only refresh token if it has expired
             if (tokenExpired) {
                 logger.log(`Access token expired, refreshing`);
-                
+
                 try {
                     const res = await ky
                         .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
@@ -133,9 +133,11 @@ export const microsoftToDoSync = task({
                     const tasks = tasksResponse.value || [];
 
                     // Filter for incomplete tasks only
-                    const incompleteTasks = tasks.filter(task => task.status !== 'completed');
+                    const incompleteTasks = tasks.filter((task) => task.status !== 'completed');
 
-                    logger.log(`Found ${incompleteTasks.length} incomplete tasks in list ${list.displayName}`);
+                    logger.log(
+                        `Found ${incompleteTasks.length} incomplete tasks in list ${list.displayName}`,
+                    );
 
                     if (incompleteTasks.length > 0) {
                         const upsertPromises = incompleteTasks.map((task) => {
@@ -146,10 +148,10 @@ export const microsoftToDoSync = task({
                                     workspace_id: payload.workspace_id,
                                     integration_source: 'microsoft_todo',
                                     external_id: task.id,
-                                    external_data: { 
-                                        ...task, 
-                                        listId: list.id, 
-                                        listName: list.displayName 
+                                    external_data: {
+                                        ...task,
+                                        listId: list.id,
+                                        listName: list.displayName,
                                     },
                                     host: 'https://to-do.office.com',
                                     assignee: payload.user_id,
@@ -157,7 +159,8 @@ export const microsoftToDoSync = task({
                                     project_id: project_id,
                                 },
                                 {
-                                    onConflict: 'integration_source, external_id, host, workspace_id',
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
                                 },
                             );
                         });
@@ -200,7 +203,7 @@ export const microsoftToDoSync = task({
             logger.log('Microsoft To Do sync completed successfully');
         } catch (error) {
             logger.error('Error in Microsoft To Do sync:', error);
-            
+
             // Update integration status to error
             await supabase
                 .from('user_integrations')
@@ -208,7 +211,7 @@ export const microsoftToDoSync = task({
                     status: 'error',
                 })
                 .eq('id', payload.id);
-                
+
             throw error;
         }
     },
