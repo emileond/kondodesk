@@ -118,7 +118,7 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                         showAnchorIcon
                         href={`https://to-do.office.com/tasks/id/${external_data?.id}/details`}
                     >
-                        Open in Microsoft To Do
+                        Open in To Do
                     </Link>
                 </div>
             );
@@ -156,7 +156,8 @@ const TaskIntegrationPanel = ({ source, task_id, external_data, host }) => {
         <div className="flex flex-col gap-6 bg-content2 basis-1/3 p-6 border-l-1 border-default-200">
             <div className="flex gap-3 items-center">
                 <h4 className="font-semibold flex gap-1">
-                    <IntegrationSourceIcon type={source} /> {source}
+                    <IntegrationSourceIcon type={source} />{' '}
+                    {source.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}
                 </h4>
                 <TaskIntegrationLink source={source} external_data={external_data} host={host} />
             </div>

@@ -6,7 +6,6 @@ import {
     DropdownMenu,
     DropdownTrigger,
     DropdownSection,
-    Spinner,
 } from '@heroui/react';
 import { RiArrowDownSLine } from 'react-icons/ri';
 import useCurrentWorkspace from '../../../../../hooks/useCurrentWorkspace.js';
@@ -24,7 +23,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
     // Mutation for updating task status
     const { mutateAsync: updateTaskStatus, isLoading: isUpdating } = useMutation({
         mutationFn: async ({ taskId, listId, status }) => {
-            return await ky.post('/api/microsoft/todo/status', {
+            await ky.post('/api/microsoft/todo/status', {
                 json: {
                     task_id,
                     taskId,
@@ -39,30 +38,25 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
 
     // Extract task data
     const currentStatus = external_data?.status || 'notStarted';
-    const currentTitle = external_data?.title || 'Untitled Task';
-    const currentBody = external_data?.body?.content || null;
     const listName = external_data?.listName || 'Unknown List';
     const listId = external_data?.listId;
     const taskId = external_data?.id;
-    const createdDateTime = external_data?.createdDateTime;
-    const lastModifiedDateTime = external_data?.lastModifiedDateTime;
     const completedDateTime = external_data?.completedDateTime;
     const importance = external_data?.importance || 'normal';
 
     // Status options for Microsoft To Do
     const statusOptions = [
         { id: 'notStarted', name: 'Not Started', color: 'default' },
-        { id: 'inProgress', name: 'In Progress', color: 'primary' },
         { id: 'completed', name: 'Completed', color: 'success' },
     ];
 
     const getStatusColor = (status) => {
-        const statusOption = statusOptions.find(option => option.id === status);
+        const statusOption = statusOptions.find((option) => option.id === status);
         return statusOption?.color || 'default';
     };
 
     const getStatusName = (status) => {
-        const statusOption = statusOptions.find(option => option.id === status);
+        const statusOption = statusOptions.find((option) => option.id === status);
         return statusOption?.name || status;
     };
 
@@ -92,7 +86,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
                 listId,
                 status: newStatus,
             });
-            
+
             toast.success('Microsoft To Do task status updated');
 
             // Invalidate queries to refresh the task data
@@ -126,7 +120,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
                         <DropdownMenu aria-label="Microsoft To Do Status Options">
                             <DropdownSection title="Change status to:">
                                 {statusOptions
-                                    .filter(option => option.id !== currentStatus)
+                                    .filter((option) => option.id !== currentStatus)
                                     .map((option) => (
                                         <DropdownItem
                                             key={option.id}
@@ -145,11 +139,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
             {importance && (
                 <div className="flex flex-col gap-1">
                     <label className="text-sm">Importance</label>
-                    <Chip
-                        color={getImportanceColor(importance)}
-                        variant="flat"
-                        size="sm"
-                    >
+                    <Chip color={getImportanceColor(importance)} variant="flat" size="sm">
                         {importance.charAt(0).toUpperCase() + importance.slice(1)}
                     </Chip>
                 </div>
@@ -159,23 +149,9 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
             {listName && (
                 <div className="flex flex-col gap-1">
                     <label className="text-sm">List</label>
-                    <Chip
-                        color="default"
-                        variant="light"
-                        size="sm"
-                    >
+                    <Chip color="default" variant="light" size="sm">
                         {listName}
                     </Chip>
-                </div>
-            )}
-
-            {/* --- Body/Notes Section --- */}
-            {currentBody && (
-                <div className="flex flex-col gap-1">
-                    <label className="text-sm">Notes</label>
-                    <div className="text-sm text-default-600 bg-default-100 p-2 rounded-md">
-                        {currentBody}
-                    </div>
                 </div>
             )}
 
@@ -185,26 +161,6 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
                     <label className="text-sm">Completed</label>
                     <div className="text-sm text-default-600">
                         {new Date(completedDateTime.dateTime).toLocaleDateString()}
-                    </div>
-                </div>
-            )}
-
-            {/* --- Created Date Section --- */}
-            {createdDateTime && (
-                <div className="flex flex-col gap-1">
-                    <label className="text-sm">Created</label>
-                    <div className="text-sm text-default-600">
-                        {new Date(createdDateTime).toLocaleDateString()}
-                    </div>
-                </div>
-            )}
-
-            {/* --- Last Modified Section --- */}
-            {lastModifiedDateTime && (
-                <div className="flex flex-col gap-1">
-                    <label className="text-sm">Last Modified</label>
-                    <div className="text-sm text-default-600">
-                        {new Date(lastModifiedDateTime).toLocaleDateString()}
                     </div>
                 </div>
             )}
