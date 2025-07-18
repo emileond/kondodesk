@@ -80,9 +80,6 @@ export async function onRequestPost(context) {
     }
 
     try {
-        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
-        const headers = { Authorization: `Bearer ${access_token}` };
-
         // 1. Exchange authorization code for an access token
         const tokenResponse = await ky.post('https://app.asana.com/-/oauth_token', {
             body: new URLSearchParams({
@@ -96,6 +93,9 @@ export async function onRequestPost(context) {
 
         const tokenData = await tokenResponse.json();
         const { access_token, refresh_token, expires_in } = tokenData;
+        
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const headers = { Authorization: `Bearer ${access_token}` };
 
         if (!access_token) {
             console.error('Asana token exchange error:', tokenData);
