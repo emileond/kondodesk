@@ -13,40 +13,30 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Exchange code for access token
-        const tokenData = await ky
+        // 1. Exchange code for access token
+        const tokenResponse = await ky
             .post('https://api.clickup.com/api/v2/oauth/token', {
                 json: {
                     client_id: context.env.CLICKUP_CLIENT_ID,
                     client_secret: context.env.CLICKUP_CLIENT_SECRET,
                     code: code,
-                    redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/clickup',
-                    grant_type: 'authorization_code',
-                },
-                headers: {
-                    'Content-Type': 'application/json',
                 },
             })
             .json();
 
-        const { access_token } = await tokenData;
+        const { access_token } = await tokenResponse;
 
         if (!access_token) {
-            console.error('ClickUp token exchange error:', tokenData);
-            return Response.json(
-                {
-                    success: false,
-                    error: tokenData.error || 'Failed to get access token',
-                },
-                { status: 400 },
-            );
+            console.error('ClickUp token exchange error:', tokenResponse);
+            throw new Error(tokenResponse.error || 'Failed to get ClickUp access token');
         }
 
-        // Save the access token in Supabase
-        const { error: updateError } = await supabase.from('user_integrations').upsert({
+        const headers = { Authorization: `Bearer ${access_token}` };
+
+        // 2. Save the initial integration data
+        const { error: upsertError } = await supabase.from('user_integrations').upsert({
             type: 'clickup',
             access_token: access_token,
             user_id,
@@ -56,147 +46,103 @@ export async function onRequestPost(context) {
             config: { syncStatus: 'prompt' },
         });
 
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
-            return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
-                { status: 500 },
-            );
+        if (upsertError) throw new Error('Failed to save integration data');
+
+        // 3. Fetch user and team data
+        const userData = await ky.get('https://api.clickup.com/api/v2/user', { headers }).json();
+        const teamsData = await ky.get('https://api.clickup.com/api/v2/team', { headers }).json();
+
+        const clickUpUserId = userData.user.id;
+        const teams = teamsData.teams || [];
+
+        if (teams.length === 0) {
+            console.log('No ClickUp teams found for this user.');
+            return Response.json({
+                success: true,
+                message: 'Integration connected, no teams found.',
+            });
         }
 
-        // Get user profile
-        const userData = await ky
-            .get('https://api.clickup.com/api/v2/user', {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    accept: 'application/json',
-                },
-            })
-            .json();
+        // 4. Create webhooks for each team concurrently
+        const webhookUrl = 'https://weekfuse.com/webhooks/clickup';
+        const webhookPromises = teams.map((team) =>
+            ky
+                .post(`https://api.clickup.com/api/v2/team/${team.id}/webhook`, {
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    json: {
+                        endpoint: webhookUrl,
+                        events: ['taskCreated', 'taskUpdated', 'taskDeleted'],
+                    },
+                })
+                .catch((err) => {
+                    console.error(`Error creating webhook for team ${team.id}:`, err);
+                }),
+        );
+        await Promise.allSettled(webhookPromises);
+        console.log('Webhook setup process completed.');
 
-        // Get user's authorized teams
-        const teamsData = await ky
-            .get('https://api.clickup.com/api/v2/team', {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    'Content-Type': 'application/json',
-                },
-            })
-            .json();
+        // 5. Process tasks for each team with pagination and batching
+        const DB_BATCH_SIZE = 50;
 
-        const userID = userData.user.id;
-
-        let allTasks = [];
-
-        // For each team, get the user's tasks
-        if (teamsData && teamsData.teams && Array.isArray(teamsData.teams)) {
-            for (const team of teamsData.teams) {
-                // Get all tasks assigned to the user that are not completed
-                const tasksData = await ky
-                    .get(
-                        `https://api.clickup.com/api/v2/team/${team.id}/task?assignees[]=${userID}&include_markdown_description=true`,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        },
-                    )
-                    .json();
-
-                if (tasksData && tasksData.tasks && Array.isArray(tasksData.tasks)) {
-                    allTasks = [...allTasks, ...tasksData.tasks];
-                }
-            }
-        }
-
-        // Create webhooks for each team
-        if (teamsData && teamsData.teams && Array.isArray(teamsData.teams)) {
+        for (const team of teams) {
             try {
-                const webhookUrl = 'https://weekfuse.com/webhooks/clickup';
+                console.log(`Processing ClickUp team: ${team.name} (${team.id})`);
+                let page = 0;
+                let isLastPage = false;
 
-                // Create webhooks for each team
-                const webhookPromises = teamsData.teams.map(async (team) => {
-                    try {
-                        // Create a webhook for this team
-                        await ky.post(`https://api.clickup.com/api/v2/team/${team.id}/webhook`, {
-                            json: {
-                                endpoint: webhookUrl,
-                                events: ['taskUpdated', 'taskDeleted'],
-                            },
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                Accept: 'application/json',
-                                'Content-Type': 'application/json',
-                            },
+                // Loop through all pages of tasks from the ClickUp API
+                while (!isLastPage) {
+                    const url = `https://api.clickup.com/api/v2/team/${team.id}/task?page=${page}&assignees[]=${clickUpUserId}&include_markdown_description=true`;
+                    const pageData = await ky.get(url, { headers }).json();
+                    const pageTasks = pageData.tasks || [];
+
+                    // Process the current page of tasks in batches
+                    for (let i = 0; i < pageTasks.length; i += DB_BATCH_SIZE) {
+                        const batch = pageTasks.slice(i, i + DB_BATCH_SIZE);
+                        const upsertPromises = batch.map((task) => {
+                            const convertedDesc = task?.markdown_description
+                                ? markdownToTipTap(task.markdown_description)
+                                : null;
+                            return supabase.from('tasks').upsert(
+                                {
+                                    name: task.name,
+                                    description: convertedDesc
+                                        ? JSON.stringify(convertedDesc)
+                                        : null,
+                                    workspace_id,
+                                    integration_source: 'clickup',
+                                    external_id: task.id,
+                                    external_data: task,
+                                    host: task.url,
+                                    assignee: user_id,
+                                    creator: user_id,
+                                },
+                                {
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
+                                },
+                            );
                         });
-                        console.log(
-                            `Webhook created successfully for team ${team.id} (${team.name})`,
-                        );
-                        return { success: true, teamId: team.id };
-                    } catch (webhookError) {
-                        console.error(`Error creating webhook for team ${team.id}:`, webhookError);
-                        return { success: false, teamId: team.id, error: webhookError };
+                        await Promise.all(upsertPromises);
                     }
-                });
 
-                await Promise.all(webhookPromises);
-            } catch (webhooksError) {
-                console.error('Error creating webhooks:', webhooksError);
-                // Continue with the flow even if webhook creation fails
+                    // ClickUp API indicates the last page with `last_page: true`
+                    if (pageData.last_page === true) {
+                        isLastPage = true;
+                    } else {
+                        page++;
+                    }
+                }
+            } catch (teamError) {
+                console.error(`Failed to process team ${team.id}:`, teamError);
             }
         }
 
-        // Process and store tasks
-        if (allTasks.length > 0) {
-            const upsertPromises = allTasks.map((task) => {
-                // Convert description to Tiptap format if available
-                const convertedDesc = task?.markdown_description
-                    ? markdownToTipTap(task.description)
-                    : null;
-
-                return supabase.from('tasks').upsert(
-                    {
-                        name: task.name,
-                        description: JSON.stringify(convertedDesc) || null,
-                        workspace_id,
-                        integration_source: 'clickup',
-                        external_id: task.id,
-                        external_data: task,
-                        host: task.url,
-                        assignee: user_id,
-                        creator: user_id,
-                    },
-                    {
-                        onConflict: 'integration_source, external_id, host, workspace_id',
-                    },
-                );
-            });
-
-            const results = await Promise.all(upsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(`Upsert error for task ${allTasks[index].id}:`, result.error);
-                } else {
-                    console.log(`Task ${allTasks[index].id} imported successfully`);
-                }
-            });
-        }
-
+        console.log('ClickUp initial import completed successfully.');
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in ClickUp auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: error,
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
 
