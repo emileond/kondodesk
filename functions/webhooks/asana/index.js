@@ -1,121 +1,103 @@
 import { createClient } from '@supabase/supabase-js';
+import ky from 'ky';
 
 export async function onRequestPost(context) {
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Parse the webhook payload
+        // First, check for the Asana handshake request
+        const hookSecret = context.request.headers.get('x-hook-secret');
+        if (hookSecret) {
+            console.log('Received Asana webhook handshake.');
+            return new Response(null, {
+                status: 200,
+                headers: { 'X-Hook-Secret': hookSecret },
+            });
+        }
+
+        // 1. Get the unique integration_id from the URL query parameter
+        const url = new URL(context.request.url);
+        const integration_id = url.searchParams.get('integration_id');
+
+        if (!integration_id) {
+            console.error('Webhook received without an integration_id.');
+            return Response.json(
+                { success: false, error: 'Missing integration identifier' },
+                { status: 400 },
+            );
+        }
+
+        // 2. Fetch the specific integration record using the ID
+        const { data: integration, error: integrationError } = await supabase
+            .from('user_integrations')
+            .select('*')
+            .eq('id', integration_id)
+            .single();
+
+        if (integrationError || !integration) {
+            console.error(
+                `Webhook for unknown or inactive integration_id: ${integration_id}`,
+                integrationError,
+            );
+            // Return 200 so Asana doesn't retry. The integration is gone from our end.
+            return Response.json({
+                success: true,
+                message: 'Integration not found, event ignored.',
+            });
+        }
+
+        // 3. Process the events in the payload
         const payload = await context.request.json();
-
-        // Asana webhook verification - respond to handshake
-        if (payload.events && payload.events.length === 0) {
-            // This is a webhook verification request
-            const headers = context.request.headers;
-            const hookSecret = headers.get('x-hook-secret');
-            
-            if (hookSecret) {
-                return new Response(null, {
-                    status: 200,
-                    headers: {
-                        'X-Hook-Secret': hookSecret
-                    }
-                });
-            }
-        }
-
-        // Process webhook events
         const events = payload.events || [];
-        
-        for (const event of events) {
-            try {
-                // Only process task events
-                if (event.resource && event.resource.resource_type === 'task') {
-                    await processTaskEvent(supabase, event, context.env);
-                }
-            } catch (eventError) {
-                console.error(`Error processing event ${event.resource?.gid}:`, eventError);
-                // Continue processing other events even if one fails
+
+        // Use Promise.allSettled to process events concurrently without stopping if one fails
+        const eventPromises = events.map((event) => {
+            if (event.resource?.resource_type === 'task') {
+                return processTaskEvent(supabase, event, integration);
             }
-        }
+            return Promise.resolve(); // Resolve non-task events immediately
+        });
+
+        await Promise.allSettled(eventPromises);
 
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error processing Asana webhook:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
 
-async function processTaskEvent(supabase, event, env) {
+async function processTaskEvent(supabase, event, integration) {
     const taskGid = event.resource.gid;
     const action = event.action;
 
-    // Find the integration that should handle this task
-    // We need to get the task details first to find the assignee
-    let taskDetails;
-    let integration;
-
     try {
-        // We need to find an active Asana integration to fetch task details
-        const { data: integrations, error: integrationsError } = await supabase
-            .from('user_integrations')
-            .select('*')
-            .eq('type', 'asana')
-            .eq('status', 'active');
-
-        if (integrationsError || !integrations || integrations.length === 0) {
-            console.error('No active Asana integrations found');
-            return;
-        }
-
-        // Try to fetch task details with each integration until we find one that works
-        for (const int of integrations) {
-            try {
-                const response = await fetch(`https://app.asana.com/api/1.0/tasks/${taskGid}?opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url,assignee.gid`, {
+        // 1. Fetch task details from Asana using the correct user's token
+        const taskResponse = await ky
+            .get(
+                `https://app.asana.com/api/1.0/tasks/${taskGid}?opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`,
+                {
                     headers: {
-                        'Authorization': `Bearer ${int.access_token}`,
-                        'Accept': 'application/json'
-                    }
-                });
+                        Authorization: `Bearer ${integration.access_token}`,
+                        Accept: 'application/json',
+                    },
+                    throwHttpErrors: true, // ky will throw an error for non-2xx responses
+                },
+            )
+            .json();
 
-                if (response.ok) {
-                    const taskResponse = await response.json();
-                    taskDetails = taskResponse.data;
-                    
-                    // Check if this task is assigned to the user of this integration
-                    if (taskDetails.assignee && taskDetails.assignee.gid === int.external_data?.gid) {
-                        integration = int;
-                        break;
-                    }
-                }
-            } catch (fetchError) {
-                console.error(`Error fetching task with integration ${int.id}:`, fetchError);
-                continue;
-            }
-        }
+        const taskDetails = taskResponse.data;
 
-        if (!integration || !taskDetails) {
-            console.log(`Task ${taskGid} not assigned to any integrated user or not accessible`);
+        // Ensure task is assigned to the user of this integration to prevent cross-contamination
+        if (taskDetails.assignee?.gid !== integration.external_data?.gid) {
+            console.log(
+                `Task ${taskGid} is not assigned to the integrated user ${integration.external_data?.gid}. Ignoring.`,
+            );
             return;
         }
 
-    } catch (error) {
-        console.error(`Error finding integration for task ${taskGid}:`, error);
-        return;
-    }
-
-    // Get project_id from integration config if available
-    const project_id = integration.config?.project_id || null;
-
-    if (action === 'added') {
-        // Task was created - insert new task
-        const { error: insertError } = await supabase.from('tasks').insert({
+        // 2. Perform database action based on the event type
+        const taskPayload = {
             name: taskDetails.name,
             description: taskDetails.notes || null,
             workspace_id: integration.workspace_id,
@@ -125,56 +107,38 @@ async function processTaskEvent(supabase, event, env) {
             host: 'https://app.asana.com',
             assignee: integration.user_id,
             creator: integration.user_id,
-            project_id: project_id,
-        });
+            project_id: integration.config?.project_id || null,
+        };
 
-        if (insertError) {
-            console.error(`Insert error for task ${taskGid}:`, insertError);
-            return;
+        if (action === 'added' || action === 'changed') {
+            const { error } = await supabase.from('tasks').upsert(taskPayload, {
+                onConflict: 'integration_source, external_id, host, workspace_id',
+            });
+
+            if (error) {
+                console.error(`Upsert error for task ${taskGid}:`, error);
+            } else {
+                console.log(`Task ${taskGid} upserted successfully for action: ${action}`);
+            }
+        } else if (action === 'deleted') {
+            // ✅ Corrected from 'removed'
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .eq('integration_source', 'asana')
+                .eq('external_id', taskGid);
+
+            if (error) {
+                console.error(`Delete error for task ${taskGid}:`, error);
+            } else {
+                console.log(`Task ${taskGid} deleted successfully`);
+            }
         }
-
-        console.log(`Task ${taskGid} created successfully`);
-    } else if (action === 'changed') {
-        // Task was updated - update existing task
-        const { data: updateData, error: updateError } = await supabase
-            .from('tasks')
-            .update({
-                name: taskDetails.name,
-                description: taskDetails.notes || null,
-                external_data: taskDetails,
-                project_id: project_id,
-            })
-            .eq('integration_source', 'asana')
-            .eq('external_id', taskDetails.gid)
-            .eq('host', 'https://app.asana.com')
-            .eq('workspace_id', integration.workspace_id)
-            .select();
-
-        if (updateError) {
-            console.error(`Update error for task ${taskGid}:`, updateError);
-            return;
-        }
-
-        if (updateData && updateData.length > 0) {
-            console.log(`Task ${taskGid} updated successfully`);
-        } else {
-            console.log(`Task ${taskGid} not found in database, might have been deleted or not imported yet`);
-        }
-    } else if (action === 'removed') {
-        // Task was deleted - remove from database
-        const { error: deleteError } = await supabase
-            .from('tasks')
-            .delete()
-            .eq('integration_source', 'asana')
-            .eq('external_id', taskDetails.gid)
-            .eq('host', 'https://app.asana.com')
-            .eq('workspace_id', integration.workspace_id);
-
-        if (deleteError) {
-            console.error(`Delete error for task ${taskGid}:`, deleteError);
-            return;
-        }
-
-        console.log(`Task ${taskGid} deleted successfully`);
+    } catch (error) {
+        // Handle cases where the task might not be accessible or the API call fails
+        console.error(
+            `Failed to process event for task ${taskGid}. Action: ${action}. Error:`,
+            error.response ? await error.response.json() : error.message,
+        );
     }
 }

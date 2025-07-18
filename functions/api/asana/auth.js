@@ -70,34 +70,31 @@ export async function onRequestDelete(context) {
     }
 }
 
-// Handle POST requests for initiating Asana OAuth flow
+// Handle POST requests for initiating Asana OAuth flow and setting up webhooks
 export async function onRequestPost(context) {
     const body = await context.request.json();
-    const { code, user_id, workspace_id, state } = body;
+    const { code, user_id, workspace_id } = body;
 
     if (!code || !user_id || !workspace_id) {
-        return Response.json({ success: false, error: 'Missing data' }, { status: 400 });
+        return Response.json({ success: false, error: 'Missing required data' }, { status: 400 });
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Exchange code for access token
-        const tokenData = await ky
-            .post('https://app.asana.com/-/oauth_token', {
-                // Use URLSearchParams to send a form-encoded body
-                body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    client_id: context.env.ASANA_CLIENT_ID,
-                    client_secret: context.env.ASANA_CLIENT_SECRET,
-                    redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/asana',
-                    code: code,
-                }),
-            })
-            .json();
+        // 1. Exchange authorization code for an access token
+        const tokenResponse = await ky.post('https://app.asana.com/-/oauth_token', {
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: context.env.ASANA_CLIENT_ID,
+                client_secret: context.env.ASANA_CLIENT_SECRET,
+                redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/asana',
+                code: code,
+            }),
+        });
 
-        const { access_token, refresh_token, expires_in } = await tokenData;
+        const tokenData = await tokenResponse.json();
+        const { access_token, refresh_token, expires_in } = tokenData;
 
         if (!access_token) {
             console.error('Asana token exchange error:', tokenData);
@@ -110,14 +107,10 @@ export async function onRequestPost(context) {
             );
         }
 
-        // Calculate expires_at if expires_in is available
-        let expires_at = null;
-        if (expires_in) {
-            expires_at = calculateExpiresAt(expires_in - 600);
-        }
+        // 2. Save the initial integration data to Supabase to get a unique ID
+        const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
 
-        // Save the access token in Supabase
-        const { data: upsertData, error: updateError } = await supabase
+        const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
                 type: 'asana',
@@ -133,149 +126,112 @@ export async function onRequestPost(context) {
             .select('id')
             .single();
 
-        const integration_id = upsertData.id;
-
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
+        if (upsertError) {
+            console.error('Supabase upsert error:', upsertError);
             return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
+                { success: false, error: 'Failed to save integration data' },
                 { status: 500 },
             );
         }
 
-        // Fetch user data from Asana API
-        try {
-            const userData = await ky
-                .get('https://app.asana.com/api/1.0/users/me', {
-                    headers: {
-                        Authorization: `Bearer ${access_token}`,
-                        Accept: 'application/json',
-                    },
-                })
-                .json();
+        const integration_id = upsertData.id;
 
-            // Update user_integrations with the user data
-            const { error: userDataUpdateError } = await supabase
-                .from('user_integrations')
-                .update({ external_data: userData.data })
-                .eq('type', 'asana')
-                .eq('id', integration_id);
+        // 3. Fetch user data from Asana API to get their GID (Global ID)
+        const userResponse = await ky.get('https://app.asana.com/api/1.0/users/me', {
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+                Accept: 'application/json',
+            },
+        });
+        const userData = await userResponse.json();
+        const userGid = userData?.data?.gid;
 
-            if (userDataUpdateError) {
-                console.error('Error updating user data:', userDataUpdateError);
-            } else {
-                console.log('User data updated successfully');
-            }
-        } catch (userDataError) {
-            console.error('Error fetching user data:', userDataError);
-            // Continue with the flow even if user data fetch fails
+        if (!userGid) {
+            // return an error
+            return Response.json(
+                { success: false, error: 'Failed to get user data' },
+                { status: 400 },
+            );
         }
 
-        // Fetch workspaces the user has access to
+        // Update user_integrations with the external user data
+        await supabase
+            .from('user_integrations')
+            .update({ external_data: userData.data })
+            .eq('id', integration_id);
+
+        // 4. Initial Task Sync
         const workspacesResponse = await ky
             .get('https://app.asana.com/api/1.0/workspaces', {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    Accept: 'application/json',
-                },
+                headers: { Authorization: `Bearer ${access_token}` },
             })
             .json();
 
         const workspaces = workspacesResponse.data || [];
-        let allUpsertPromises = [];
-        let allTasksData = [];
+        const allUpsertPromises = [];
 
-        // Process each workspace
+        for (const workspace of workspaces) {
+            const tasksResponse = await ky
+                .get(
+                    `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`,
+                    { headers: { Authorization: `Bearer ${access_token}` } },
+                )
+                .json();
+
+            const tasks = tasksResponse.data || [];
+            tasks.forEach((task) => {
+                const upsertPromise = supabase.from('tasks').upsert(
+                    {
+                        name: task.name,
+                        description: task.notes || null,
+                        workspace_id,
+                        integration_source: 'asana',
+                        external_id: task.gid,
+                        external_data: task,
+                        host: 'https://app.asana.com',
+                        assignee: user_id,
+                        creator: user_id,
+                        project_id: null,
+                    },
+                    {
+                        onConflict: 'integration_source, external_id, host, workspace_id',
+                    },
+                );
+                allUpsertPromises.push(upsertPromise);
+            });
+        }
+        await Promise.allSettled(allUpsertPromises);
+        console.log('Initial task sync completed.');
+
+        // 5. Set up webhooks for each workspace on the user's task list
         for (const workspace of workspaces) {
             try {
-                // Fetch tasks assigned to the current user in this workspace
-                const tasksResponse = await ky
+                // Find the user's task list GID for this specific workspace
+                const userTaskListResponse = await ky
                     .get(
-                        `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${workspace.gid}&completed_since=now&opt_fields=name,notes,completed,due_on,created_at,modified_at,assignee,projects,tags,custom_fields,permalink_url`,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                Accept: 'application/json',
-                            },
-                        },
+                        `https://app.asana.com/api/1.0/users/${userGid}/user_task_lists?workspace=${workspace.gid}`,
+                        { headers: { Authorization: `Bearer ${access_token}` } },
                     )
                     .json();
 
-                const tasks = tasksResponse.data || [];
-
-                // Get project_id from integration config if available
-                const project_id = null; // Will be set from config later
-
-                const upsertPromises = tasks.map((task) => {
-                    return supabase.from('tasks').upsert(
-                        {
-                            name: task.name,
-                            description: task.notes || null,
-                            workspace_id,
-                            integration_source: 'asana',
-                            external_id: task.gid,
-                            external_data: task,
-                            host: 'https://app.asana.com',
-                            assignee: user_id,
-                            creator: user_id,
-                            project_id: project_id,
-                        },
-                        {
-                            onConflict: 'integration_source, external_id, host, workspace_id',
-                        },
+                const userTaskListGid = userTaskListResponse.data?.gid;
+                if (!userTaskListGid) {
+                    console.warn(
+                        `Could not find user task list in workspace ${workspace.gid}. Skipping webhook setup.`,
                     );
-                });
-
-                // Add the promises and tasks to our arrays for later processing
-                allUpsertPromises = [...allUpsertPromises, ...upsertPromises];
-                allTasksData = [...allTasksData, ...tasks];
-            } catch (workspaceError) {
-                console.error(`Error processing workspace ${workspace.gid}:`, workspaceError);
-                // Continue with other workspaces even if one fails
-            }
-        }
-
-        // Wait for all upsert operations to complete
-        if (allUpsertPromises.length > 0) {
-            const results = await Promise.all(allUpsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(
-                        `Upsert error for task ${allTasksData[index].gid}:`,
-                        result.error,
-                    );
-                } else {
-                    console.log(`Task ${allTasksData[index].gid} imported successfully`);
+                    continue;
                 }
-            });
-        }
 
-        // Set up webhooks for each workspace
-        for (const workspace of workspaces) {
-            try {
-                // Create webhook for task events
+                // Create the webhook using the correct resource and a unique target URL
                 await ky.post('https://app.asana.com/api/1.0/webhooks', {
                     json: {
                         data: {
-                            resource: workspace.gid,
-                            target: 'https://weekfuse.com/webhooks/asana',
+                            resource: userTaskListGid,
+                            target: `https://weekfuse.com/webhooks/asana?integration_id=${integration_id}`,
                             filters: [
-                                {
-                                    resource_type: 'task',
-                                    action: 'added',
-                                },
-                                {
-                                    resource_type: 'task',
-                                    action: 'changed',
-                                },
-                                {
-                                    resource_type: 'task',
-                                    action: 'deleted',
-                                },
+                                { resource_type: 'task', action: 'added' },
+                                { resource_type: 'task', action: 'changed' },
+                                { resource_type: 'task', action: 'deleted' },
                             ],
                         },
                     },
@@ -289,21 +245,14 @@ export async function onRequestPost(context) {
             } catch (webhookError) {
                 console.error(
                     `Error registering webhook for workspace ${workspace.gid}:`,
-                    webhookError,
+                    await webhookError.response?.json().catch(() => webhookError.message),
                 );
-                // Continue with other workspaces even if webhook registration fails for one
             }
         }
 
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in Asana auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
