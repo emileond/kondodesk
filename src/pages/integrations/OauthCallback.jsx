@@ -385,11 +385,9 @@ const OAuthCallback = () => {
 
     if (loading)
         return (
-            <AppLayout>
-                <div className="fixed top-0 w-full h-full flex justify-center items-center bg-content3">
-                    <Spinner size="lg" label="Working on it..." />
-                </div>
-            </AppLayout>
+            <div className="fixed top-0 w-full h-full flex justify-center items-center bg-content3">
+                <Spinner size="lg" label="Working on it, don't refresh the page..." />
+            </div>
         );
 };
 

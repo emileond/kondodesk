@@ -42,6 +42,11 @@ const IntegrationSourceSelect = ({
             startContent: <Avatar className={iconClass} src="/integrations/jira.png" />,
         },
         {
+            label: 'MS To Do',
+            value: 'microsoft_todo',
+            startContent: <Avatar className={iconClass} src="/integrations/microsoft_todo.png" />,
+        },
+        {
             label: 'Tick tick',
             value: 'ticktick',
             startContent: <Avatar className={iconClass} src="/integrations/ticktick.png" />,
