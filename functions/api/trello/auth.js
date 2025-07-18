@@ -98,11 +98,10 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Save the access token in Supabase
-        const { data: upsertData, error: updateError } = await supabase
+        // 1. Save the access token and create the integration record
+        const { error: updateError } = await supabase
             .from('user_integrations')
             .upsert({
                 type: 'trello',
@@ -117,140 +116,110 @@ export async function onRequestPost(context) {
             .single();
 
         if (updateError) {
-            console.error('Supabase update error:', updateError);
+            console.error('Supabase upsert error:', updateError);
             return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
+                { success: false, error: 'Failed to save integration data' },
                 { status: 500 },
             );
         }
 
-        const integration_id = upsertData.id;
-
-        // Get boards the member belongs to
+        // 2. Get all boards the member belongs to
         const boards = await ky
             .get(
                 `https://api.trello.com/1/members/me/boards?key=${context.env.TRELLO_API_KEY}&token=${access_token}`,
-                {
-                    headers: {
-                        Accept: 'application/json',
-                    },
-                },
+                { headers: { Accept: 'application/json' } },
             )
             .json();
 
-        // Get all cards from boards that are visible to the member
-        let allCards = [];
-
-        // Iterate through each board and get all cards
-        if (boards && Array.isArray(boards)) {
-            const cardPromises = boards.map((board) => {
-                const boardCardsUrl = `https://api.trello.com/1/boards/${board.id}/cards/open?key=${context.env.TRELLO_API_KEY}&token=${access_token}`;
-                return ky
-                    .get(boardCardsUrl, {
-                        headers: {
-                            Accept: 'application/json',
-                        },
-                    })
-                    .json();
+        if (!boards || !Array.isArray(boards)) {
+            console.log('No Trello boards found for this user.');
+            return Response.json({
+                success: true,
+                message: 'Integration connected, no boards found.',
             });
-
-            const boardCardsResults = await Promise.all(cardPromises);
-
-            // Combine all cards from all boards
-            allCards = boardCardsResults.flat();
         }
 
-        // Create webhooks for each board
-        if (boards && Array.isArray(boards)) {
+        // 3. Create webhooks for each board
+        // This can be done concurrently before the main import begins.
+        const webhookUrl = 'https://weekfuse.com/webhooks/trello';
+        const webhookPromises = boards.map((board) =>
+            ky
+                .post(
+                    `https://api.trello.com/1/tokens/${access_token}/webhooks/?key=${context.env.TRELLO_API_KEY}`,
+                    {
+                        json: {
+                            description: `Weekfuse webhook for board ${board.name}`,
+                            callbackURL: webhookUrl,
+                            idModel: board.id,
+                        },
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                )
+                .catch((err) => {
+                    // Catch errors per-webhook to not fail the whole process
+                    console.error(`Error creating webhook for board ${board.id}:`, err);
+                }),
+        );
+        await Promise.allSettled(webhookPromises);
+        console.log('Webhook setup process completed.');
+
+        // 4. Process cards board-by-board to manage memory and load
+        console.log(`Starting initial import for ${boards.length} boards.`);
+        const BATCH_SIZE = 50; // A manageable batch size for DB upserts
+
+        for (const board of boards) {
             try {
-                const webhookUrl = 'https://weekfuse.com/webhooks/trello';
+                console.log(`Fetching cards for board: ${board.name} (${board.id})`);
 
-                // Create webhooks for each board
-                const webhookPromises = boards.map(async (board) => {
-                    try {
-                        // Create a webhook for this board
-                        await ky.post(
-                            `https://api.trello.com/1/tokens/${access_token}/webhooks/?key=${context.env.TRELLO_API_KEY}`,
+                // Fetch all open cards for the current board
+                const cardsOnBoard = await ky
+                    .get(
+                        `https://api.trello.com/1/boards/${board.id}/cards/open?key=${context.env.TRELLO_API_KEY}&token=${access_token}`,
+                        { headers: { Accept: 'application/json' } },
+                    )
+                    .json();
+
+                if (!cardsOnBoard || cardsOnBoard.length === 0) {
+                    console.log(`No cards found on board: ${board.name}`);
+                    continue; // Move to the next board
+                }
+
+                // Process the cards for this board in batches
+                for (let i = 0; i < cardsOnBoard.length; i += BATCH_SIZE) {
+                    const batch = cardsOnBoard.slice(i, i + BATCH_SIZE);
+                    const upsertPromises = batch.map((card) => {
+                        const tiptapDescription = card?.desc ? markdownToTipTap(card.desc) : null;
+                        return supabase.from('tasks').upsert(
                             {
-                                json: {
-                                    description: `Weekfuse webhook for board ${board.name}`,
-                                    callbackURL: webhookUrl,
-                                    idModel: board.id,
-                                },
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
+                                name: card.name,
+                                description: tiptapDescription,
+                                workspace_id,
+                                integration_source: 'trello',
+                                external_id: card.id,
+                                external_data: card,
+                                host: card.url,
+                                assignee: user_id,
+                                creator: user_id,
                             },
+                            { onConflict: 'integration_source, external_id, host, workspace_id' },
                         );
-                        console.log(
-                            `Webhook created successfully for board ${board.id} (${board.name})`,
-                        );
-                        return { success: true, boardId: board.id };
-                    } catch (webhookError) {
-                        console.error(
-                            `Error creating webhook for board ${board.id}:`,
-                            webhookError,
-                        );
-                        return { success: false, boardId: board.id, error: webhookError };
-                    }
-                });
+                    });
 
-                await Promise.all(webhookPromises);
-            } catch (webhooksError) {
-                console.error('Error creating webhooks:', webhooksError);
-                // Continue with the flow even if webhook creation fails
+                    await Promise.all(upsertPromises);
+                }
+                console.log(
+                    `Successfully processed ${cardsOnBoard.length} cards from board: ${board.name}`,
+                );
+            } catch (boardError) {
+                console.error(`Failed to process board ${board.name} (${board.id}):`, boardError);
+                // Continue to the next board even if one fails
             }
         }
 
-        const cardsData = allCards;
-
-        // Process and store cards
-        if (cardsData && Array.isArray(cardsData)) {
-            const upsertPromises = cardsData.map((card) => {
-                // Convert markdown description to Tiptap format
-                const tiptapDescription = card?.desc ? markdownToTipTap(card.desc) : null;
-
-                return supabase.from('tasks').upsert(
-                    {
-                        name: card.name,
-                        description: tiptapDescription,
-                        workspace_id,
-                        integration_source: 'trello',
-                        external_id: card.id,
-                        external_data: card,
-                        host: card.url,
-                        assignee: user_id,
-                        creator: user_id,
-                    },
-                    {
-                        onConflict: 'integration_source, external_id, host, workspace_id',
-                    },
-                );
-            });
-
-            const results = await Promise.all(upsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(`Upsert error for card ${cardsData[index].id}:`, result.error);
-                } else {
-                    console.log(`Card ${cardsData[index].id} imported successfully`);
-                }
-            });
-        }
-
+        console.log('Trello initial import completed successfully.');
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in Trello auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
