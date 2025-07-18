@@ -71,6 +71,20 @@ async function processTaskEvent(supabase, event, integration) {
     const taskGid = event.resource.gid;
     const action = event.action;
 
+    if (action === 'deleted') {
+        const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('integration_source', 'asana')
+            .eq('external_id', taskGid);
+
+        if (error) {
+            console.error(`Delete error for task ${taskGid}:`, error);
+        } else {
+            console.log(`Task ${taskGid} deleted successfully`);
+        }
+    }
+
     try {
         // 1. Fetch task details from Asana using the correct user's token
         const taskResponse = await ky
@@ -119,19 +133,6 @@ async function processTaskEvent(supabase, event, integration) {
                 console.error(`Upsert error for task ${taskGid}:`, error);
             } else {
                 console.log(`Task ${taskGid} upserted successfully for action: ${action}`);
-            }
-        } else if (action === 'deleted') {
-            // ✅ Corrected from 'removed'
-            const { error } = await supabase
-                .from('tasks')
-                .delete()
-                .eq('integration_source', 'asana')
-                .eq('external_id', taskGid);
-
-            if (error) {
-                console.error(`Delete error for task ${taskGid}:`, error);
-            } else {
-                console.log(`Task ${taskGid} deleted successfully`);
             }
         }
     } catch (error) {
