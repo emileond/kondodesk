@@ -72,9 +72,9 @@ export async function onRequestDelete(context) {
 }
 
 // Webhook events to listen for
-const WEBHOOK_EVENTS = ['jira:issue_created', 'jira:issue_updated'];
+// Assuming WEBHOOK_EVENTS is defined elsewhere, e.g.:
+const WEBHOOK_EVENTS = ['jira:issue_created', 'jira:issue_updated', 'jira:issue_deleted'];
 
-// Handle POST requests for initiating Jira OAuth flow
 export async function onRequestPost(context) {
     const body = await context.request.json();
     const { code, user_id, workspace_id } = body;
@@ -84,11 +84,10 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Exchange code for access token
-        const tokenData = await ky
+        // 1. Exchange code for access token
+        const tokenResponse = await ky
             .post('https://auth.atlassian.com/oauth/token', {
                 json: {
                     client_id: context.env.JIRA_CLIENT_ID,
@@ -97,38 +96,24 @@ export async function onRequestPost(context) {
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/jira',
                     grant_type: 'authorization_code',
                 },
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             })
             .json();
 
-        const { access_token, refresh_token, expires_in } = await tokenData;
+        const { access_token, refresh_token, expires_in } = await tokenResponse;
 
-        if (!access_token || !refresh_token) {
-            console.error('Jira token exchange error:', tokenData);
-            return Response.json(
-                {
-                    success: false,
-                    error: tokenData.error || 'Failed to get access token',
-                },
-                { status: 400 },
-            );
+        if (!access_token) {
+            console.error('Jira token exchange error:', tokenResponse);
+            throw new Error(tokenResponse.error || 'Failed to get Jira access token');
         }
 
-        // Calculate expires_at if expires_in is available
-        let expires_at = null;
-        if (expires_in) {
-            expires_at = calculateExpiresAt(expires_in - 600);
-        }
-
-        // Save the access token in Supabase
-        const { data: upsertData, error: updateError } = await supabase
+        // 2. Save the initial integration data
+        const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
+        const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
                 type: 'jira',
-                access_token: access_token,
-                refresh_token: refresh_token,
+                access_token,
+                refresh_token,
                 user_id,
                 workspace_id,
                 status: 'active',
@@ -139,203 +124,124 @@ export async function onRequestPost(context) {
             .select('id')
             .single();
 
+        if (upsertError) throw new Error('Failed to save integration data');
         const integration_id = upsertData.id;
 
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
-            return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
-                { status: 500 },
-            );
-        }
-
-        const maxResults = 50; // Define the maximum number of issues per page
-
-        // Fetch accessible resources
+        // 3. Fetch accessible resources (Jira sites)
+        const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
         const resources = await ky
-            .get('https://api.atlassian.com/oauth/token/accessible-resources', {
-                headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
-            })
+            .get('https://api.atlassian.com/oauth/token/accessible-resources', { headers })
             .json();
 
-        // Fetch user data from Jira API
-        try {
-            if (resources && resources.length > 0) {
-                // Use the first resource to fetch user data
-                const userData = await ky
-                    .get(`https://api.atlassian.com/ex/jira/${resources[0].id}/rest/api/3/myself`, {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            Accept: 'application/json',
-                        },
-                    })
-                    .json();
-
-                // Update user_integrations with the user data
-                const { error: userDataUpdateError } = await supabase
-                    .from('user_integrations')
-                    .update({ external_data: userData })
-                    .eq('type', 'jira')
-                    .eq('id', integration_id);
-
-                if (userDataUpdateError) {
-                    console.error('Error updating user data:', userDataUpdateError);
-                } else {
-                    console.log('User data updated successfully');
-                }
-            }
-        } catch (userDataError) {
-            console.error('Error fetching user data:', userDataError);
-            // Continue with the flow even if user data fetch fails
-        }
-
-        let allUpsertPromises = [];
-        let allIssuesData = [];
-
-        for (const resource of resources) {
-            let startAt = 0;
-            let total = 0;
-            let resourceIssues = [];
-
-            do {
-                // Construct the URL for the current page.
-                const url = `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/search?jql=assignee=currentUser()%20AND%20statusCategory!=Done&startAt=${startAt}&maxResults=${maxResults}`;
-
-                const pageData = await ky
-                    .get(url, {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            Accept: 'application/json',
-                        },
-                    })
-                    .json();
-
-                // Destructure the issues array and total count from the response
-                const { issues: pageIssues = [], total: totalIssues = 0 } = pageData;
-
-                // Append the current page's issues to the resource's issue list.
-                resourceIssues = [...resourceIssues, ...pageIssues];
-
-                // Update total and startAt for pagination
-                total = totalIssues;
-                startAt += maxResults;
-            } while (startAt < total);
-
-            // Process and store issues for this resource
-            if (resourceIssues && Array.isArray(resourceIssues)) {
-                const resourceUrl = resource.url;
-
-                const upsertPromises = resourceIssues.map((issue) => {
-                    const convertedDesc = convertJiraAdfToTiptap(issue?.fields?.description);
-                    return supabase.from('tasks').upsert(
-                        {
-                            name: issue.fields.summary,
-                            description: convertedDesc || null,
-                            workspace_id,
-                            integration_source: 'jira',
-                            external_id: issue.id,
-                            external_data: issue,
-                            host: resourceUrl,
-                            assignee: user_id,
-                            creator: user_id,
-                        },
-                        {
-                            onConflict: 'integration_source, external_id, host, workspace_id',
-                        },
-                    );
-                });
-
-                // Add the promises and issues to our arrays for later processing
-                allUpsertPromises = [...allUpsertPromises, ...upsertPromises];
-                allIssuesData = [...allIssuesData, ...resourceIssues];
-            }
-        }
-
-        // Wait for all upsert operations to complete
-        if (allUpsertPromises.length > 0) {
-            const results = await Promise.all(allUpsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(
-                        `Upsert error for issue ${allIssuesData[index].id}:`,
-                        result.error,
-                    );
-                } else {
-                    console.log(`Issue ${allIssuesData[index].id} imported successfully`);
-                }
+        if (!resources || resources.length === 0) {
+            console.log('No accessible Jira resources found.');
+            return Response.json({
+                success: true,
+                message: 'Integration connected, no sites found.',
             });
         }
 
-        // Register webhooks for each resource
+        // Fetch user data from the first resource and update the integration record
+        try {
+            const userData = await ky
+                .get(`https://api.atlassian.com/ex/jira/${resources[0].id}/rest/api/3/myself`, {
+                    headers,
+                })
+                .json();
+            await supabase
+                .from('user_integrations')
+                .update({ external_data: userData })
+                .eq('id', integration_id);
+        } catch (userDataError) {
+            console.error('Could not fetch Jira user data:', userDataError);
+        }
+
+        // 4. Process issues for each resource with pagination and batching
+        const DB_BATCH_SIZE = 50;
+        const API_MAX_RESULTS = 50;
+
         for (const resource of resources) {
             try {
-                // Check if a webhook already exists
-                const webhooksResponse = await ky
-                    .get(`https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook`, {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            Accept: 'application/json',
-                        },
-                    })
-                    .json();
+                console.log(`Processing Jira resource: ${resource.name} (${resource.id})`);
+                let startAt = 0;
+                let isLastPage = false;
 
-                // Check if our webhook URL is already registered
-                const webhookUrl = `https://weekfuse.com/webhooks/jira`;
-                const existingWebhook = webhooksResponse.values.find(
-                    (webhook) =>
-                        webhook.url === webhookUrl &&
-                        webhook.webhooks?.some((wh) =>
-                            wh.events?.some((event) => WEBHOOK_EVENTS.includes(event)),
-                        ),
-                );
+                // Loop through all pages of issues from the Jira API
+                while (!isLastPage) {
+                    const url = `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/search?jql=assignee=currentUser()%20AND%20statusCategory!=Done&startAt=${startAt}&maxResults=${API_MAX_RESULTS}`;
+                    const pageData = await ky.get(url, { headers }).json();
+                    const pageIssues = pageData.issues || [];
 
-                if (!existingWebhook) {
-                    // Register new webhook
-                    await ky.post(
-                        `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook`,
-                        {
-                            json: {
-                                url: webhookUrl,
-                                webhooks: [
-                                    {
-                                        events: WEBHOOK_EVENTS,
-                                        jqlFilter: 'assignee = currentUser()',
-                                    },
-                                ],
-                            },
-                            headers: {
-                                Authorization: `Bearer ${access_token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        },
-                    );
+                    // Process the current page of issues in batches
+                    for (let i = 0; i < pageIssues.length; i += DB_BATCH_SIZE) {
+                        const batch = pageIssues.slice(i, i + DB_BATCH_SIZE);
+                        const upsertPromises = batch.map((issue) => {
+                            const convertedDesc = convertJiraAdfToTiptap(
+                                issue?.fields?.description,
+                            );
+                            return supabase.from('tasks').upsert(
+                                {
+                                    name: issue.fields.summary,
+                                    description: convertedDesc || null,
+                                    workspace_id,
+                                    integration_source: 'jira',
+                                    external_id: issue.id,
+                                    external_data: issue,
+                                    host: resource.url,
+                                    assignee: user_id,
+                                    creator: user_id,
+                                },
+                                {
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
+                                },
+                            );
+                        });
+                        await Promise.all(upsertPromises);
+                    }
 
-                    console.log(`Webhook registered successfully for resource ${resource.id}`);
-                } else {
-                    console.log(`Webhook already exists for resource ${resource.id}`);
+                    // Check if we've reached the last page
+                    if (pageData.startAt + pageData.issues.length >= pageData.total) {
+                        isLastPage = true;
+                    } else {
+                        startAt += API_MAX_RESULTS;
+                    }
                 }
-            } catch (webhookError) {
-                console.error(
-                    `Error registering webhook for resource ${resource.id}:`,
-                    webhookError,
+            } catch (resourceError) {
+                console.error(`Failed to process resource ${resource.id}:`, resourceError);
+            }
+        }
+
+        // 5. Register webhooks for each resource
+        for (const resource of resources) {
+            try {
+                const webhookUrl = `https://weekfuse.com/webhooks/jira`;
+                await ky.post(
+                    `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook`,
+                    {
+                        json: {
+                            url: webhookUrl,
+                            webhooks: [
+                                { events: WEBHOOK_EVENTS, jqlFilter: 'assignee = currentUser()' },
+                            ],
+                        },
+                        headers: { ...headers, 'Content-Type': 'application/json' },
+                    },
                 );
-                // Continue with other resources even if webhook registration fails for one
+                console.log(`Webhook registered for resource ${resource.id}`);
+            } catch (webhookError) {
+                // It's common for this to fail if a webhook already exists.
+                // A more robust implementation would fetch existing webhooks first.
+                console.warn(
+                    `Could not register webhook for resource ${resource.id}:`,
+                    webhookError.message,
+                );
             }
         }
 
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in Jira auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }

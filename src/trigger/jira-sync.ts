@@ -13,26 +13,17 @@ const supabase = createClient(
 
 export const jiraSync = task({
     id: 'jira-sync',
-    maxDuration: 3600, // 50 minutes max duration
+    maxDuration: 3600, // 60 minutes max duration
     run: async (payload: any) => {
-        logger.log('Starting Jira sync task');
+        logger.log(`Starting Jira sync for integration ID: ${payload.id}`);
+        let { access_token } = payload;
 
         try {
-            // Get project_id from integration config if available
-            const project_id = payload.config?.project_id || null;
-
-            // Check if token has expired
-            const currentTime = dayjs().utc();
+            // 1. Refresh token if it has expired
             const tokenExpired =
-                !payload.expires_at || currentTime.isAfter(dayjs(payload.expires_at));
-
-            let access_token = payload.access_token;
-            let refresh_token = payload.refresh_token;
-            let expires_at = payload.expires_at;
-
-            // Only refresh token if it has expired
-            if (tokenExpired) {
-                logger.log(`Access token expired, refreshing`);
+                !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
+            if (tokenExpired && payload.refresh_token) {
+                logger.log('Jira token expired, refreshing...');
                 const res = await ky
                     .post('https://auth.atlassian.com/oauth/token', {
                         json: {
@@ -41,236 +32,151 @@ export const jiraSync = task({
                             refresh_token: payload.refresh_token,
                             grant_type: 'refresh_token',
                         },
-                        headers: {
-                            Accept: 'application/json',
-                        },
                     })
-                    .json();
+                    .json<any>();
 
-                if (res.error) {
-                    logger.error('Failed to refresh access token', res.error);
-                    await supabase
-                        .from('user_integrations')
-                        .update({
-                            status: 'error',
-                        })
-                        .eq('id', payload.id);
-                } else {
-                    // Update token information
-                    access_token = res.access_token;
-                    refresh_token = res.refresh_token;
-                    expires_at = calculateExpiresAt(res.expires_in);
+                if (res.error) throw new Error(`Token refresh failed: ${res.error}`);
 
-                    // Update the database with new token information
-                    await supabase
-                        .from('user_integrations')
-                        .update({
-                            access_token,
-                            refresh_token,
-                            expires_at,
-                            last_sync: toUTC(),
-                        })
-                        .eq('id', payload.id);
-                }
-            } else {
-                // Token is still valid, just update the last_sync timestamp
+                access_token = res.access_token;
                 await supabase
                     .from('user_integrations')
                     .update({
-                        last_sync: toUTC(),
+                        access_token,
+                        refresh_token: res.refresh_token || payload.refresh_token,
+                        expires_at: calculateExpiresAt(res.expires_in),
                     })
                     .eq('id', payload.id);
+                logger.log('Token refreshed successfully.');
             }
 
-            // Get the resources for the Jira instance
+            // 2. Fetch accessible resources (Jira sites)
+            const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
             const resources = await ky
-                .get('https://api.atlassian.com/oauth/token/accessible-resources', {
-                    headers: {
-                        Authorization: `Bearer ${access_token}`,
-                        Accept: 'application/json',
-                    },
-                })
-                .json();
+                .get('https://api.atlassian.com/oauth/token/accessible-resources', { headers })
+                .json<any>();
 
             if (!resources || resources.length === 0) {
-                logger.error('No accessible Jira resources found');
+                logger.error('No accessible Jira resources found.');
+                return { success: true, message: 'No sites found.' };
             }
 
-            let allUpsertPromises = [];
-            let allIssuesData = [];
+            // 3. Process each Jira resource individually
+            const DB_BATCH_SIZE = 50;
+            const API_MAX_RESULTS = 50;
 
-            // Process each Jira resource (instance)
             for (const resource of resources) {
-                const maxResults = 50; // Define the maximum number of issues per page
-                let startAt = 0;
-                let total = 0;
-                let resourceIssues = [];
+                try {
+                    logger.log(`Processing Jira resource: ${resource.name} (${resource.id})`);
+                    let startAt = 0;
+                    let isLastPage = false;
+                    let totalTasksProcessed = 0;
 
-                do {
-                    // Construct the URL for the current page
-                    const url = `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/search?jql=assignee=currentUser()%20AND%20statusCategory!=Done&startAt=${startAt}&maxResults=${maxResults}`;
+                    // Loop through all pages of issues from the Jira API
+                    while (!isLastPage) {
+                        const url = `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/search?jql=assignee=currentUser()%20AND%20statusCategory!=Done&startAt=${startAt}&maxResults=${API_MAX_RESULTS}`;
+                        const pageData = await ky.get(url, { headers }).json<any>();
+                        const pageIssues = pageData.issues || [];
 
-                    try {
-                        const pageData = await ky
-                            .get(url, {
-                                headers: {
-                                    Authorization: `Bearer ${access_token}`,
-                                    Accept: 'application/json',
-                                },
-                            })
-                            .json();
+                        // Process the current page of issues in batches
+                        for (let i = 0; i < pageIssues.length; i += DB_BATCH_SIZE) {
+                            const batch = pageIssues.slice(i, i + DB_BATCH_SIZE);
+                            const upsertPromises = batch.map((issue) => {
+                                const convertedDesc = convertJiraAdfToTiptap(
+                                    issue?.fields?.description,
+                                );
+                                return supabase.from('tasks').upsert(
+                                    {
+                                        name: issue.fields.summary,
+                                        description: convertedDesc || null,
+                                        workspace_id: payload.workspace_id,
+                                        integration_source: 'jira',
+                                        external_id: issue.id,
+                                        external_data: issue,
+                                        host: resource.url,
+                                        assignee: payload.user_id,
+                                        creator: payload.user_id,
+                                        project_id: payload.config?.project_id || null,
+                                    },
+                                    {
+                                        onConflict:
+                                            'integration_source, external_id, host, workspace_id',
+                                    },
+                                );
+                            });
+                            await Promise.all(upsertPromises);
+                        }
+                        totalTasksProcessed += pageIssues.length;
 
-                        // Destructure the issues array and total count from the response
-                        const { issues: pageIssues = [], total: totalIssues = 0 } = pageData;
-
-                        // Append the current page's issues to the resource's issue list
-                        resourceIssues = [...resourceIssues, ...pageIssues];
-
-                        // Update total and startAt for pagination
-                        total = totalIssues;
-                        startAt += maxResults;
-                    } catch (error) {
-                        logger.error(`Error fetching Jira issues: ${error.message}`);
-                        break;
+                        // Check if we've reached the last page
+                        if (pageData.startAt + pageIssues.length >= pageData.total) {
+                            isLastPage = true;
+                        } else {
+                            startAt += API_MAX_RESULTS;
+                        }
                     }
-                } while (startAt < total);
-
-                // Process and store issues for this resource
-                if (resourceIssues && Array.isArray(resourceIssues)) {
-                    const resourceUrl = resource.url;
-
-                    const upsertPromises = resourceIssues.map((issue) => {
-                        const convertedDesc = convertJiraAdfToTiptap(issue?.fields?.description);
-                        return supabase.from('tasks').upsert(
-                            {
-                                name: issue.fields.summary,
-                                description: convertedDesc || null,
-                                workspace_id: payload.workspace_id,
-                                integration_source: 'jira',
-                                external_id: issue.id,
-                                external_data: issue,
-                                host: resourceUrl,
-                                assignee: payload.user_id,
-                                creator: payload.user_id,
-                                project_id: project_id,
-                            },
-                            {
-                                onConflict: 'integration_source, external_id, host, workspace_id',
-                            },
-                        );
-                    });
-
-                    // Add the promises and issues to our arrays for later processing
-                    allUpsertPromises = [...allUpsertPromises, ...upsertPromises];
-                    allIssuesData = [...allIssuesData, ...resourceIssues];
+                    logger.log(
+                        `Processed ${totalTasksProcessed} issues from resource ${resource.name}.`,
+                    );
+                } catch (resourceError) {
+                    logger.error(`Failed to process resource ${resource.id}:`, resourceError);
                 }
             }
 
-            // Wait for all upsert operations to complete
-            if (allUpsertPromises.length > 0) {
-                const results = await Promise.all(allUpsertPromises);
-
-                let issueSuccessCount = 0;
-                let issueFailCount = 0;
-
-                results.forEach((result, index) => {
-                    if (result.error) {
-                        logger.error(
-                            `Upsert error for issue ${allIssuesData[index].id}: ${result.error.message}`,
-                        );
-                        issueFailCount++;
-                    } else {
-                        issueSuccessCount++;
-                    }
-                });
-
-                logger.log(
-                    `Processed ${allIssuesData.length} issues for workspace ${payload.workspace_id}: ${issueSuccessCount} succeeded, ${issueFailCount} failed`,
-                );
-            }
-
-            // Check and refresh webhooks
-            logger.log('Checking webhooks for refresh');
+            // 4. Check and refresh webhooks
+            logger.log('Checking and refreshing webhooks...');
             for (const resource of resources) {
                 try {
-                    // Fetch webhooks
                     const webhooksResponse = await ky
                         .get(
-                            `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook`,
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${access_token}`,
-                                    Accept: 'application/json',
-                                },
-                            },
+                            `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook/refresh`,
+                            { headers },
                         )
-                        .json();
+                        .json<any>();
+                    const expiringWebhookIds = webhooksResponse.values
+                        .filter(
+                            (hook: any) =>
+                                hook.expirationDate &&
+                                dayjs(hook.expirationDate).diff(dayjs(), 'day') <= 7,
+                        )
+                        .map((hook: any) => hook.id);
 
-                    if (webhooksResponse.values && webhooksResponse.values.length > 0) {
-                        const now = dayjs();
-                        const webhooksToRefresh = [];
-
-                        // Check for webhooks that will expire within 7 days
-                        for (const webhook of webhooksResponse.values) {
-                            if (webhook.expirationDate) {
-                                const expirationDate = dayjs(webhook.expirationDate);
-                                const daysUntilExpiration = expirationDate.diff(now, 'day');
-
-                                if (daysUntilExpiration <= 7) {
-                                    logger.log(
-                                        `Webhook ${webhook.id} will expire in ${daysUntilExpiration} days. Refreshing...`,
-                                    );
-                                    webhooksToRefresh.push(webhook.id);
-                                }
-                            }
-                        }
-
-                        // Refresh webhooks that are close to expiring
-                        if (webhooksToRefresh.length > 0) {
-                            const refreshResponse = await ky
-                                .put(
-                                    `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook/refresh`,
-                                    {
-                                        json: {
-                                            webhookIds: webhooksToRefresh,
-                                        },
-                                        headers: {
-                                            Authorization: `Bearer ${access_token}`,
-                                            'Content-Type': 'application/json',
-                                        },
-                                    },
-                                )
-                                .json();
-
-                            logger.log(
-                                `Successfully refreshed ${webhooksToRefresh.length} webhooks for resource ${resource.id}`,
-                            );
-                        } else {
-                            logger.log(`No webhooks need refreshing for resource ${resource.id}`);
-                        }
-                    } else {
-                        logger.log(`No webhooks found for resource ${resource.id}`);
+                    if (expiringWebhookIds.length > 0) {
+                        logger.log(
+                            `Refreshing ${expiringWebhookIds.length} expiring webhooks for resource ${resource.id}`,
+                        );
+                        await ky.put(
+                            `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3/webhook/refresh`,
+                            {
+                                headers: { ...headers, 'Content-Type': 'application/json' },
+                                json: { webhookIds: expiringWebhookIds },
+                            },
+                        );
                     }
                 } catch (webhookError) {
                     logger.error(
-                        `Error checking/refreshing webhooks for resource ${resource.id}: ${webhookError.message}`,
+                        `Error checking/refreshing webhooks for resource ${resource.id}:`,
+                        webhookError,
                     );
-                    // Continue with other resources even if webhook refresh fails for one
                 }
             }
 
-            logger.log(
-                `Successfully synced Jira integration for workspace ${payload.workspace_id}`,
-            );
+            // 5. Update final sync status
+            await supabase
+                .from('user_integrations')
+                .update({
+                    last_sync: toUTC(),
+                    status: 'active',
+                })
+                .eq('id', payload.id);
+            logger.log(`Successfully synced Jira integration for ID: ${payload.id}`);
+            return { success: true };
         } catch (error) {
-            console.log(error);
-            logger.error(
-                `Error syncing Jira integration for workspace ${payload.workspace_id}: ${error.message}`,
-            );
+            logger.error(`Error syncing Jira integration ID ${payload.id}:`, error);
+            await supabase
+                .from('user_integrations')
+                .update({ status: 'error' })
+                .eq('id', payload.id);
+            return { success: false, error: error.message };
         }
-
-        return {
-            success: true,
-        };
     },
 });
