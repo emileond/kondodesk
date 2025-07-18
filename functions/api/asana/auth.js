@@ -272,6 +272,10 @@ export async function onRequestPost(context) {
                                     resource_type: 'task',
                                     action: 'changed',
                                 },
+                                {
+                                    resource_type: 'task',
+                                    action: 'deleted',
+                                },
                             ],
                         },
                     },
