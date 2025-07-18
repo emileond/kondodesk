@@ -209,7 +209,7 @@ export async function onRequestPost(context) {
                 // Find the user's task list GID for this specific workspace
                 const userTaskListResponse = await ky
                     .get(
-                        `https://app.asana.com/api/1.0/users/${userGid}/user_task_lists?workspace=${workspace.gid}`,
+                        `https://app.asana.com/api/1.0/users/${userGid}/user_task_list?workspace=${workspace.gid}`,
                         { headers: { Authorization: `Bearer ${access_token}` } },
                     )
                     .json();
