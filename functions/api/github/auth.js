@@ -100,44 +100,32 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Exchange code for access token
-        const tokenResponse = await ky.post('https://github.com/login/oauth/access_token', {
-            json: {
-                client_id: context.env.GITHUB_CLIENT_ID,
-                client_secret: context.env.GITHUB_CLIENT_SECRET,
-                code: code,
-                redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/github',
-            },
-            headers: {
-                Accept: 'application/json',
-                'User-Agent': 'Weekfuse',
-            },
-        });
+        // 1. Exchange code for access token
+        const tokenResponse = await ky
+            .post('https://github.com/login/oauth/access_token', {
+                json: {
+                    client_id: context.env.GITHUB_CLIENT_ID,
+                    client_secret: context.env.GITHUB_CLIENT_SECRET,
+                    code: code,
+                },
+                headers: { Accept: 'application/json' },
+            })
+            .json();
 
-        const tokenData = await tokenResponse.json();
+        const tokenData = await tokenResponse;
 
         if (tokenData.error || !tokenData.access_token) {
             console.error('GitHub token exchange error:', tokenData);
-            return Response.json(
-                {
-                    success: false,
-                    error: tokenData.error || 'Failed to get access token',
-                },
-                { status: 400 },
-            );
+            throw new Error(tokenData.error_description || 'Failed to get GitHub access token');
         }
 
-        // Calculate expires_at if expires_in is available
-        let expires_at = null;
-        if (tokenData.expires_in) {
-            expires_at = calculateExpiresAt(tokenData.expires_in - 600);
-        }
-
-        // Save the access token in Supabase
-        const { error: updateError } = await supabase.from('user_integrations').upsert({
+        // 2. Save the initial integration data
+        const expires_at = tokenData.expires_in
+            ? calculateExpiresAt(tokenData.expires_in - 600)
+            : null;
+        const { error: upsertError } = await supabase.from('user_integrations').upsert({
             type: 'github',
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
@@ -150,62 +138,63 @@ export async function onRequestPost(context) {
             config: { syncStatus: 'prompt' },
         });
 
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
-            return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
-                { status: 500 },
-            );
-        }
+        if (upsertError) throw new Error('Failed to save integration data');
 
+        // 3. Process all assigned issues using pagination and batching
+        console.log('Starting GitHub initial issue sync...');
         const octokit = new Octokit({ auth: tokenData.access_token });
+        const DB_BATCH_SIZE = 50;
 
-        const issuesData = await octokit.paginate('GET /issues?state=open');
+        // Use the paginate method with a callback to process each page as it arrives
+        await octokit.paginate(
+            'GET /issues',
+            { filter: 'assigned', state: 'open', per_page: 100 },
+            (response, done) => {
+                const pageIssues = response.data;
 
-        // Process and store issues
-        if (issuesData && Array.isArray(issuesData)) {
-            const upsertPromises = issuesData.map((issue) =>
-                supabase.from('tasks').upsert(
-                    {
-                        name: issue.title,
-                        description: issue.body ? markdownToTipTap(issue.body) : null,
-                        workspace_id,
-                        integration_source: 'github',
-                        external_id: issue.id,
-                        external_data: issue,
-                        host: issue.url,
-                        assignee: user_id,
-                        creator: user_id,
-                    },
-                    {
-                        onConflict: 'integration_source, external_id, host, workspace_id',
-                    },
-                ),
-            );
+                // Create an async function to process batches within the synchronous callback
+                const processBatches = async () => {
+                    for (let i = 0; i < pageIssues.length; i += DB_BATCH_SIZE) {
+                        const batch = pageIssues.slice(i, i + DB_BATCH_SIZE);
+                        const upsertPromises = batch.map((issue) => {
+                            // Skip pull requests, which are also returned by the issues endpoint
+                            if (issue.pull_request) {
+                                return Promise.resolve();
+                            }
+                            const convertedDesc = issue.body ? markdownToTipTap(issue.body) : null;
+                            return supabase.from('tasks').upsert(
+                                {
+                                    name: issue.title,
+                                    description: convertedDesc
+                                        ? JSON.stringify(convertedDesc)
+                                        : null,
+                                    workspace_id,
+                                    integration_source: 'github',
+                                    external_id: issue.id.toString(), // Ensure external_id is a string
+                                    external_data: issue,
+                                    host: 'https://github.com',
+                                    assignee: user_id,
+                                    creator: user_id,
+                                },
+                                {
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
+                                },
+                            );
+                        });
+                        await Promise.all(upsertPromises);
+                    }
+                };
 
-            const results = await Promise.all(upsertPromises);
+                // Although the callback itself isn't async, we can call and await an async function inside it.
+                return processBatches();
+            },
+        );
 
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(`Upsert error for issue ${issuesData[index].id}:`, result.error);
-                } else {
-                    console.log(`Issue ${issuesData[index].id} imported successfully`);
-                }
-            });
-        }
-
+        console.log('GitHub initial import completed successfully.');
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in GitHub auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }

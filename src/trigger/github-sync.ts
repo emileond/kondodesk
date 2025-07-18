@@ -2,8 +2,8 @@ import { logger, task } from '@trigger.dev/sdk/v3';
 import { createClient } from '@supabase/supabase-js';
 import dayjs from 'dayjs';
 import { toUTC, calculateExpiresAt } from '../utils/dateUtils';
-import ky from 'ky';
 import { Octokit } from 'octokit';
+import { markdownToTipTap } from '../utils/editorUtils'; // Placeholder for your utility
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -15,140 +15,112 @@ export const githubSync = task({
     id: 'github-sync',
     maxDuration: 3000, // 50 minutes max duration
     run: async (payload: any) => {
-        logger.log('Starting GitHub sync task');
+        logger.log(`Starting GitHub sync for integration ID: ${payload.id}`);
+        let { access_token, refresh_token } = payload;
 
         try {
-            // Get project_id from integration config if available
-            const project_id = payload.config?.project_id || null;
-
-            // Check if token has expired
-            const currentTime = dayjs().utc();
+            // 1. Refresh token if it's expired
             const tokenExpired =
-                !payload.expires_at || currentTime.isAfter(dayjs(payload.expires_at));
-
-            let access_token = payload.access_token;
-            let refresh_token = payload.refresh_token;
-            let expires_at = payload.expires_at;
-
-            // Only refresh token if it has expired
-            if (tokenExpired) {
-                logger.log(`Access token expired, refreshing`);
+                !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
+            if (tokenExpired && refresh_token) {
+                logger.log('GitHub token expired, refreshing...');
                 const res = await ky
                     .post('https://github.com/login/oauth/access_token', {
-                        searchParams: {
+                        json: {
                             client_id: process.env.GITHUB_CLIENT_ID,
                             client_secret: process.env.GITHUB_CLIENT_SECRET,
                             grant_type: 'refresh_token',
-                            refresh_token: payload.refresh_token,
+                            refresh_token: refresh_token,
                         },
-                        headers: {
-                            Accept: 'application/json',
-                        },
+                        headers: { Accept: 'application/json' },
                     })
-                    .json();
+                    .json<any>();
 
-                if (res.error) {
-                    logger.error('Failed to refresh access token', res.error);
-                    await supabase
-                        .from('user_integrations')
-                        .update({
-                            status: 'error',
-                        })
-                        .eq('id', payload.id);
-                } else {
-                    // Update token information
-                    access_token = res.access_token;
-                    refresh_token = res.refresh_token;
-                    expires_at = calculateExpiresAt(res.expires_in);
+                if (res.error) throw new Error(`Token refresh failed: ${res.error_description}`);
 
-                    // Update the database with new token information
-                    await supabase
-                        .from('user_integrations')
-                        .update({
-                            access_token,
-                            refresh_token,
-                            expires_at,
-                            last_sync: toUTC(),
-                        })
-                        .eq('id', payload.id);
-                }
-            } else {
-                // Token is still valid, just update the last_sync timestamp
+                access_token = res.access_token;
                 await supabase
                     .from('user_integrations')
                     .update({
-                        last_sync: toUTC(),
+                        access_token,
+                        refresh_token: res.refresh_token || refresh_token,
+                        expires_at: calculateExpiresAt(res.expires_in),
                     })
                     .eq('id', payload.id);
+                logger.log('Token refreshed successfully.');
             }
 
+            // 2. Process all assigned issues using pagination and batching
             const octokit = new Octokit({ auth: access_token });
+            const DB_BATCH_SIZE = 50;
+            let totalTasksProcessed = 0;
 
-            const issuesData = await octokit.paginate('GET /issues?state=open');
+            await octokit.paginate(
+                'GET /issues',
+                { filter: 'assigned', state: 'open', per_page: 100 },
+                (response, done) => {
+                    const pageIssues = response.data;
+                    totalTasksProcessed += pageIssues.length;
 
-            // Process and store issues
-            if (issuesData && Array.isArray(issuesData)) {
-                const upsertPromises = issuesData.map((issue) =>
-                    supabase.from('tasks').upsert(
-                        {
-                            name: issue.title,
-                            description: {
-                                type: 'doc',
-                                content: [
+                    // This async function processes batches within the synchronous callback
+                    const processBatches = async () => {
+                        for (let i = 0; i < pageIssues.length; i += DB_BATCH_SIZE) {
+                            const batch = pageIssues.slice(i, i + DB_BATCH_SIZE);
+                            const upsertPromises = batch.map((issue) => {
+                                // Skip pull requests, which are also returned by the issues endpoint
+                                if (issue.pull_request) return Promise.resolve();
+
+                                const convertedDesc = issue.body
+                                    ? markdownToTipTap(issue.body)
+                                    : null;
+                                return supabase.from('tasks').upsert(
                                     {
-                                        type: 'paragraph',
-                                        content: [{ type: 'text', text: issue.body || '' }],
+                                        name: issue.title,
+                                        description: convertedDesc
+                                            ? JSON.stringify(convertedDesc)
+                                            : null,
+                                        workspace_id: payload.workspace_id,
+                                        integration_source: 'github',
+                                        external_id: issue.id.toString(),
+                                        external_data: issue,
+                                        host: 'https://github.com',
+                                        assignee: payload.user_id,
+                                        creator: payload.user_id,
+                                        project_id: payload.config?.project_id || null,
                                     },
-                                ],
-                            },
-                            workspace_id: payload.workspace_id,
-                            integration_source: 'github',
-                            external_id: issue.id,
-                            external_data: issue,
-                            host: issue.url,
-                            assignee: payload.user_id,
-                            creator: payload.user_id,
-                            project_id: project_id,
-                        },
-                        {
-                            onConflict: 'integration_source, external_id, host, workspace_id',
-                        },
-                    ),
-                );
+                                    {
+                                        onConflict:
+                                            'integration_source, external_id, host, workspace_id',
+                                    },
+                                );
+                            });
+                            await Promise.all(upsertPromises);
+                        }
+                    };
 
-                const results = await Promise.all(upsertPromises);
-
-                let issueSuccessCount = 0;
-                let issueFailCount = 0;
-
-                results.forEach((result, index) => {
-                    if (result.error) {
-                        logger.error(
-                            `Upsert error for issue ${issuesData[index].id}: ${result.error.message}`,
-                        );
-                        issueFailCount++;
-                    } else {
-                        issueSuccessCount++;
-                    }
-                });
-
-                logger.log(
-                    `Processed ${issuesData.length} issues for workspace ${payload.workspace_id}: ${issueSuccessCount} succeeded, ${issueFailCount} failed`,
-                );
-            }
-
-            logger.log(
-                `Successfully synced GitHub integration for workspace ${payload.workspace_id}`,
+                    return processBatches();
+                },
             );
+
+            logger.log(`Processed ${totalTasksProcessed} total issues.`);
+
+            // 3. Update final sync status
+            await supabase
+                .from('user_integrations')
+                .update({
+                    last_sync: toUTC(),
+                    status: 'active',
+                })
+                .eq('id', payload.id);
+            logger.log(`Successfully synced GitHub integration for ID: ${payload.id}`);
+            return { success: true };
         } catch (error) {
-            console.log(error);
-            logger.error(
-                `Error syncing GitHub integration for workspace ${payload.workspace_id}: ${error.message}`,
-            );
+            logger.error(`Error syncing GitHub integration ID ${payload.id}:`, error);
+            await supabase
+                .from('user_integrations')
+                .update({ status: 'error' })
+                .eq('id', payload.id);
+            return { success: false, error: error.message };
         }
-
-        return {
-            success: true,
-        };
     },
 });
