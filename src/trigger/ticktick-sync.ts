@@ -14,125 +14,97 @@ export const ticktickSync = task({
     id: 'ticktick-sync',
     maxDuration: 3600, // 60 minutes max duration
     run: async (payload: any) => {
-        logger.log('Starting TickTick sync task');
+        logger.log(`Starting TickTick sync for integration ID: ${payload.id}`);
+        const { access_token } = payload;
 
         try {
-            // Update the last_sync timestamp
+            // 1. Fetch all user projects from TickTick
+            const headers = { Authorization: `Bearer ${access_token}` };
+            const projects = await ky
+                .get('https://api.ticktick.com/open/v1/project', { headers })
+                .json<any[]>();
+
+            // Add the default "Inbox" project which isn't returned by the projects endpoint
+            const allProjects = [{ id: 'inbox', name: 'Inbox' }, ...(projects || [])];
+
+            if (allProjects.length === 0) {
+                logger.log('No TickTick projects found for this user.');
+                return { success: true, message: 'No projects to sync.' };
+            }
+
+            // 2. Process tasks for each project with DB batching
+            const DB_BATCH_SIZE = 50;
+
+            for (const project of allProjects) {
+                try {
+                    logger.log(`Processing TickTick project: ${project.name} (${project.id})`);
+                    const projectData = await ky
+                        .get(`https://api.ticktick.com/open/v1/project/${project.id}/data`, {
+                            headers,
+                        })
+                        .json<any>();
+                    const projectTasks = projectData.tasks || [];
+
+                    if (projectTasks.length === 0) {
+                        logger.log(`No tasks found in project: ${project.name}`);
+                        continue; // Move to the next project
+                    }
+
+                    // Process the tasks for this project in batches
+                    for (let i = 0; i < projectTasks.length; i += DB_BATCH_SIZE) {
+                        const batch = projectTasks.slice(i, i + DB_BATCH_SIZE);
+                        const upsertPromises = batch.map((task) => {
+                            const tiptapDescription = task.content
+                                ? markdownToTipTap(task.content)
+                                : null;
+                            return supabase.from('tasks').upsert(
+                                {
+                                    name: task.title,
+                                    description: tiptapDescription
+                                        ? JSON.stringify(tiptapDescription)
+                                        : null,
+                                    workspace_id: payload.workspace_id,
+                                    integration_source: 'ticktick',
+                                    external_id: task.id,
+                                    external_data: task,
+                                    host: `https://ticktick.com/webapp/#p/${task.projectId}/tasks/${task.id}`,
+                                    assignee: payload.user_id,
+                                    creator: payload.user_id,
+                                    project_id: payload.config?.project_id || null,
+                                },
+                                {
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
+                                },
+                            );
+                        });
+                        await Promise.all(upsertPromises);
+                    }
+                    logger.log(
+                        `Successfully processed ${projectTasks.length} tasks from project: ${project.name}.`,
+                    );
+                } catch (projectError) {
+                    logger.error(
+                        `Failed to process project ${project.name} (${project.id}):`,
+                        projectError,
+                    );
+                }
+            }
+
+            // 3. Update final sync status
             await supabase
                 .from('user_integrations')
-                .update({
-                    last_sync: toUTC(),
-                })
+                .update({ last_sync: toUTC() })
                 .eq('id', payload.id);
-
-            const access_token = payload.access_token;
-
-            // Check if token needs refresh
-            if (payload.refresh_token && payload.expires_in) {
-                // Implement token refresh logic if needed
-                // This would depend on TickTick's OAuth implementation
-            }
-
-            // Get project_id from integration config if available
-            const project_id = payload.config?.project_id || null;
-
-            // Get user's projects
-            const projects = await ky
-                .get(
-                    `https://api.ticktick.com/open/v1/project`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${access_token}`,
-                            'Content-Type': 'application/json',
-                        },
-                    },
-                )
-                .json();
-
-            // Get all tasks from all projects
-            let allTasks = [];
-
-            // Iterate through each project and get all tasks
-            if (projects && Array.isArray(projects)) {
-                const updatedProjects = [{id: 'inbox'}, ...projects];
-                const taskPromises = updatedProjects.map((project) => {
-                    const projectTasksUrl = `https://api.ticktick.com/open/v1/project/${project.id}/data`;
-                    return ky
-                        .get(projectTasksUrl, {
-                            headers: {
-                                'Authorization': `Bearer ${access_token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        })
-                        .json();
-                });
-
-                const projectTasksResults = await Promise.all(taskPromises);
-
-                // Combine all tasks from all projects
-                allTasks = projectTasksResults.map((result) => result.tasks || []).flat();
-            }
-
-            const tasksData = allTasks;
-
-            // Process and store tasks
-            if (tasksData && Array.isArray(tasksData)) {
-                const upsertPromises = tasksData.map((task) => {
-                    // Convert content to Tiptap format if needed
-                    const tiptapDescription = task?.content ? markdownToTipTap(task.content) : null;
-
-                    return supabase.from('tasks').upsert(
-                        {
-                            name: task.title,
-                            description: tiptapDescription,
-                            workspace_id: payload.workspace_id,
-                            integration_source: 'ticktick',
-                            external_id: task.id,
-                            external_data: task,
-                            host: `https://ticktick.com/webapp/#p/${task.projectId}/tasks/${task.id}`,
-                            assignee: payload.user_id,
-                            creator: payload.user_id,
-                            project_id: project_id,
-                        },
-                        {
-                            onConflict: 'integration_source, external_id, host, workspace_id',
-                        },
-                    );
-                });
-
-                const results = await Promise.all(upsertPromises);
-
-                let taskSuccessCount = 0;
-                let taskFailCount = 0;
-
-                results.forEach((result, index) => {
-                    if (result.error) {
-                        logger.error(
-                            `Upsert error for task ${tasksData[index].id}: ${result.error.message}`,
-                        );
-                        taskFailCount++;
-                    } else {
-                        taskSuccessCount++;
-                    }
-                });
-
-                logger.log(
-                    `Processed ${tasksData.length} tasks for workspace ${payload.workspace_id}: ${taskSuccessCount} succeeded, ${taskFailCount} failed`,
-                );
-            }
-
-            logger.log(
-                `Successfully synced TickTick integration for workspace ${payload.workspace_id}`,
-            );
+            logger.log(`Successfully synced TickTick integration for ID: ${payload.id}`);
+            return { success: true };
         } catch (error) {
-            console.log(error);
-            logger.error(
-                `Error syncing TickTick integration for workspace ${payload.workspace_id}: ${error.message}`,
-            );
+            logger.error(`Error syncing TickTick integration ID ${payload.id}:`, error);
+            await supabase
+                .from('user_integrations')
+                .update({ status: 'error' })
+                .eq('id', payload.id);
+            return { success: false, error: error.message };
         }
-
-        return {
-            success: true,
-        };
     },
 });

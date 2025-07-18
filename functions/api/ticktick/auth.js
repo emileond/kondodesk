@@ -81,146 +81,109 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
-
         const { TICKTICK_CLIENT_ID, TICKTICK_CLIENT_SECRET } = context.env;
 
-        // --- Step 1: Create the Basic Auth header ---
+        // 1. Exchange code for access token
         const basicAuthHeader = `Basic ${btoa(`${TICKTICK_CLIENT_ID}:${TICKTICK_CLIENT_SECRET}`)}`;
-
-        // --- Step 2: Create the URL-encoded body ---
-        const requestBody = new URLSearchParams({
-            code: code,
-            grant_type: 'authorization_code',
-            redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/ticktick',
-            scope: 'tasks:read tasks:write', // It's good practice to include the scope
-        });
-
-        // --- Step 3: Make the corrected API call ---
         const tokenResponse = await ky
             .post('https://ticktick.com/oauth/token', {
-                // Using the endpoint from the docs
                 headers: {
                     Authorization: basicAuthHeader,
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: requestBody, // Use the 'body' option with the URLSearchParams object
+                body: new URLSearchParams({
+                    code: code,
+                    grant_type: 'authorization_code',
+                    redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/ticktick',
+                    scope: 'tasks:read tasks:write',
+                }),
             })
             .json();
 
-        const access_token = tokenResponse.access_token;
+        const { access_token } = tokenResponse;
+        if (!access_token) throw new Error('Failed to obtain TickTick access token');
 
-        if (!access_token) {
-            throw new Error('Failed to obtain access token');
-        }
+        // 2. Save the initial integration data
+        const { error: upsertError } = await supabase.from('user_integrations').upsert({
+            type: 'ticktick',
+            access_token,
+            user_id,
+            workspace_id,
+            status: 'active',
+            last_sync: toUTC(),
+            config: { syncStatus: 'prompt' },
+        });
 
-        // Save the access token in Supabase
-        const { data: upsertData, error: updateError } = await supabase
-            .from('user_integrations')
-            .upsert({
-                type: 'ticktick',
-                access_token: access_token,
-                user_id,
-                workspace_id,
-                status: 'active',
-                last_sync: toUTC(),
-                config: { syncStatus: 'prompt' },
-            })
-            .select('id')
-            .single();
+        if (upsertError) throw new Error('Failed to save integration data');
 
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
-            return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
-                { status: 500 },
-            );
-        }
-
-        const integration_id = upsertData.id;
-
-        // Get user's projects
+        // 3. Fetch all user projects
+        const headers = { Authorization: `Bearer ${access_token}` };
         const projects = await ky
-            .get(`https://api.ticktick.com/open/v1/project`, {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    'Content-Type': 'application/json',
-                },
-            })
+            .get('https://api.ticktick.com/open/v1/project', { headers })
             .json();
 
-        // Get all tasks from all projects
-        let allTasks = [];
+        // Add the default "Inbox" project which has no ID in the projects list
+        const allProjects = [{ id: 'inbox', name: 'Inbox' }, ...(projects || [])];
 
-        // Iterate through each project and get all tasks
-        if (projects && Array.isArray(projects)) {
-            const updatedProjects = [{id: 'inbox'}, ...projects];
-            const taskPromises = updatedProjects.map((project) => {
-                const projectTasksUrl = `https://api.ticktick.com/open/v1/project/${project.id}/data`;
-                return ky
-                    .get(projectTasksUrl, {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            'Content-Type': 'application/json',
-                        },
-                    })
+        // 4. Process tasks project-by-project with DB batching
+        const DB_BATCH_SIZE = 50;
+        console.log(`Starting initial import for ${allProjects.length} TickTick projects.`);
+
+        for (const project of allProjects) {
+            try {
+                console.log(`Fetching tasks for project: ${project.name} (${project.id})`);
+                const projectData = await ky
+                    .get(`https://api.ticktick.com/open/v1/project/${project.id}/data`, { headers })
                     .json();
-            });
+                const projectTasks = projectData.tasks || [];
 
-            const projectTasksResults = await Promise.all(taskPromises);
-
-            // Combine all tasks from all projects
-            allTasks = projectTasksResults.map((result) => result.tasks || []).flat();
-        }
-        
-        // Process and store tasks
-        if (allTasks && Array.isArray(allTasks)) {
-            const upsertPromises = allTasks.map((task) => {
-                // Convert content to Tiptap format if needed
-                const tiptapDescription = task?.content ? markdownToTipTap(task.content) : null;
-
-                return supabase.from('tasks').upsert(
-                    {
-                        name: task.title,
-                        description: tiptapDescription,
-                        workspace_id,
-                        integration_source: 'ticktick',
-                        external_id: task.id,
-                        external_data: task,
-                        host: `https://ticktick.com/webapp/#p/${task.projectId}/tasks/${task.id}`,
-                        assignee: user_id,
-                        creator: user_id,
-                    },
-                    {
-                        onConflict: 'integration_source, external_id, host, workspace_id',
-                    },
-                );
-            });
-
-            const results = await Promise.all(upsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(`Upsert error for task ${allTasks[index].id}:`, result.error);
-                } else {
-                    console.log(`Task ${allTasks[index].id} imported successfully`);
+                if (projectTasks.length === 0) {
+                    console.log(`No tasks found in project: ${project.name}`);
+                    continue;
                 }
-            });
+
+                // Process the tasks for this project in batches
+                for (let i = 0; i < projectTasks.length; i += DB_BATCH_SIZE) {
+                    const batch = projectTasks.slice(i, i + DB_BATCH_SIZE);
+                    const upsertPromises = batch.map((task) => {
+                        const tiptapDescription = task.content
+                            ? markdownToTipTap(task.content)
+                            : null;
+                        return supabase.from('tasks').upsert(
+                            {
+                                name: task.title,
+                                description: tiptapDescription
+                                    ? JSON.stringify(tiptapDescription)
+                                    : null,
+                                workspace_id,
+                                integration_source: 'ticktick',
+                                external_id: task.id,
+                                external_data: task,
+                                host: `https://ticktick.com/webapp/#p/${task.projectId}/tasks/${task.id}`,
+                                assignee: user_id,
+                                creator: user_id,
+                            },
+                            { onConflict: 'integration_source, external_id, host, workspace_id' },
+                        );
+                    });
+                    await Promise.all(upsertPromises);
+                }
+                console.log(
+                    `Successfully processed ${projectTasks.length} tasks from project: ${project.name}`,
+                );
+            } catch (projectError) {
+                console.error(
+                    `Failed to process project ${project.name} (${project.id}):`,
+                    projectError,
+                );
+            }
         }
 
+        console.log('TickTick initial import completed successfully.');
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in TickTick auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
