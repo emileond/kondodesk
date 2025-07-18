@@ -85,10 +85,9 @@ export async function onRequestPost(context) {
     }
 
     try {
-        // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // Exchange the authorization code for an access token
+        // 1. Exchange the authorization code for an access token
         const tokenResponse = await ky
             .post('https://todoist.com/oauth/access_token', {
                 json: {
@@ -96,144 +95,78 @@ export async function onRequestPost(context) {
                     client_secret: context.env.TODOIST_CLIENT_SECRET,
                     code: code,
                 },
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             })
             .json();
 
-        const access_token = tokenResponse.access_token;
+        const { access_token } = tokenResponse;
+        if (!access_token) throw new Error('Failed to obtain Todoist access token');
 
-        if (!access_token) {
-            return Response.json(
-                { success: false, error: 'Failed to get access token' },
-                { status: 500 },
-            );
-        }
+        const headers = { Authorization: `Bearer ${access_token}` };
 
-        // Get user info from Todoist API
-        const userInfo = await ky
-            .get('https://api.todoist.com/api/v1/user', {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    'Content-Type': 'application/json',
-                },
-            })
-            .json();
+        // 2. Get user info and save the initial integration data
+        const userInfo = await ky.get('https://api.todoist.com/api/v1/user', { headers }).json();
 
-        // Save the access token in Supabase
-        const { data: upsertData, error: updateError } = await supabase
-            .from('user_integrations')
-            .upsert({
-                type: 'todoist',
-                access_token: access_token,
-                user_id,
-                workspace_id,
-                status: 'active',
-                last_sync: toUTC(),
-                external_data: userInfo, // Save user info in external_data
-                config: { syncStatus: 'prompt' },
-            })
-            .select('id')
-            .single();
+        const { error: upsertError } = await supabase.from('user_integrations').upsert({
+            type: 'todoist',
+            access_token,
+            user_id,
+            workspace_id,
+            status: 'active',
+            last_sync: toUTC(),
+            external_data: userInfo,
+            config: { syncStatus: 'prompt' },
+        });
 
-        if (updateError) {
-            console.error('Supabase update error:', updateError);
-            return Response.json(
-                {
-                    success: false,
-                    error: 'Failed to save integration data',
-                },
-                { status: 500 },
-            );
-        }
+        if (upsertError) throw new Error('Failed to save integration data');
 
-        const integration_id = upsertData.id;
-
-        // Get all active tasks from Todoist with pagination
-        let allTasks = [];
+        // 3. Fetch and process all tasks with pagination and DB batching
+        console.log('Starting Todoist initial task sync...');
+        const DB_BATCH_SIZE = 50;
         let nextCursor = null;
 
         do {
-            // Build query parameters for pagination
             const queryParams = nextCursor ? `?cursor=${nextCursor}` : '';
-
-            // Make API request
             const response = await ky
-                .get(`https://api.todoist.com/api/v1/tasks${queryParams}`, {
-                    headers: {
-                        Authorization: `Bearer ${access_token}`,
-                        'Content-Type': 'application/json',
-                    },
-                })
+                .get(`https://api.todoist.com/api/v1/tasks${queryParams}`, { headers })
                 .json();
+            const pageTasks = response.results || [];
 
-            // Add results to our collection
-            if (response.results && Array.isArray(response.results)) {
-                allTasks = [...allTasks, ...response.results];
+            if (pageTasks.length > 0) {
+                // Process the current page of tasks in batches
+                for (let i = 0; i < pageTasks.length; i += DB_BATCH_SIZE) {
+                    const batch = pageTasks.slice(i, i + DB_BATCH_SIZE);
+                    const upsertPromises = batch.map((task) => {
+                        const tiptapDescription = task.description
+                            ? markdownToTipTap(task.description)
+                            : null;
+                        return supabase.from('tasks').upsert(
+                            {
+                                name: task.content,
+                                description: tiptapDescription
+                                    ? JSON.stringify(tiptapDescription)
+                                    : null,
+                                workspace_id,
+                                integration_source: 'todoist',
+                                external_id: task.id.toString(),
+                                external_data: task,
+                                host: `https://todoist.com/app/task/${task.id}`,
+                                assignee: user_id,
+                                creator: user_id,
+                            },
+                            { onConflict: 'integration_source, external_id, host, workspace_id' },
+                        );
+                    });
+                    await Promise.all(upsertPromises);
+                }
             }
 
-            // Update cursor for next page
             nextCursor = response.next_cursor;
-
-            // Log pagination progress
-            if (nextCursor) {
-                console.log(
-                    `Fetched ${response.results.length} tasks, continuing with next page...`,
-                );
-            }
         } while (nextCursor);
 
-        console.log(`Fetched a total of ${allTasks.length} tasks from Todoist`);
-
-        // Process and store tasks
-        if (allTasks.length > 0) {
-            const upsertPromises = allTasks.map((task) => {
-                // Convert markdown description to Tiptap format if available
-                const tiptapDescription = task?.description
-                    ? markdownToTipTap(task.description)
-                    : null;
-
-                return supabase.from('tasks').upsert(
-                    {
-                        name: task.content,
-                        description: tiptapDescription,
-                        workspace_id,
-                        integration_source: 'todoist',
-                        external_id: task.id,
-                        external_data: task,
-                        host: `https://todoist.com/app/task/${task.id}`,
-                        assignee: user_id,
-                        creator: user_id,
-                        // Set due date if available
-                        due_date: task.due ? new Date(task.due.date).toISOString() : null,
-                    },
-                    {
-                        onConflict: 'integration_source, external_id, host, workspace_id',
-                    },
-                );
-            });
-
-            const results = await Promise.all(upsertPromises);
-
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(`Upsert error for task ${allTasks[index].id}:`, result.error);
-                } else {
-                    console.log(`Task ${allTasks[index].id} imported successfully`);
-                }
-            });
-        }
-
+        console.log('Todoist initial import completed successfully.');
         return Response.json({ success: true });
     } catch (error) {
         console.error('Error in Todoist auth flow:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
