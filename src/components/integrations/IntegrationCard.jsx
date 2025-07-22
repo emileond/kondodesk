@@ -84,7 +84,7 @@ function IntegrationCard({
                         {hasConfigOptions && (
                             <Button
                                 size="sm"
-                                variant="bordered"
+                                variant="light"
                                 onPress={handleConfigure}
                                 startContent={<RiEqualizer3Fill fontSize={BTN_ICON_SIZE} />}
                             >
@@ -93,7 +93,7 @@ function IntegrationCard({
                         )}
                         <Button
                             size="sm"
-                            variant="bordered"
+                            variant="light"
                             color="danger"
                             onPress={handleDisconnect}
                             startContent={<RiShutDownLine fontSize={BTN_ICON_SIZE} />}
@@ -107,7 +107,7 @@ function IntegrationCard({
                 return (
                     <Button
                         size="sm"
-                        variant="bordered"
+                        variant="flat"
                         onPress={handleError}
                         startContent={<RiShutDownLine fontSize={BTN_ICON_SIZE} />}
                         isDisabled={isLoading}
@@ -120,7 +120,7 @@ function IntegrationCard({
             default:
                 return (
                     <Button
-                        variant="bordered"
+                        variant="flat"
                         size="sm"
                         onPress={handleConnect}
                         startContent={<RiLoginCircleLine fontSize={BTN_ICON_SIZE} />}

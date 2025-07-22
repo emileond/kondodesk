@@ -2,7 +2,7 @@ import AppLayout from '../components/layout/AppLayout';
 import PageLayout from '../components/layout/PageLayout';
 import IntegrationCard from '../components/integrations/IntegrationCard';
 import { RiGithubFill, RiSlackFill } from 'react-icons/ri';
-import { Link } from '@heroui/react';
+import { Link, Tabs, Tab } from '@heroui/react';
 import GithubIntegrationCard from '../components/integrations/github/GithubIntegrationCard.jsx';
 import JiraIntegrationCard from '../components/integrations/jira/JiraIntegrationCard.jsx';
 import TrelloIntegrationCard from '../components/integrations/trello/TrelloIntegrationCard.jsx';
@@ -13,11 +13,14 @@ import TodoistIntegrationCard from '../components/integrations/todoist/TodoistIn
 import AsanaIntegrationCard from '../components/integrations/asana/AsanaIntegrationCard.jsx';
 import MicrosoftToDoIntegrationCard from '../components/integrations/microsoft/todo/MicrosoftToDoIntegrationCard.jsx';
 import { useUser } from '../hooks/react-query/user/useUser.js';
+import { useState } from 'react';
 import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/GoogleTasksIntegrationCard.jsx';
 import ZohoProjectsIntegrationCard from '../components/integrations/zoho/projects/ZohoProjectsIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
+    const [activeTab, setActiveTab] = useState('task-management');
+
     // Define all integrations with GitHub having dynamic status and handlers
     const integrations = [
         {
@@ -51,33 +54,79 @@ function IntegrationsPage() {
                         Feature Requests Board
                     </Link>
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <GithubIntegrationCard />
-                    <JiraIntegrationCard />
-                    <TrelloIntegrationCard />
-                    <AsanaIntegrationCard />
-                    <ClickupIntegrationCard />
-                    <TickTickIntegrationCard />
-                    <TodoistIntegrationCard />
-                    {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
-                    {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
-                    {user?.email === 'sonarart@gmail.com' && <ZohoProjectsIntegrationCard />}
-                    {/*<MondayIntegrationCard />*/}
-                    {integrations?.map((integration) => (
-                        <IntegrationCard
-                            key={integration.id}
-                            id={integration.id}
-                            name={integration.name}
-                            icon={integration.icon}
-                            status={integration.status}
-                            description={integration.description}
-                            hasConfigOptions={integration.hasConfigOptions}
-                            onConnect={integration.onConnect}
-                            onDisconnect={integration.onDisconnect}
-                            onConfigure={integration.onConfigure}
-                        />
-                    ))}
-                </div>
+
+                <Tabs
+                    selectedKey={activeTab}
+                    onSelectionChange={setActiveTab}
+                    className="w-full"
+                >
+                    <Tab key="task-management" title="Task Management">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            <GithubIntegrationCard />
+                            <JiraIntegrationCard />
+                            <TrelloIntegrationCard />
+                            <AsanaIntegrationCard />
+                            <ClickupIntegrationCard />
+                            <TickTickIntegrationCard />
+                            <TodoistIntegrationCard />
+                            {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && <ZohoProjectsIntegrationCard />}
+                            {/*<MondayIntegrationCard />*/}
+                        </div>
+                    </Tab>
+
+                    <Tab key="calendar" title="Calendar">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            {/* Calendar integrations will be added here in the future */}
+                            <div className="col-span-full text-center py-8 text-gray-500">
+                                Calendar integrations coming soon!
+                            </div>
+                        </div>
+                    </Tab>
+
+                    <Tab key="communication" title="Communication">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            {integrations
+                                .filter(integration => integration.id === 'slack')
+                                .map((integration) => (
+                                    <IntegrationCard
+                                        key={integration.id}
+                                        id={integration.id}
+                                        name={integration.name}
+                                        icon={integration.icon}
+                                        status={integration.status}
+                                        description={integration.description}
+                                        hasConfigOptions={integration.hasConfigOptions}
+                                        onConnect={integration.onConnect}
+                                        onDisconnect={integration.onDisconnect}
+                                        onConfigure={integration.onConfigure}
+                                    />
+                                ))}
+                        </div>
+                    </Tab>
+
+                    <Tab key="automation" title="Automation">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            {integrations
+                                .filter(integration => integration.id === 'zapier')
+                                .map((integration) => (
+                                    <IntegrationCard
+                                        key={integration.id}
+                                        id={integration.id}
+                                        name={integration.name}
+                                        icon={integration.icon}
+                                        status={integration.status}
+                                        description={integration.description}
+                                        hasConfigOptions={integration.hasConfigOptions}
+                                        onConnect={integration.onConnect}
+                                        onDisconnect={integration.onDisconnect}
+                                        onConfigure={integration.onConfigure}
+                                    />
+                                ))}
+                        </div>
+                    </Tab>
+                </Tabs>
             </PageLayout>
         </AppLayout>
     );
