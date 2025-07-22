@@ -179,6 +179,48 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                     console.error('Error updating Asana task:', error);
                 }
                 break;
+
+            case 'google_tasks':
+                try {
+                    const taskListId = task?.external_data?.taskListId;
+                    if (!taskListId) {
+                        console.error('Missing taskListId for Google Tasks update');
+                        break;
+                    }
+
+                    await ky.patch(`/api/google/tasks/${task.external_id}`, {
+                        json: {
+                            workspace_id: currentWorkspace?.workspace_id,
+                            user_id: user.id,
+                            taskListId: taskListId,
+                            status: newStatus,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Google Tasks task:', error);
+                }
+                break;
+
+            case 'microsoft_todo':
+                try {
+                    const listId = task?.external_data?.parentFolderId;
+                    if (!listId) {
+                        console.error('Missing listId for Microsoft To Do update');
+                        break;
+                    }
+
+                    await ky.patch(`/api/microsoft/todo/task/${task.external_id}`, {
+                        json: {
+                            workspace_id: currentWorkspace?.workspace_id,
+                            user_id: user.id,
+                            listId: listId,
+                            status: newStatus,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Microsoft To Do task:', error);
+                }
+                break;
         }
     };
 

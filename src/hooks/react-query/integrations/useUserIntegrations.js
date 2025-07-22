@@ -72,6 +72,10 @@ const deleteIntegration = async ({ id, installation_id, type }) => {
             await ky.delete('/api/microsoft/todo/auth', {
                 json: { id },
             });
+        } else if (type === 'google_tasks' && id) {
+            await ky.delete('/api/google/tasks/auth', {
+                json: { id },
+            });
         } else {
             // Optional: Handle cases where type is not recognized or parameters are missing
             console.warn('Delete operation skipped: Invalid type or missing parameters.', {

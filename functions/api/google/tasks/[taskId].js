@@ -1,18 +1,18 @@
 import ky from 'ky';
 import { createClient } from '@supabase/supabase-js';
 import dayjs from 'dayjs';
-import { calculateExpiresAt } from '../../../../../src/utils/dateUtils.js';
+import { calculateExpiresAt } from '../../../../src/utils/dateUtils.js';
 
-// This function will handle GET requests for a single Microsoft To Do task
+// This function will handle GET requests for a single Google Tasks task
 export async function onRequestGet(context) {
     try {
         const { taskId } = context.params;
         const url = new URL(context.request.url);
         const workspace_id = url.searchParams.get('workspace_id');
         const user_id = url.searchParams.get('user_id');
-        const listId = url.searchParams.get('listId');
+        const taskListId = url.searchParams.get('taskListId');
 
-        if (!taskId || !workspace_id || !user_id || !listId) {
+        if (!taskId || !workspace_id || !user_id || !taskListId) {
             return Response.json(
                 { success: false, error: 'Missing required parameters' },
                 { status: 400 },
@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft_todo')
+            .eq('type', 'google_tasks')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
 
         if (integrationError || !integration) {
             return Response.json(
-                { success: false, error: 'Microsoft To Do integration not found' },
+                { success: false, error: 'Google Tasks integration not found' },
                 { status: 404 },
             );
         }
@@ -47,35 +47,31 @@ export async function onRequestGet(context) {
 
         if (tokenExpired) {
             const newToken = await ky
-                .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-                    body: new URLSearchParams({
+                .post('https://oauth2.googleapis.com/token', {
+                    json: {
                         grant_type: 'refresh_token',
-                        client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                        client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                        client_id: context.env.GOOGLE_OAUTH_CLIENT_ID,
+                        client_secret: context.env.GOOGLE_OAUTH_CLIENT_SECRET,
                         refresh_token: integration.refresh_token,
-                        scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
-                    }),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
                 })
                 .json();
-
+            
             accessToken = newToken.access_token;
             await supabase
                 .from('user_integrations')
                 .update({
                     access_token: newToken.access_token,
-                    refresh_token: newToken.refresh_token,
+                    refresh_token: newToken.refresh_token || integration.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft_todo' });
+                .match({ user_id, workspace_id, type: 'google_tasks' });
         }
         // --- End Token Refresh Logic ---
 
-        // Fetch the task details from Microsoft Graph API
+        // Fetch the task details from Google Tasks API
         const taskDetails = await ky
-            .get(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`, {
+            .get(`https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks/${taskId}`, {
                 headers: { 
                     Authorization: `Bearer ${accessToken}`, 
                     Accept: 'application/json' 
@@ -88,7 +84,7 @@ export async function onRequestGet(context) {
             task: taskDetails,
         });
     } catch (error) {
-        console.error('Error fetching Microsoft To Do task:', error);
+        console.error('Error fetching Google Tasks task:', error);
         return Response.json(
             { success: false, error: 'Internal server error', details: error.message },
             { status: 500 },
@@ -96,14 +92,14 @@ export async function onRequestGet(context) {
     }
 }
 
-// This function will handle PATCH requests to update a Microsoft To Do task
+// This function will handle PATCH requests to update a Google Tasks task
 export async function onRequestPatch(context) {
     try {
         const { taskId } = context.params;
         const body = await context.request.json();
-        const { workspace_id, user_id, listId, status, completed } = body;
+        const { workspace_id, user_id, taskListId, status, completed } = body;
 
-        if (!taskId || !workspace_id || !user_id || !listId) {
+        if (!taskId || !workspace_id || !user_id || !taskListId) {
             return Response.json(
                 { success: false, error: 'Missing required parameters' },
                 { status: 400 },
@@ -117,7 +113,7 @@ export async function onRequestPatch(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft_todo')
+            .eq('type', 'google_tasks')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -125,7 +121,7 @@ export async function onRequestPatch(context) {
 
         if (integrationError || !integration) {
             return Response.json(
-                { success: false, error: 'Microsoft To Do integration not found' },
+                { success: false, error: 'Google Tasks integration not found' },
                 { status: 404 },
             );
         }
@@ -138,63 +134,53 @@ export async function onRequestPatch(context) {
 
         if (tokenExpired) {
             const newToken = await ky
-                .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-                    body: new URLSearchParams({
+                .post('https://oauth2.googleapis.com/token', {
+                    json: {
                         grant_type: 'refresh_token',
-                        client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                        client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                        client_id: context.env.GOOGLE_OAUTH_CLIENT_ID,
+                        client_secret: context.env.GOOGLE_OAUTH_CLIENT_SECRET,
                         refresh_token: integration.refresh_token,
-                        scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
-                    }),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
                 })
                 .json();
-
+            
             accessToken = newToken.access_token;
             await supabase
                 .from('user_integrations')
                 .update({
                     access_token: newToken.access_token,
-                    refresh_token: newToken.refresh_token,
+                    refresh_token: newToken.refresh_token || integration.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft_todo' });
+                .match({ user_id, workspace_id, type: 'google_tasks' });
         }
         // --- End Token Refresh Logic ---
 
-        // Prepare the update payload for Microsoft Graph API
+        // Prepare the update payload for Google Tasks API
         const updatePayload = {};
-
+        
         // Handle status/completion updates
         if (status !== undefined) {
             if (status === 'completed') {
                 updatePayload.status = 'completed';
-                updatePayload.completedDateTime = {
-                    dateTime: new Date().toISOString(),
-                    timeZone: 'UTC'
-                };
+                updatePayload.completed = new Date().toISOString();
             } else {
-                updatePayload.status = 'notStarted';
-                updatePayload.completedDateTime = null;
+                updatePayload.status = 'needsAction';
+                updatePayload.completed = null;
             }
         } else if (completed !== undefined) {
             if (completed) {
                 updatePayload.status = 'completed';
-                updatePayload.completedDateTime = {
-                    dateTime: new Date().toISOString(),
-                    timeZone: 'UTC'
-                };
+                updatePayload.completed = new Date().toISOString();
             } else {
-                updatePayload.status = 'notStarted';
-                updatePayload.completedDateTime = null;
+                updatePayload.status = 'needsAction';
+                updatePayload.completed = null;
             }
         }
 
-        // Update the task in Microsoft Graph API
+        // Update the task in Google Tasks API
         const updatedTask = await ky
-            .patch(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`, {
+            .patch(`https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks/${taskId}`, {
                 headers: { 
                     Authorization: `Bearer ${accessToken}`, 
                     'Content-Type': 'application/json' 
@@ -209,10 +195,10 @@ export async function onRequestPatch(context) {
             .update({
                 external_data: updatedTask,
                 status: updatedTask.status === 'completed' ? 'completed' : 'pending',
-                completed_at: updatedTask.status === 'completed' ? updatedTask.completedDateTime?.dateTime : null,
+                completed_at: updatedTask.status === 'completed' ? updatedTask.completed : null,
             })
             .eq('external_id', taskId)
-            .eq('integration_source', 'microsoft_todo')
+            .eq('integration_source', 'google_tasks')
             .eq('workspace_id', workspace_id);
 
         return Response.json({
@@ -220,7 +206,7 @@ export async function onRequestPatch(context) {
             task: updatedTask,
         });
     } catch (error) {
-        console.error('Error updating Microsoft To Do task:', error);
+        console.error('Error updating Google Tasks task:', error);
         return Response.json(
             { success: false, error: 'Internal server error', details: error.message },
             { status: 500 },

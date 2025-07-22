@@ -37,6 +37,11 @@ const IntegrationSourceSelect = ({
             startContent: <Avatar className={iconClass} src="/integrations/github.png" />,
         },
         {
+            label: 'Google Tasks',
+            value: 'google_tasks',
+            startContent: <Avatar className={iconClass} src="/integrations/google_tasks.png" />,
+        },
+        {
             label: 'Jira',
             value: 'jira',
             startContent: <Avatar className={iconClass} src="/integrations/jira.png" />,

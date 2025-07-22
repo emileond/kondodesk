@@ -8,6 +8,7 @@ import TickTickTaskDetails from './ticktick/TickTickTaskDetails.jsx';
 import TodoistTaskDetails from './todoist/TodoistTaskDetails.jsx';
 import AsanaTaskDetails from './asana/AsanaTaskDetails.jsx';
 import MicrosoftToDoTaskDetails from './microsoft/todo/MicrosoftToDoTaskDetails.jsx';
+import GoogleTasksDetails from './google/tasks/GoogleTasksDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
@@ -122,6 +123,19 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                     </Link>
                 </div>
             );
+        case 'google_tasks':
+            return (
+                <div className="flex gap-1 items-center">
+                    <Link
+                        className="font-medium text-blue-700 text-sm"
+                        isExternal
+                        showAnchorIcon
+                        href={`https://tasks.google.com/task/${external_data?.id}`}
+                    >
+                        Open in Google Tasks
+                    </Link>
+                </div>
+            );
     }
 };
 
@@ -148,6 +162,8 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
             return <TodoistTaskDetails external_data={external_data} />;
         case 'microsoft_todo':
             return <MicrosoftToDoTaskDetails task_id={task_id} external_data={external_data} />;
+        case 'google_tasks':
+            return <GoogleTasksDetails task_id={task_id} external_data={external_data} />;
     }
 };
 

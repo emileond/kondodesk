@@ -13,6 +13,7 @@ import TodoistIntegrationCard from '../components/integrations/todoist/TodoistIn
 import AsanaIntegrationCard from '../components/integrations/asana/AsanaIntegrationCard.jsx';
 import MicrosoftToDoIntegrationCard from '../components/integrations/microsoft/todo/MicrosoftToDoIntegrationCard.jsx';
 import { useUser } from '../hooks/react-query/user/useUser.js';
+import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/GoogleTasksIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -58,6 +59,7 @@ function IntegrationsPage() {
                     <TickTickIntegrationCard />
                     <TodoistIntegrationCard />
                     {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
+                    {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
                     {/*<MondayIntegrationCard />*/}
                     {integrations?.map((integration) => (
                         <IntegrationCard

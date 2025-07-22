@@ -338,6 +338,49 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleGoogleTasksCallback = async ({ code, state }) => {
+        setLoading(true);
+        try {
+            // Verify state parameter to prevent CSRF attacks
+            const storedState = localStorage.getItem('google_tasks_oauth_state');
+
+            if (state !== storedState) {
+                throw new Error('State verification failed');
+            }
+
+            // Clear the stored state
+            localStorage.removeItem('google_tasks_oauth_state');
+
+            await ky.post('/api/google/tasks/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                    state,
+                },
+            });
+
+            toast.success('Google Tasks Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'google_tasks'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'google_tasks'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Google Tasks Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Google Tasks:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -377,6 +420,12 @@ const OAuthCallback = () => {
                 break;
             case 'microsoft_todo':
                 handleMicrosoftToDoCallback({ code });
+                break;
+            case 'google_tasks':
+                {
+                    const state = searchParams.get('state');
+                    handleGoogleTasksCallback({ code, state });
+                }
                 break;
             default:
                 toast.error('Unsupported OAuth provider');
