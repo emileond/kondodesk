@@ -221,6 +221,33 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                     console.error('Error updating Microsoft To Do task:', error);
                 }
                 break;
+
+            case 'zoho_projects':
+                try {
+                    const projectId = task?.external_data?.project_id || task?.external_data?.project?.id;
+                    if (!projectId) {
+                        console.error('Missing projectId for Zoho Projects update');
+                        break;
+                    }
+
+                    // Map status to Zoho Projects status ID
+                    // This is a simplified mapping - in reality, you'd need to fetch available statuses
+                    const statusId = newStatus === 'completed' ? 'completed' : 'open';
+
+                    await ky.post('/api/zoho/projects/transitions', {
+                        json: {
+                            task_id: task.id,
+                            taskId: task.external_id,
+                            projectId: projectId,
+                            statusId: statusId,
+                            user_id: user.id,
+                            workspace_id: currentWorkspace?.workspace_id,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Zoho Projects task:', error);
+                }
+                break;
         }
     };
 

@@ -9,6 +9,7 @@ import TodoistTaskDetails from './todoist/TodoistTaskDetails.jsx';
 import AsanaTaskDetails from './asana/AsanaTaskDetails.jsx';
 import MicrosoftToDoTaskDetails from './microsoft/todo/MicrosoftToDoTaskDetails.jsx';
 import GoogleTasksDetails from './google/tasks/GoogleTasksDetails.jsx';
+import ZohoProjectsTaskDetails from './zoho/projects/ZohoProjectsTaskDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
@@ -136,6 +137,27 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                     </Link>
                 </div>
             );
+        case 'zoho_projects': {
+            const projectId = external_data?.project_id || external_data?.project?.id;
+            const taskId = external_data?.id;
+            let webUrl = '#';
+
+            if (projectId && taskId) {
+                webUrl = `https://projects.zoho.com/portal/weekfuse#projects/${projectId}/tasks/${taskId}`;
+            }
+            return (
+                <div className="flex gap-1 items-center">
+                    <Link
+                        className="font-medium text-blue-700 text-sm"
+                        isExternal
+                        showAnchorIcon
+                        href={webUrl}
+                    >
+                        Open in Zoho Projects
+                    </Link>
+                </div>
+            );
+        }
     }
 };
 
@@ -164,6 +186,8 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
             return <MicrosoftToDoTaskDetails task_id={task_id} external_data={external_data} />;
         case 'google_tasks':
             return <GoogleTasksDetails task_id={task_id} external_data={external_data} />;
+        case 'zoho_projects':
+            return <ZohoProjectsTaskDetails task_id={task_id} external_data={external_data} />;
     }
 };
 

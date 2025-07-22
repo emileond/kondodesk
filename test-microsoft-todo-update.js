@@ -37,7 +37,9 @@ if (taskCheckboxExists) {
     const hasListIdCheck = taskCheckboxContent.includes('parentFolderId');
     const hasMicrosoftTodoApiCall = taskCheckboxContent.includes('/api/microsoft/todo/task/');
     const hasErrorHandling = taskCheckboxContent.includes('Error updating Microsoft To Do task');
-    console.log(`   ${hasMicrosoftTodoCase ? '✓' : '✗'} Microsoft To Do case added to handleSourceStatusUpdate`);
+    console.log(
+        `   ${hasMicrosoftTodoCase ? '✓' : '✗'} Microsoft To Do case added to handleSourceStatusUpdate`,
+    );
     console.log(`   ${hasListIdCheck ? '✓' : '✗'} ListId validation implemented`);
     console.log(`   ${hasMicrosoftTodoApiCall ? '✓' : '✗'} Microsoft To Do API call implemented`);
     console.log(`   ${hasErrorHandling ? '✓' : '✗'} Error handling implemented`);

@@ -381,6 +381,38 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleZohoProjectsCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            await ky.post('/api/zoho/projects/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+
+            toast.success('Zoho Projects Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'zoho_projects'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'zoho_projects'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Zoho Projects Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Zoho Projects:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -426,6 +458,9 @@ const OAuthCallback = () => {
                     const state = searchParams.get('state');
                     handleGoogleTasksCallback({ code, state });
                 }
+                break;
+            case 'zoho_projects':
+                handleZohoProjectsCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');

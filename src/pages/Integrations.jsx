@@ -14,6 +14,7 @@ import AsanaIntegrationCard from '../components/integrations/asana/AsanaIntegrat
 import MicrosoftToDoIntegrationCard from '../components/integrations/microsoft/todo/MicrosoftToDoIntegrationCard.jsx';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/GoogleTasksIntegrationCard.jsx';
+import ZohoProjectsIntegrationCard from '../components/integrations/zoho/projects/ZohoProjectsIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -60,6 +61,7 @@ function IntegrationsPage() {
                     <TodoistIntegrationCard />
                     {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
                     {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
+                    {user?.email === 'sonarart@gmail.com' && <ZohoProjectsIntegrationCard />}
                     {/*<MondayIntegrationCard />*/}
                     {integrations?.map((integration) => (
                         <IntegrationCard

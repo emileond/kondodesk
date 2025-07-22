@@ -76,6 +76,10 @@ const deleteIntegration = async ({ id, installation_id, type }) => {
             await ky.delete('/api/google/tasks/auth', {
                 json: { id },
             });
+        } else if (type === 'zoho_projects' && id) {
+            await ky.delete('/api/zoho/projects/auth', {
+                json: { id },
+            });
         } else {
             // Optional: Handle cases where type is not recognized or parameters are missing
             console.warn('Delete operation skipped: Invalid type or missing parameters.', {
