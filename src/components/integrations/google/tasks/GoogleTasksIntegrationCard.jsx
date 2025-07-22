@@ -16,6 +16,8 @@ import {
     ModalFooter,
     Button,
     useDisclosure,
+    RadioGroup,
+    Radio,
     Divider,
 } from '@heroui/react';
 import useCurrentWorkspace from '../../../../hooks/useCurrentWorkspace.js';
@@ -107,9 +109,15 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
     const handleConfigure = () => {
         // Set default values from existing config when opening the modal
         if (integration && integration.config) {
+            if (integration.config.syncStatus) {
+                setValue('syncStatus', integration.config.syncStatus);
+            }
             if (integration.config.project_id) {
                 setValue('project_id', integration.config.project_id);
             }
+        } else {
+            // Default to 'auto' if no config exists
+            setValue('syncStatus', 'auto');
         }
         onOpen();
     };
@@ -121,6 +129,7 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
         setLoading(true);
         // Use form data for the config
         const config = {
+            syncStatus: data.syncStatus,
             project_id: data.project_id,
         };
 
@@ -151,8 +160,13 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
             setStatus(integration.status);
 
             // Set form values if integration config exists
-            if (integration.config && integration.config.project_id) {
-                setValue('project_id', integration.config.project_id);
+            if (integration.config) {
+                if (integration.config.syncStatus) {
+                    setValue('syncStatus', integration.config.syncStatus);
+                }
+                if (integration.config.project_id) {
+                    setValue('project_id', integration.config.project_id);
+                }
             }
         }
     }, [integration, isLoading, setValue]);
@@ -180,6 +194,33 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
                         <ModalHeader>Google Tasks Configuration</ModalHeader>
                         <ModalBody>
                             <div className="space-y-6">
+                                <div className="space-y-3">
+                                    <span className="font-semibold">Sync task status</span>
+                                    <p className="text-default-600 text-sm">
+                                        What should happen when you change the status of an imported
+                                        task?
+                                    </p>
+                                    <Controller
+                                        name="syncStatus"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <RadioGroup
+                                                size="sm"
+                                                value={field.value}
+                                                onValueChange={field.onChange}
+                                            >
+                                                <Radio value="auto">
+                                                    Automatically update in Google Tasks
+                                                </Radio>
+                                                <Radio value="prompt">
+                                                    Ask before updating in Google Tasks
+                                                </Radio>
+                                                <Radio value="never">Do nothing in Google Tasks</Radio>
+                                            </RadioGroup>
+                                        )}
+                                    />
+                                </div>
+                                <Divider />
                                 <div className="space-y-3">
                                     <span className="font-semibold">Assign to project</span>
                                     <p className="text-default-600 text-sm">

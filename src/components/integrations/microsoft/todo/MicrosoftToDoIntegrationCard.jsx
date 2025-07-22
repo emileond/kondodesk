@@ -16,7 +16,8 @@ import {
     ModalFooter,
     Button,
     useDisclosure,
-    Switch,
+    RadioGroup,
+    Radio,
     Divider,
 } from '@heroui/react';
 import useCurrentWorkspace from '../../../../hooks/useCurrentWorkspace.js';
@@ -115,14 +116,14 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
         // Set default values from existing config when opening the modal
         if (integration && integration.config) {
             if (integration.config.syncStatus) {
-                setValue('syncStatus', integration.config.syncStatus === 'prompt');
+                setValue('syncStatus', integration.config.syncStatus);
             }
             if (integration.config.project_id) {
                 setValue('project_id', integration.config.project_id);
             }
         } else {
-            // Default to false (never) if no config exists
-            setValue('syncStatus', false);
+            // Default to 'auto' if no config exists
+            setValue('syncStatus', 'auto');
         }
         onOpen();
     };
@@ -134,7 +135,7 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
         setLoading(true);
         // Use form data for the config
         const config = {
-            syncStatus: data.syncStatus ? 'prompt' : 'never',
+            syncStatus: data.syncStatus,
             project_id: data.project_id,
         };
 
@@ -166,7 +167,7 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
 
             // Set form values if integration config exists
             if (integration.config && integration.config.syncStatus) {
-                setValue('syncStatus', integration.config.syncStatus === 'prompt');
+                setValue('syncStatus', integration.config.syncStatus);
             }
         }
     }, [integration, isLoading, setValue]);
@@ -204,13 +205,19 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
                                         name="syncStatus"
                                         control={control}
                                         render={({ field }) => (
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    isSelected={field.value}
-                                                    onValueChange={field.onChange}
-                                                />
-                                                <span>Ask to update in Microsoft To Do</span>
-                                            </div>
+                                            <RadioGroup
+                                                size="sm"
+                                                value={field.value}
+                                                onValueChange={field.onChange}
+                                            >
+                                                <Radio value="auto">
+                                                    Automatically update in Microsoft To Do
+                                                </Radio>
+                                                <Radio value="prompt">
+                                                    Ask before updating in Microsoft To Do
+                                                </Radio>
+                                                <Radio value="never">Do nothing in Microsoft To Do</Radio>
+                                            </RadioGroup>
                                         )}
                                     />
                                 </div>
