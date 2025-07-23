@@ -89,11 +89,15 @@ export const onRequestPost = async (context) => {
 
                 // If the order is for an LTD variant, update the workspace directly.
                 if (firstOrderItem?.variant_name === 'LTD') {
+                    const plan = getPlanName(firstOrderItem.product_name);
+                    const teamSeats = plan === 'team' ? 25 : 1;
+                    const guestSeats = plan === 'team' ? 1000 : 3;
                     const workspaceUpdate = {
-                        plan: getPlanName(firstOrderItem.product_name),
-                        // Set a clear status. 'active' makes sense for an LTD.
+                        plan: plan,
                         subscription_status: 'active',
                         is_ltd: true,
+                        team_seats: teamSeats,
+                        guest_seats: guestSeats,
                         lemon_customer_id: attributes.customer_id,
                     };
 
@@ -111,13 +115,19 @@ export const onRequestPost = async (context) => {
             case 'subscription_updated':
             case 'subscription_plan_changed':
             case 'subscription_resumed': {
+                const plan = getPlanName(firstOrderItem.product_name);
+                const teamSeats = plan === 'team' ? 25 : 1;
+                const guestSeats = plan === 'team' ? 1000 : 3;
+
                 const subscriptionData = {
                     workspace_id: workspaceId,
                     // The subscription ID is on the subscription object itself, not the order item
                     lemon_id: body.data.id,
                     lemon_customer_id: attributes.customer_id,
                     status: attributes.status,
-                    plan: getPlanName(attributes.product_name),
+                    plan: plan,
+                    team_seats: teamSeats,
+                    guest_seats: guestSeats,
                     renews_at: attributes.renews_at,
                     ends_at: attributes.ends_at,
                     trial_ends_at: attributes.trial_ends_at,
