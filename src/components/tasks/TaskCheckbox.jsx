@@ -34,7 +34,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
     const { mutateAsync: updateTask } = useUpdateTask(currentWorkspace);
     const [isJiraTransitionLoading, setIsJiraTransitionLoading] = useState(false);
     const [isClickUpStatusLoading, setIsClickUpStatusLoading] = useState(false);
-
+    const [isLoading, setIsLoading] = useState(false);
     const { data: jiraTransitions } = useJiraTransitions({
         issueIdOrKey: task?.integration_source === 'jira' ? task?.external_id : null,
         user_id: user?.id,
@@ -59,37 +59,35 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
     } = useDisclosure();
 
     const handleStatusToggle = async () => {
-        // Determine new value by inverting the current state
         const newCompleted = !isCompleted;
         const newStatus = newCompleted ? 'completed' : 'pending';
 
+        // Optimistically update the UI
         onChange(newCompleted);
 
         const syncStatus = integration?.config?.syncStatus;
 
-        if (task?.integration_source && syncStatus) {
-            switch (syncStatus) {
-                case 'auto':
-                    return handleSourceStatusUpdate({ newStatus });
-
-                case 'prompt':
-                    if (task.integration_source === 'jira') {
-                        await updateTaskStatus({ newStatus });
-                        return onJiraTransitionsModalOpen();
-                    } else if (task.integration_source === 'clickup') {
-                        await updateTaskStatus({ newStatus });
-                        return onClickUpStatusModalOpen();
-                    } else {
-                        return onSyncModalOpen();
-                    }
-                case 'never':
-                    break;
+        if (task?.integration_source && syncStatus === 'prompt') {
+            // If prompt is needed, just open the modal. No DB update here.
+            switch (task.integration_source) {
+                case 'jira':
+                    return onJiraTransitionsModalOpen();
+                case 'clickup':
+                    return onClickUpStatusModalOpen();
+                default:
+                    return onSyncModalOpen();
             }
-        } else return updateTaskStatus({ newStatus });
+        } else {
+            // For 'auto', 'never', or no integration, update immediately.
+            await updateTaskStatus({ newStatus });
+            if (syncStatus === 'auto') {
+                await handleSourceStatusUpdate({ newStatus });
+            }
+        }
     };
 
     const handleSourceStatusUpdate = async ({ newStatus }) => {
-        await updateTaskStatus({ newStatus });
+        setIsLoading(true);
         switch (task?.integration_source) {
             case 'trello':
                 try {
@@ -224,7 +222,8 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
 
             case 'zoho_projects':
                 try {
-                    const projectId = task?.external_data?.project_id || task?.external_data?.project?.id;
+                    const projectId =
+                        task?.external_data?.project_id || task?.external_data?.project?.id;
                     if (!projectId) {
                         console.error('Missing projectId for Zoho Projects update');
                         break;
@@ -249,11 +248,19 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                 }
                 break;
         }
+        setIsLoading(false);
     };
 
     const handleSyncConfirm = async () => {
         const newStatus = isCompleted ? 'completed' : 'pending';
+        await updateTaskStatus({ newStatus });
         await handleSourceStatusUpdate({ newStatus });
+        onSyncModalClose();
+    };
+
+    const handleSyncDecline = async () => {
+        const newStatus = isCompleted ? 'completed' : 'pending';
+        await updateTaskStatus({ newStatus });
         onSyncModalClose();
     };
 
@@ -296,6 +303,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
     };
 
     const updateTaskStatus = async ({ newStatus }) => {
+        let wasCompleted = false;
         try {
             await updateTask({
                 taskId: task.id,
@@ -304,24 +312,27 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                     completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
                 },
             });
-        } catch (error) {
-            // If there is an error, revert the state change (you might need to do more error handling)
-            onChange(newStatus !== 'completed');
-            console.error('Error toggling task status:', error);
-        } finally {
             if (newStatus === 'completed') {
-                const randomMessage =
-                    taskCompletedMessages[Math.floor(Math.random() * taskCompletedMessages.length)];
-                toast.success(randomMessage.message, {
-                    duration: 5000,
-                    icon: randomMessage?.icon || (
-                        <RiCheckboxCircleFill className="text-success" fontSize="2rem" />
-                    ),
-                    style: {
-                        fontWeight: 500,
-                    },
-                });
+                wasCompleted = true;
             }
+        } catch (error) {
+            onChange(newStatus !== 'completed'); // Revert optimistic UI on error
+            console.error('Error toggling task status:', error);
+        }
+
+        // The toast is now triggered manually after the DB update is successful.
+        if (wasCompleted) {
+            const randomMessage =
+                taskCompletedMessages[Math.floor(Math.random() * taskCompletedMessages.length)];
+            toast.success(randomMessage.message, {
+                duration: 5000,
+                icon: randomMessage?.icon || (
+                    <RiCheckboxCircleFill className="text-success" fontSize="2rem" />
+                ),
+                style: {
+                    fontWeight: 500,
+                },
+            });
         }
     };
 
@@ -342,10 +353,10 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                         </p>
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onSyncModalClose}>
+                        <Button variant="flat" onPress={handleSyncDecline} isDisabled={isLoading}>
                             No
                         </Button>
-                        <Button color="primary" onPress={handleSyncConfirm}>
+                        <Button color="primary" onPress={handleSyncConfirm} isLoading={isLoading}>
                             Yes, Update
                         </Button>
                     </ModalFooter>

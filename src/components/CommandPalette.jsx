@@ -227,6 +227,9 @@ const CommandPalette = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onKeyDown={handleInputKeyDown}
                                 className="mb-2"
+                                classNames={{
+                                    placeholder: 'text-default-500',
+                                }}
                             />
 
                             {/* Commands */}
