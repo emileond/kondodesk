@@ -14,14 +14,14 @@ import {
     Spinner,
 } from '@heroui/react';
 import Footer from '../components/marketing/Footer.jsx';
-import { RiCircleFill } from 'react-icons/ri';
+import { RiCircleFill, RiSortDesc } from 'react-icons/ri';
 import {
     useFeatureRequests,
     useSearchFeatureRequests,
 } from '../hooks/react-query/feature-requests/useFeatureRequests.js';
 import { useCreateFeatureRequest } from '../hooks/react-query/feature-requests/useFeatureRequests.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import AuthForm from '../components/auth/AuthForm.jsx';
@@ -29,6 +29,7 @@ import FeatureRequestCard from '../components/roadmap/FeatureRequestCard.jsx';
 
 function FeatureRequestsPage() {
     const [status, setStatus] = useState('idea');
+    const [sortBy, setSortBy] = useState('newest');
     const { data: user } = useUser();
     const { mutateAsync: createFeatureRequest, isPending } = useCreateFeatureRequest(user);
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -41,7 +42,6 @@ function FeatureRequestsPage() {
         formState: { errors },
     } = useForm();
 
-    // Watch the title input for changes
     const titleValue = useWatch({
         control,
         name: 'title',
@@ -51,10 +51,30 @@ function FeatureRequestsPage() {
     const { data: statusItems, isPending: statusItemsPending } = useFeatureRequests(user, [status]);
     const { data: searchedItems, isPending: searchPending } = useSearchFeatureRequests(titleValue);
 
-    // Determine which list to display
     const isSearching = titleValue?.trim() !== '';
-    const displayedItems = isSearching ? searchedItems : statusItems;
+    const baseItems = isSearching ? searchedItems : statusItems;
     const itemsPending = isSearching ? searchPending : statusItemsPending;
+
+    const displayedItems = useMemo(() => {
+        if (!baseItems) return [];
+
+        if (isSearching) {
+            return baseItems;
+        }
+
+        const sortedItems = [...baseItems];
+
+        switch (sortBy) {
+            case 'newest':
+                return sortedItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            case 'most votes': // Match the key from SelectItem
+                return sortedItems.sort((a, b) => b.vote_count - a.vote_count);
+            case 'most discussed': // Match the key from SelectItem
+                return sortedItems.sort((a, b) => b.comment_count - a.comment_count);
+            default:
+                return sortedItems;
+        }
+    }, [baseItems, sortBy, isSearching]);
 
     const onSubmit = async (data) => {
         if (!user) {
@@ -148,21 +168,41 @@ function FeatureRequestsPage() {
                         </form>
                     </div>
                     <div className="bg-content1 p-4 rounded-xl border-1 border-content3 basis-2/3 grow min-h-[60vh]">
-                        <Select
-                            selectionMode="single"
-                            size="sm"
-                            className="max-w-[160px]"
-                            variant="bordered"
-                            defaultSelectedKeys={['idea']}
-                            aria-label="Status"
-                            onSelectionChange={(keys) => {
-                                const selectedValue = Array.from(keys)[0]; // Convert Set to Array and get the first item
-                                setStatus(selectedValue);
-                            }}
-                            renderValue={(items) => {
-                                return items.map((item) => (
-                                    <Chip
-                                        variant="light"
+                        <div className="flex gap-3 mb-3 items-start justify-between">
+                            <Select
+                                selectionMode="single"
+                                size="sm"
+                                className="max-w-[160px]"
+                                variant="bordered"
+                                defaultSelectedKeys={['idea']}
+                                isRequired
+                                aria-label="Status"
+                                onSelectionChange={(keys) => {
+                                    const selectedValue = Array.from(keys)[0];
+                                    setStatus(selectedValue);
+                                }}
+                                renderValue={(items) => {
+                                    return items.map((item) => (
+                                        <Chip
+                                            variant="light"
+                                            key={item.key}
+                                            startContent={
+                                                <RiCircleFill
+                                                    className={
+                                                        statusList.find(
+                                                            (status) => status.key === item.key,
+                                                        )?.color
+                                                    }
+                                                />
+                                            }
+                                        >
+                                            {item.key}
+                                        </Chip>
+                                    ));
+                                }}
+                            >
+                                {statusList.map((item) => (
+                                    <SelectItem
                                         key={item.key}
                                         startContent={
                                             <RiCircleFill
@@ -175,26 +215,31 @@ function FeatureRequestsPage() {
                                         }
                                     >
                                         {item.key}
-                                    </Chip>
-                                ));
-                            }}
-                        >
-                            {statusList.map((item) => (
-                                <SelectItem
-                                    key={item.key}
-                                    startContent={
-                                        <RiCircleFill
-                                            className={
-                                                statusList.find((status) => status.key === item.key)
-                                                    ?.color
-                                            }
-                                        />
-                                    }
-                                >
-                                    {item.key}
-                                </SelectItem>
-                            ))}
-                        </Select>
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                            <Select
+                                selectionMode="single"
+                                size="sm"
+                                className="max-w-[170px]"
+                                isRequired
+                                variant="bordered"
+                                defaultSelectedKeys={['newest']}
+                                aria-label="Sort by"
+                                startContent={<RiSortDesc fontSize="1.2rem" />}
+                                onSelectionChange={(keys) => {
+                                    const selectedValue = Array.from(keys)[0];
+                                    setSortBy(selectedValue);
+                                }}
+                                // --- MODIFICATION START ---
+                                isDisabled={isSearching} // Disable sort when searching
+                                // --- MODIFICATION END ---
+                            >
+                                <SelectItem key="newest">newest</SelectItem>
+                                <SelectItem key="most votes">most voted</SelectItem>
+                                <SelectItem key="most discussed">most discussed</SelectItem>
+                            </Select>
+                        </div>
                         <Divider className="my-3" />
                         <div className="space-y-3 h-full">
                             {itemsPending && (

@@ -6,20 +6,28 @@ const fetchFeatureRequests = async ({ statusList, id }) => {
     let query = supabaseClient.from('feature_requests').select('title, description, id, status');
 
     if (id) {
-        query = query.eq('id', id).single(); // Fetch single item
-    } else if (statusList) {
-        query = query.in('status', statusList); // Fetch multiple items
+        let query = supabaseClient
+            .from('feature_requests')
+            .select('title, description, id, status');
+        query = query.eq('id', id).single();
+        const { data, error } = await query;
+        if (error) throw new Error('Failed to fetch feature request');
+        return data;
     }
 
-    query = query.order('created_at', { ascending: false });
+    if (statusList) {
+        const { data, error } = await supabaseClient.rpc('get_feature_requests_with_counts', {
+            status_list: statusList,
+        });
 
-    const { data, error } = await query;
-
-    if (error) {
-        throw new Error('Failed to fetch feature requests');
+        if (error) {
+            console.error('Error fetching feature requests with counts:', error);
+            throw new Error('Failed to fetch feature requests');
+        }
+        return data;
     }
 
-    return data;
+    return [];
 };
 
 // Fetch the number of votes and if the user has voted for the feature request
