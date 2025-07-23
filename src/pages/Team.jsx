@@ -17,6 +17,7 @@ import {
     TableBody,
     TableRow,
     TableCell,
+    Alert,
 } from '@heroui/react';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import {
@@ -39,13 +40,27 @@ function TeamPage() {
     const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
     const [editMember, setEditMember] = useState();
 
+    const teamMembersCount =
+        workspaceMembers?.filter(
+            (member) =>
+                member.role === 'admin' || member.role === 'member' || member.role === 'owner',
+        ).length || 0;
+
+    const guestsCount = workspaceMembers?.filter((member) => member.role === 'guest').length || 0;
+
+    const isTeamLimitReached = teamMembersCount >= currentWorkspace?.team_seats;
+    const isGuestLimitReached = guestsCount >= currentWorkspace?.guest_seats;
+
     const {
         register,
         handleSubmit,
         reset,
         setValue,
+        watch,
         formState: { errors },
     } = useForm();
+
+    const selectedRole = watch('role');
 
     const onSubmit = async (data) => {
         if (editMember) {
@@ -156,13 +171,29 @@ function TeamPage() {
                         </TableBody>
                     </Table>
                 </div>
-                <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+                <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl">
                     <ModalContent>
                         <form onSubmit={handleSubmit(onSubmit)}>
                             <ModalHeader>
                                 {editMember ? 'Edit team member' : 'Invite team member'}
                             </ModalHeader>
                             <ModalBody>
+                                {isTeamLimitReached && !editMember && selectedRole !== 'guest' && (
+                                    <Alert
+                                        title="Team limit reached"
+                                        description="You have reached your team seat limit. Upgrade your plan to invite more members."
+                                        color="danger"
+                                        icon="exclamation-circle"
+                                    />
+                                )}
+                                {isGuestLimitReached && !editMember && selectedRole === 'guest' && (
+                                    <Alert
+                                        title="Guest limit reached"
+                                        description="You have reached your guests limit. Upgrade your plan to invite more guests."
+                                        color="danger"
+                                        icon="exclamation-circle"
+                                    />
+                                )}
                                 <p>
                                     {editMember
                                         ? 'Update user role'
@@ -189,6 +220,7 @@ function TeamPage() {
                                     >
                                         <SelectItem key="admin">Admin</SelectItem>
                                         <SelectItem key="member">Member</SelectItem>
+                                        <SelectItem key="guest">Guest</SelectItem>
                                     </Select>
                                 </div>
                             </ModalBody>

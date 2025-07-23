@@ -58,6 +58,15 @@ const addWorkspaceMember = async ({ invite_email, role, workspace_id, invited_by
     if (!invite_email || !role || !workspace_id || !invited_by) {
         throw new Error('Missing required fields');
     }
+    const { error: rpcError } = await supabaseClient.rpc('check_seat_limit', {
+        p_workspace_id: workspace_id,
+        p_role: role,
+    });
+
+    if (rpcError) {
+        throw new Error(rpcError.message);
+    }
+
     const { error } = await supabaseClient.from('workspace_members').insert([
         {
             invite_email,
