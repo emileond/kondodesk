@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import dayjs from 'dayjs';
 import { toUTC, calculateExpiresAt } from '../utils/dateUtils';
 import { Octokit } from 'octokit';
-import { markdownToTipTap } from '../utils/editorUtils'; // Placeholder for your utility
+import { markdownToTipTap } from '../utils/editorUtils';
+import ky from 'ky';
 
 // Initialize Supabase client
 const supabase = createClient(

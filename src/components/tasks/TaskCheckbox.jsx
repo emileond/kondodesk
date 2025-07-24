@@ -201,7 +201,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
 
             case 'microsoft_todo':
                 try {
-                    const listId = task?.external_data?.parentFolderId;
+                    const listId = task?.external_data?.listId;
                     if (!listId) {
                         console.error('Missing listId for Microsoft To Do update');
                         break;

@@ -118,7 +118,7 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                         className="font-medium text-blue-700 text-sm"
                         isExternal
                         showAnchorIcon
-                        href={`https://to-do.office.com/tasks/id/${external_data?.id}/details`}
+                        href={`https://to-do.office.com/tasks/${external_data?.listId}`}
                     >
                         Open in To Do
                     </Link>

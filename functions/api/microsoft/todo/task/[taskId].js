@@ -76,9 +76,9 @@ export async function onRequestGet(context) {
         // Fetch the task details from Microsoft Graph API
         const taskDetails = await ky
             .get(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`, {
-                headers: { 
-                    Authorization: `Bearer ${accessToken}`, 
-                    Accept: 'application/json' 
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    Accept: 'application/json',
                 },
             })
             .json();
@@ -164,6 +164,21 @@ export async function onRequestPatch(context) {
         }
         // --- End Token Refresh Logic ---
 
+        // 1. Fetch the existing task from the DB to get the current external_data
+        const { data: existingTask, error: existingTaskError } = await supabase
+            .from('tasks')
+            .select('external_data')
+            .eq('external_id', taskId)
+            .eq('workspace_id', workspace_id)
+            .single();
+
+        if (existingTaskError || !existingTask) {
+            return Response.json(
+                { success: false, error: 'Could not find the existing task in the database.' },
+                { status: 404 },
+            );
+        }
+
         // Prepare the update payload for Microsoft Graph API
         const updatePayload = {};
 
@@ -173,7 +188,7 @@ export async function onRequestPatch(context) {
                 updatePayload.status = 'completed';
                 updatePayload.completedDateTime = {
                     dateTime: new Date().toISOString(),
-                    timeZone: 'UTC'
+                    timeZone: 'UTC',
                 };
             } else {
                 updatePayload.status = 'notStarted';
@@ -184,7 +199,7 @@ export async function onRequestPatch(context) {
                 updatePayload.status = 'completed';
                 updatePayload.completedDateTime = {
                     dateTime: new Date().toISOString(),
-                    timeZone: 'UTC'
+                    timeZone: 'UTC',
                 };
             } else {
                 updatePayload.status = 'notStarted';
@@ -195,21 +210,30 @@ export async function onRequestPatch(context) {
         // Update the task in Microsoft Graph API
         const updatedTask = await ky
             .patch(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`, {
-                headers: { 
-                    Authorization: `Bearer ${accessToken}`, 
-                    'Content-Type': 'application/json' 
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
                 },
                 json: updatePayload,
             })
             .json();
 
+        // 2. Merge the old external_data with the new data from the API response
+        const newExternalData = {
+            ...existingTask.external_data,
+            ...updatedTask,
+        };
+
         // Update the task in our local database
         await supabase
             .from('tasks')
             .update({
-                external_data: updatedTask,
+                external_data: newExternalData,
                 status: updatedTask.status === 'completed' ? 'completed' : 'pending',
-                completed_at: updatedTask.status === 'completed' ? updatedTask.completedDateTime?.dateTime : null,
+                completed_at:
+                    updatedTask.status === 'completed'
+                        ? updatedTask.completedDateTime?.dateTime
+                        : null,
             })
             .eq('external_id', taskId)
             .eq('integration_source', 'microsoft_todo')

@@ -118,7 +118,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
                             </Button>
                         </DropdownTrigger>
                         <DropdownMenu aria-label="Microsoft To Do Status Options">
-                            <DropdownSection title="Change status to:">
+                            <DropdownSection title="Move to:">
                                 {statusOptions
                                     .filter((option) => option.id !== currentStatus)
                                     .map((option) => (
@@ -156,7 +156,7 @@ const MicrosoftToDoTaskDetails = ({ task_id, external_data }) => {
             )}
 
             {/* --- Completion Date Section --- */}
-            {completedDateTime && (
+            {completedDateTime && currentStatus === 'completed' && (
                 <div className="flex flex-col gap-1">
                     <label className="text-sm">Completed</label>
                     <div className="text-sm text-default-600">
