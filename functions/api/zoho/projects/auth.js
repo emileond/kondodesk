@@ -107,6 +107,19 @@ export async function onRequestPost(context) {
             );
         }
 
+        // ✅ All API calls now use the standard 'Bearer' token
+        const headers = {
+            Authorization: `Bearer ${access_token}`,
+            Accept: 'application/json',
+        };
+
+        // 2. Fetch the Portal ID first
+        const portalsResponse = await ky.get(`${api_domain}/api/v3/portals/`, { headers }).json();
+        if (!portalsResponse.portals || portalsResponse.portals.length === 0) {
+            throw new Error('No Zoho Projects portals found for this user.');
+        }
+        const portals = portalsResponse.portals;
+
         // 2. Save the initial integration data
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
         const { data: upsertData, error: upsertError } = await supabase
@@ -121,7 +134,7 @@ export async function onRequestPost(context) {
                 last_sync: toUTC(),
                 expires_at,
                 config: { syncStatus: 'prompt' },
-                external_data: { api_domain },
+                external_data: { api_domain, portal_id },
             })
             .select('id')
             .single();
@@ -129,52 +142,52 @@ export async function onRequestPost(context) {
         if (upsertError) throw new Error('Failed to save integration data');
         const integration_id = upsertData.id;
 
-        // 3. Fetch user profile to get user details
-        const headers = {
-            Authorization: `Zoho-oauthtoken ${access_token}`,
-            Accept: 'application/json',
-        };
-
+        // 4. Fetch user profile to get user details
         // Get user profile
-        try {
-            const userProfile = await ky.get(`${api_domain}/restapi/users/me/`, { headers }).json();
+        // try {
+        //     const userProfile = await ky.get(`${api_domain}/api/users/me/`, { headers }).json();
+        //
+        //     await supabase
+        //         .from('user_integrations')
+        //         .update({ external_data: userProfile })
+        //         .eq('id', integration_id);
+        // } catch (userDataError) {
+        //     console.error('Could not fetch Zoho Projects user data:', userDataError);
+        // }
 
-            await supabase
-                .from('user_integrations')
-                .update({ external_data: userProfile })
-                .eq('id', integration_id);
-        } catch (userDataError) {
-            console.error('Could not fetch Zoho Projects user data:', userDataError);
-        }
-
-        // 4. Fetch projects accessible to the user
-        const projectsResponse = await ky
-            .get(`${api_domain}/restapi/projects/`, { headers })
-            .json();
-
-        const projects = projectsResponse.projects || [];
-
-        if (projects.length === 0) {
-            console.log('No accessible Zoho Projects found.');
-            return Response.json({
-                success: true,
-                message: 'Integration connected, no projects found.',
-            });
-        }
+        // 5. Fetch projects accessible to the user
+        // const projectsResponse = await ky
+        //     .get(`${api_domain}/api/portals/${portal_id}/projects/`, { headers })
+        //     .json();
+        //
+        // const projects = projectsResponse.projects || [];
+        //
+        // if (projects.length === 0) {
+        //     console.log('No accessible Zoho Projects found.');
+        //     return Response.json({
+        //         success: true,
+        //         message: 'Integration connected, no projects found.',
+        //     });
+        // }
 
         // 5. Process tasks for each project with pagination and batching
         const DB_BATCH_SIZE = 50;
         const API_MAX_RESULTS = 200; // Zoho Projects API limit
 
-        for (const project of projects) {
+        for (const portal of portals) {
             try {
-                console.log(`Processing Zoho project: ${project.name} (${project.id})`);
+                const userProfileResponse = await ky
+                    .get(`${api_domain}/api/v3/portal/${portal.id}/users/me/`, { headers })
+                    .json();
+                const zoho_user_id = userProfileResponse.users[0].id;
+
+                console.log(`Processing tasks for portal: ${portal.name} (${portal.id})`);
                 let index = 1;
                 let hasMoreTasks = true;
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `${api_domain}/restapi/projects/${project.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted`;
+                    const url = `${api_domain}/api/v3/portal/${portal.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted&user_id=${zoho_user_id}`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 
@@ -190,7 +203,7 @@ export async function onRequestPost(context) {
                                     integration_source: 'zoho_projects',
                                     external_id: task.id,
                                     external_data: task,
-                                    host: `${api_domain}/restapi/projects/${project.id}`,
+                                    host: task.link.web.url,
                                     assignee: user_id,
                                     creator: user_id,
                                 },
@@ -210,25 +223,9 @@ export async function onRequestPost(context) {
                         index += API_MAX_RESULTS;
                     }
                 }
-                console.log(`Processed tasks from project ${project.name}.`);
+                console.log(`Processed tasks from portal ${portal.name}.`);
             } catch (projectError) {
-                console.error(`Failed to process project ${project.id}:`, projectError);
-            }
-        }
-
-        // 6. Register webhooks for each project (if supported)
-        // Note: Zoho Projects webhook support may vary, this is a placeholder
-        for (const project of projects) {
-            try {
-                const webhookUrl = `https://weekfuse.com/webhooks/zoho/projects`;
-                // Zoho Projects webhook registration would go here
-                // This is a placeholder as the exact API may differ
-                console.log(`Webhook registration attempted for project ${project.id}`);
-            } catch (webhookError) {
-                console.warn(
-                    `Could not register webhook for project ${project.id}:`,
-                    webhookError.message,
-                );
+                console.error(`Failed to process portal ${portal.id}:`, portalError);
             }
         }
 
