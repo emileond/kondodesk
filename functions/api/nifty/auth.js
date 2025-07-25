@@ -76,6 +76,7 @@ export async function onRequestDelete(context) {
 export async function onRequestPost(context) {
     const body = await context.request.json();
     const { code, user_id, workspace_id } = body;
+    console.log(body);
 
     if (!code || !user_id || !workspace_id) {
         return Response.json({ success: false, error: 'Missing data' }, { status: 400 });
@@ -94,9 +95,9 @@ export async function onRequestPost(context) {
                     code: code,
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/nifty',
                 },
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json' 
+                    Accept: 'application/json',
                 },
             })
             .json();
@@ -134,8 +135,8 @@ export async function onRequestPost(context) {
         const tasksResponse = await ky
             .get('https://api.niftypm.com/api/v1.0/tasks', {
                 headers: {
-                    'Authorization': `Bearer ${tokenData.access_token}`,
-                    'Accept': 'application/json',
+                    Authorization: `Bearer ${tokenData.access_token}`,
+                    Accept: 'application/json',
                 },
                 searchParams: {
                     assignee: 'me',
@@ -154,16 +155,22 @@ export async function onRequestPost(context) {
                 return supabase.from('tasks').upsert(
                     {
                         name: task.title,
-                        description: task.description ? JSON.stringify({
-                            type: 'doc',
-                            content: [{
-                                type: 'paragraph',
-                                content: [{
-                                    type: 'text',
-                                    text: task.description
-                                }]
-                            }]
-                        }) : null,
+                        description: task.description
+                            ? JSON.stringify({
+                                  type: 'doc',
+                                  content: [
+                                      {
+                                          type: 'paragraph',
+                                          content: [
+                                              {
+                                                  type: 'text',
+                                                  text: task.description,
+                                              },
+                                          ],
+                                      },
+                                  ],
+                              })
+                            : null,
                         workspace_id,
                         integration_source: 'nifty',
                         external_id: task.id.toString(),

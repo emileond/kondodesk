@@ -113,6 +113,8 @@ export async function onRequestPost(context) {
             Accept: 'application/json',
         };
 
+        console.log(access_token);
+
         // 2. Fetch the Portal ID first
         const portalsResponse = await ky
             .get(`https://projectsapi.zoho.com/api/v3/portals/`, { headers })
