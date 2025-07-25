@@ -51,7 +51,7 @@ const ZohoProjectsIntegrationCard = ({ isCompact }) => {
     const handleConnect = () => {
         const clientId = import.meta.env.VITE_ZOHO_PROJECTS_CLIENT_ID;
         // Zoho Projects OAuth URL - will need to be configured with actual client ID
-        window.location.href = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoProjects.tasks.ALL,ZohoProjects.projects.READ,ZohoProjects.users.READ&client_id=${clientId}&response_type=code&access_type=offline&redirect_uri=https%3A%2F%2Fweekfuse.com%2Fintegrations%2Foauth%2Fcallback%2Fzoho_projects&prompt=consent`;
+        window.location.href = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoProjects.portals.READ,ZohoProjects.tasks.ALL,ZohoProjects.projects.READ,ZohoProjects.users.READ&client_id=${clientId}&response_type=code&access_type=offline&redirect_uri=https%3A%2F%2Fweekfuse.com%2Fintegrations%2Foauth%2Fcallback%2Fzoho_projects&prompt=consent`;
     };
 
     const handleDisconnect = () => {
