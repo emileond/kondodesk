@@ -107,9 +107,9 @@ export async function onRequestPost(context) {
             );
         }
 
-        // ✅ All API calls now use the standard 'Bearer' token
+        // ✅ All API calls now use the standard token
         const headers = {
-            Authorization: `Bearer ${access_token}`,
+            Authorization: `Zoho-oauthtoken ${access_token}`,
             Accept: 'application/json',
         };
 
@@ -134,13 +134,13 @@ export async function onRequestPost(context) {
                 last_sync: toUTC(),
                 expires_at,
                 config: { syncStatus: 'prompt' },
-                external_data: { api_domain, portal_id },
+                external_data: { api_domain, portals: portals.map((portal) => portal.id) },
             })
             .select('id')
             .single();
 
         if (upsertError) throw new Error('Failed to save integration data');
-        const integration_id = upsertData.id;
+        // const integration_id = upsertData.id;
 
         // 4. Fetch user profile to get user details
         // Get user profile
@@ -224,7 +224,7 @@ export async function onRequestPost(context) {
                     }
                 }
                 console.log(`Processed tasks from portal ${portal.name}.`);
-            } catch (projectError) {
+            } catch (portalError) {
                 console.error(`Failed to process portal ${portal.id}:`, portalError);
             }
         }
