@@ -46,8 +46,10 @@ const NiftyIntegrationCard = ({ isCompact }) => {
         formState: { errors },
     } = useForm();
 
+    const clientId = import.meta.env.VITE_NIFTY_CLIENT_ID;
+
     const handleConnect = () => {
-        window.location.href = 'https://nifty.pm/authorize?response_type=code&client_id=gJbaNzzUhaGF7j3Cy637cZoYfNJ9Vpr6&redirect_uri=https://weekfuse.com/integrations/oauth/callback/nifty&scope=task,,subtask,label,milestone,member,project,task_group';
+        window.location.href = `https://nifty.pm/authorize?response_type=code&client_id=${clientId}&redirect_uri=https://weekfuse.com/integrations/oauth/callback/nifty&scope=task,,subtask,label,milestone,member,project,task_group`;
     };
 
     const handleDisconnect = () => {

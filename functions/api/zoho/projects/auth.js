@@ -137,7 +137,7 @@ export async function onRequestPost(context) {
 
         // Get user profile
         try {
-            const userProfile = await ky.get(`${api_domain}restapi/users/me/`, { headers }).json();
+            const userProfile = await ky.get(`${api_domain}/restapi/users/me/`, { headers }).json();
 
             await supabase
                 .from('user_integrations')
@@ -148,7 +148,9 @@ export async function onRequestPost(context) {
         }
 
         // 4. Fetch projects accessible to the user
-        const projectsResponse = await ky.get(`${api_domain}restapi/projects/`, { headers }).json();
+        const projectsResponse = await ky
+            .get(`${api_domain}/restapi/projects/`, { headers })
+            .json();
 
         const projects = projectsResponse.projects || [];
 
