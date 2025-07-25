@@ -247,6 +247,21 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                     console.error('Error updating Zoho Projects task:', error);
                 }
                 break;
+
+            case 'nifty':
+                try {
+                    const state = newStatus;
+                    await ky.patch('/api/nifty/task', {
+                        json: {
+                            external_id: task.external_id,
+                            state,
+                            user_id: user.id,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Nifty task:', error);
+                }
+                break;
         }
         setIsLoading(false);
     };

@@ -10,6 +10,7 @@ import AsanaTaskDetails from './asana/AsanaTaskDetails.jsx';
 import MicrosoftToDoTaskDetails from './microsoft/todo/MicrosoftToDoTaskDetails.jsx';
 import GoogleTasksDetails from './google/tasks/GoogleTasksDetails.jsx';
 import ZohoProjectsTaskDetails from './zoho/projects/ZohoProjectsTaskDetails.jsx';
+import NiftyTaskDetails from './nifty/NiftyTaskDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
@@ -158,6 +159,27 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                 </div>
             );
         }
+        case 'nifty': {
+            const projectId = external_data?.project?.id;
+            const taskId = external_data?.id;
+            let webUrl = '#';
+
+            if (projectId && taskId) {
+                webUrl = `https://nifty.pm/projects/${projectId}/tasks/${taskId}`;
+            }
+            return (
+                <div className="flex gap-1 items-center">
+                    <Link
+                        className="font-medium text-blue-700 text-sm"
+                        isExternal
+                        showAnchorIcon
+                        href={webUrl}
+                    >
+                        Open in Nifty
+                    </Link>
+                </div>
+            );
+        }
     }
 };
 
@@ -188,6 +210,8 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
             return <GoogleTasksDetails task_id={task_id} external_data={external_data} />;
         case 'zoho_projects':
             return <ZohoProjectsTaskDetails task_id={task_id} external_data={external_data} />;
+        case 'nifty':
+            return <NiftyTaskDetails external_data={external_data} />;
     }
 };
 

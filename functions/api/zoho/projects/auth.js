@@ -98,11 +98,13 @@ export async function onRequestPost(context) {
             })
             .json();
 
-        const { access_token, refresh_token, expires_in } = tokenResponse;
+        const { access_token, refresh_token, expires_in, api_domain } = tokenResponse;
 
-        if (!access_token) {
+        if (!access_token || !api_domain) {
             console.error('Zoho Projects token exchange error:', tokenResponse);
-            throw new Error(tokenResponse.error || 'Failed to get Zoho Projects access token');
+            throw new Error(
+                tokenResponse.error || 'Failed to get Zoho Projects access token or api_domain',
+            );
         }
 
         // 2. Save the initial integration data
@@ -119,6 +121,7 @@ export async function onRequestPost(context) {
                 last_sync: toUTC(),
                 expires_at,
                 config: { syncStatus: 'prompt' },
+                external_data: { api_domain },
             })
             .select('id')
             .single();
@@ -134,9 +137,7 @@ export async function onRequestPost(context) {
 
         // Get user profile
         try {
-            const userProfile = await ky
-                .get('https://projectsapi.zoho.com/restapi/users/me/', { headers })
-                .json();
+            const userProfile = await ky.get(`${api_domain}restapi/users/me/`, { headers }).json();
 
             await supabase
                 .from('user_integrations')
@@ -147,9 +148,7 @@ export async function onRequestPost(context) {
         }
 
         // 4. Fetch projects accessible to the user
-        const projectsResponse = await ky
-            .get('https://projectsapi.zoho.com/restapi/projects/', { headers })
-            .json();
+        const projectsResponse = await ky.get(`${api_domain}restapi/projects/`, { headers }).json();
 
         const projects = projectsResponse.projects || [];
 
@@ -173,7 +172,7 @@ export async function onRequestPost(context) {
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `https://projectsapi.zoho.com/restapi/projects/${project.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted`;
+                    const url = `${api_domain}restapi/projects/${project.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 

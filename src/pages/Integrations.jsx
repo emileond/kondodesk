@@ -16,6 +16,7 @@ import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useState } from 'react';
 import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/GoogleTasksIntegrationCard.jsx';
 import ZohoProjectsIntegrationCard from '../components/integrations/zoho/projects/ZohoProjectsIntegrationCard.jsx';
+import NiftyIntegrationCard from '../components/integrations/nifty/NiftyIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -55,11 +56,7 @@ function IntegrationsPage() {
                     </Link>
                 </p>
 
-                <Tabs
-                    selectedKey={activeTab}
-                    onSelectionChange={setActiveTab}
-                    className="w-full"
-                >
+                <Tabs selectedKey={activeTab} onSelectionChange={setActiveTab} className="w-full">
                     <Tab key="task-management" title="Task Management">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
                             <GithubIntegrationCard />
@@ -69,9 +66,14 @@ function IntegrationsPage() {
                             <ClickupIntegrationCard />
                             <TickTickIntegrationCard />
                             <TodoistIntegrationCard />
-                            {user?.email === 'sonarart@gmail.com' && <MicrosoftToDoIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && (
+                                <MicrosoftToDoIntegrationCard />
+                            )}
                             {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
-                            {user?.email === 'sonarart@gmail.com' && <ZohoProjectsIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && (
+                                <ZohoProjectsIntegrationCard />
+                            )}
+                            {user?.email === 'sonarart@gmail.com' && <NiftyIntegrationCard />}
                             {/*<MondayIntegrationCard />*/}
                         </div>
                     </Tab>
@@ -88,7 +90,7 @@ function IntegrationsPage() {
                     <Tab key="communication" title="Communication">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
                             {integrations
-                                .filter(integration => integration.id === 'slack')
+                                .filter((integration) => integration.id === 'slack')
                                 .map((integration) => (
                                     <IntegrationCard
                                         key={integration.id}
@@ -109,7 +111,7 @@ function IntegrationsPage() {
                     <Tab key="automation" title="Automation">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
                             {integrations
-                                .filter(integration => integration.id === 'zapier')
+                                .filter((integration) => integration.id === 'zapier')
                                 .map((integration) => (
                                     <IntegrationCard
                                         key={integration.id}
