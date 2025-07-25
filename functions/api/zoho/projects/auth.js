@@ -114,7 +114,9 @@ export async function onRequestPost(context) {
         };
 
         // 2. Fetch the Portal ID first
-        const portalsResponse = await ky.get(`${api_domain}/api/v3/portals/`, { headers }).json();
+        const portalsResponse = await ky
+            .get(`https://projectsapi.zoho.com/api/v3/portals/`, { headers })
+            .json();
         if (!portalsResponse.portals || portalsResponse.portals.length === 0) {
             throw new Error('No Zoho Projects portals found for this user.');
         }
@@ -122,7 +124,7 @@ export async function onRequestPost(context) {
 
         // 2. Save the initial integration data
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
-        const { data: upsertData, error: upsertError } = await supabase
+        const { data: integrationData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
                 type: 'zoho_projects',
