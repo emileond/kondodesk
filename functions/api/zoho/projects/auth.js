@@ -119,10 +119,10 @@ export async function onRequestPost(context) {
         const portalsResponse = await ky
             .get(`https://projectsapi.zoho.com/api/v3/portals`, { headers })
             .json();
-        if (!portalsResponse.portals || portalsResponse.portals.length === 0) {
+        if (portalsResponse.length === 0) {
             throw new Error('No Zoho Projects portals found for this user.');
         }
-        const portals = portalsResponse.portals;
+        const portals = portalsResponse;
 
         // 2. Save the initial integration data
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
@@ -185,7 +185,7 @@ export async function onRequestPost(context) {
                     .json();
                 const zoho_user_id = userProfileResponse.users[0].id;
 
-                console.log(`Processing tasks for portal: ${portal.name} (${portal.id})`);
+                console.log(`Processing tasks for portal: ${portal.portal_name} (${portal.id})`);
                 let index = 1;
                 let hasMoreTasks = true;
 
