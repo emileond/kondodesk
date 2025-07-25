@@ -121,7 +121,7 @@ export async function onRequestPost(context) {
                 status: 'active',
                 last_sync: toUTC(),
                 expires_at,
-                config: {},
+                config: { syncStatus: 'prompt' },
             })
             .select('id')
             .single();
