@@ -82,19 +82,23 @@ export async function onRequestPost(context) {
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
         // 1. Exchange code for access token
+        const params = new URLSearchParams();
+        params.append('client_id', context.env.ZOHO_PROJECTS_CLIENT_ID);
+        params.append('client_secret', context.env.ZOHO_PROJECTS_CLIENT_SECRET);
+        params.append('code', code);
+        params.append(
+            'redirect_uri',
+            'https://weekfuse.com/integrations/oauth/callback/zoho_projects',
+        );
+        params.append('grant_type', 'authorization_code');
+
         const tokenResponse = await ky
             .post('https://accounts.zoho.com/oauth/v2/token', {
-                json: {
-                    client_id: context.env.ZOHO_PROJECTS_CLIENT_ID,
-                    client_secret: context.env.ZOHO_PROJECTS_CLIENT_SECRET,
-                    code: code,
-                    redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/zoho_projects',
-                    grant_type: 'authorization_code',
-                },
+                body: params, // Use the 'body' option with URLSearchParams
             })
             .json();
 
-        const { access_token, refresh_token, expires_in } = await tokenResponse;
+        const { access_token, refresh_token, expires_in } = tokenResponse;
 
         if (!access_token) {
             console.error('Zoho Projects token exchange error:', tokenResponse);
@@ -123,9 +127,9 @@ export async function onRequestPost(context) {
         const integration_id = upsertData.id;
 
         // 3. Fetch user profile to get user details
-        const headers = { 
-            Authorization: `Zoho-oauthtoken ${access_token}`, 
-            Accept: 'application/json' 
+        const headers = {
+            Authorization: `Zoho-oauthtoken ${access_token}`,
+            Accept: 'application/json',
         };
 
         // Get user profile
@@ -133,7 +137,7 @@ export async function onRequestPost(context) {
             const userProfile = await ky
                 .get('https://projectsapi.zoho.com/restapi/users/me/', { headers })
                 .json();
-            
+
             await supabase
                 .from('user_integrations')
                 .update({ external_data: userProfile })
