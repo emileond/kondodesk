@@ -178,22 +178,41 @@ export async function onRequestPost(context) {
         const DB_BATCH_SIZE = 50;
         const API_MAX_RESULTS = 200; // Zoho Projects API limit
 
+        const userProfileResponse = await ky
+            .get(`https://projectsapi.zoho.com/api/v3/portal/${portals[0].id}/users/me`, {
+                headers,
+            })
+            .json();
+        const zoho_user_id = userProfileResponse.id;
+
+        const filterObject = {
+            criteria: [
+                {
+                    // ✅ Corrected based on your task object example
+                    api_name: 'owner',
+                    criteria_condition: 'in',
+                    value: [zoho_user_id], // The user's ID
+                },
+                {
+                    api_name: 'status_type',
+                    criteria_condition: 'equals',
+                    value: 'open', // For tasks that aren't complete
+                },
+            ],
+            pattern: '1AND2', // Combine the two rules with AND
+        };
+
+        const filterParam = encodeURIComponent(JSON.stringify(filterObject));
+
         for (const portal of portals) {
             try {
-                const userProfileResponse = await ky
-                    .get(`https://projectsapi.zoho.com/api/v3/portal/894115651/users/me`, {
-                        headers,
-                    })
-                    .json();
-                const zoho_user_id = userProfileResponse.id;
-
                 console.log(`Processing tasks for portal: ${portal.portal_name} (${portal.id})`);
                 let index = 1;
                 let hasMoreTasks = true;
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `https://projectsapi.zoho.com/api/v3/portal/${portal.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted&user_id=${zoho_user_id}`;
+                    const url = `https://projectsapi.zoho.com/api/v3/portal/${portal.id}/tasks?page=${page}&per_page=100&filter=${filterParam}`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 
