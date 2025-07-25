@@ -109,7 +109,7 @@ export async function onRequestPost(context) {
 
         // ✅ All API calls now use the standard token
         const headers = {
-            Authorization: `Zoho-oauthtoken ${access_token}`,
+            Authorization: `Bearer ${access_token}`,
             Accept: 'application/json',
         };
 
