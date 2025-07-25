@@ -152,7 +152,7 @@ function ReflectSessionPage() {
             <PageLayout
                 backBtn
                 maxW="screen-xl"
-                title="Reflect session"
+                title={session?.name || 'Reflect session'}
                 startElements={!isLoading && headerElements}
                 description="Use the insights on the left to guide your thoughts. Fill out what went
                             well and what could improve. Once you save, we'll offer suggestions to

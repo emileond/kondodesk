@@ -2,9 +2,14 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../nav/Sidebar';
 import Appbar from '../nav/Appbar';
 import TakuWidget from '../marketing/TakuWidget.js';
+import useCurrentWorkspace from '../../hooks/useCurrentWorkspace.js';
+import { useTaskSubscriptions } from '../../hooks/subscriptions/useTasksSubscriptions.js';
 
 function AppLayout({ children }) {
+    const [currentWorkspace] = useCurrentWorkspace();
     const [showSidebar, setShowSidebar] = useState(true);
+
+    useTaskSubscriptions(currentWorkspace?.workspace_id);
 
     // Check screen size and set showSidebar
     useEffect(() => {

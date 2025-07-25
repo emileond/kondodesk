@@ -2,60 +2,79 @@ import { Popover, PopoverTrigger, PopoverContent, Button, Divider } from '@herou
 import dayjs from 'dayjs';
 import { useState, useMemo, useEffect } from 'react';
 import { DayPicker } from 'react-day-picker';
-import { RiCalendarEventLine } from 'react-icons/ri';
+import { RiCalendarEventLine, RiArrowGoForwardLine } from 'react-icons/ri';
 
-const RangeDatepicker = ({ defaultValue, trigger, placement = 'bottom', onChange }) => {
-    // Set "Last 7 days" as default if no defaultValue is provided
+const RangeDatepicker = ({
+    defaultValue,
+    trigger,
+    placement = 'bottom',
+    onChange,
+    maxDays = 30,
+    preset,
+}) => {
     const getDefaultDateRange = () => {
         if (defaultValue) return defaultValue;
-
-        const to = dayjs().endOf('day').subtract(1, 'day');
-        const from = to.subtract(7, 'day');
-        return {
-            from: from.toDate(),
-            to: to.toDate(),
-        };
+        const to = dayjs().add(13, 'day').endOf('day').toDate();
+        const from = dayjs().startOf('day').toDate();
+        return { from, to };
     };
 
     const [dateRange, setDateRange] = useState(getDefaultDateRange());
-    const [isOpen, setIsOpen] = useState(false); // Track popover state
-    const [selectedPreset, setSelectedPreset] = useState(defaultValue ? null : 'Last 7 days'); // Track selected preset
+    const [isOpen, setIsOpen] = useState(false);
 
     const triggerText = useMemo(() => {
-        // If a preset is selected, display the preset label
-        if (selectedPreset) return selectedPreset;
+        if (!dateRange?.from || !dateRange?.to) return 'Select date range';
 
-        // Otherwise display the date range
-        if (!dateRange.from || !dateRange.to) return 'Select date range';
-
-        const fromDate = new Intl.DateTimeFormat(navigator.language, {
+        // Use Intl.DateTimeFormat for locale-aware short date formatting
+        const formatter = new Intl.DateTimeFormat(navigator.language, {
             dateStyle: 'medium',
-        }).format(new Date(dateRange.from));
+        });
 
-        const toDate = new Intl.DateTimeFormat(navigator.language, {
-            dateStyle: 'medium',
-        }).format(new Date(dateRange.to));
+        const fromDate = formatter.format(new Date(dateRange.from));
+        const toDate = formatter.format(new Date(dateRange.to));
 
         return `${fromDate} - ${toDate}`;
-    }, [dateRange, selectedPreset]);
-
-    useEffect(() => {
-        if (onChange) {
-            onChange(dateRange);
-        }
     }, [dateRange]);
 
-    const handlePresetSelection = (days, presetLabel) => {
-        const to = dayjs().endOf('day').subtract(1, 'day');
-        const from = to.subtract(days, 'day');
+    useEffect(() => {
+        // We only call onChange when the dateRange is fully formed.
+        if (onChange && dateRange?.from && dateRange?.to) {
+            onChange(dateRange);
+        }
+    }, [dateRange, onChange]);
 
-        setDateRange({
-            from: from.toDate(),
-            to: to.toDate(),
-        });
-        setSelectedPreset(presetLabel);
-        setIsOpen(false);
+    const handleDaySelect = (range) => {
+        if (range?.from && range?.to) {
+            const start = dayjs(range.from);
+            const end = dayjs(range.to);
+            if (end.diff(start, 'day') >= maxDays) {
+                setDateRange({ from: range.from, to: undefined });
+                return;
+            }
+        }
+        setDateRange(range);
     };
+
+    const handlePresetClick = () => {
+        if (!preset) return;
+        const from = dayjs().startOf('day').toDate();
+        const to = dayjs()
+            .add(preset.days - 1, 'day')
+            .endOf('day')
+            .toDate();
+        setDateRange({ from, to });
+        setIsOpen(false); // Close popover after selection
+    };
+
+    const disabledDays = useMemo(() => {
+        if (dateRange?.from && !dateRange?.to) {
+            return {
+                before: dayjs(dateRange.from).subtract(maxDays, 'day').toDate(),
+                after: dayjs(dateRange.from).add(maxDays, 'day').toDate(),
+            };
+        }
+        return [];
+    }, [dateRange, maxDays]);
 
     return (
         <Popover placement={placement} isOpen={isOpen} onOpenChange={setIsOpen}>
@@ -74,38 +93,25 @@ const RangeDatepicker = ({ defaultValue, trigger, placement = 'bottom', onChange
             </PopoverTrigger>
             <PopoverContent className="p-0">
                 <div className="flex flex-col gap-1 p-2">
-                    <Button
-                        size="sm"
-                        className="w-full text-default-600"
-                        variant="light"
-                        onPress={() => handlePresetSelection(7, 'Last 7 days')}
-                    >
-                        Last 7 days
-                    </Button>
-                    <Button
-                        size="sm"
-                        className="w-full text-default-600"
-                        variant="light"
-                        onPress={() => handlePresetSelection(14, 'Last 2 weeks')}
-                    >
-                        Last 2 weeks
-                    </Button>
-                    <Divider />
+                    {preset && (
+                        <>
+                            <Button
+                                size="sm"
+                                className="w-full text-default-600"
+                                variant="light"
+                                startContent={<RiArrowGoForwardLine fontSize="1rem" />}
+                                onPress={handlePresetClick}
+                            >
+                                {preset.label}
+                            </Button>
+                            <Divider />
+                        </>
+                    )}
                     <DayPicker
                         mode="range"
                         selected={dateRange}
-                        onSelect={(range) => {
-                            if (range?.from && range?.to) {
-                                setDateRange(range);
-                                // Clear the preset selection when a custom range is selected
-                                setSelectedPreset(null);
-                                // Don't close the calendar on selection to allow users to modify their selection
-                            } else {
-                                setDateRange(range || { from: undefined, to: undefined });
-                                // Clear the preset selection when the range is cleared
-                                if (!range) setSelectedPreset(null);
-                            }
-                        }}
+                        onSelect={handleDaySelect}
+                        disabled={disabledDays}
                         classNames={{
                             months: 'relative flex flex-wrap justify-center gap-8',
                             month_caption:

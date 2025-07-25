@@ -82,8 +82,9 @@ const ReflectSessionCard = ({ session }) => {
                 onPress={() => navigate(`/reflect/session/${session.id}`)}
             >
                 <CardBody>
-                    <div className="flex justify-between">
-                        <Chip variant="flat" startContent={<RiCalendar2Line fontSize="1rem" />}>
+                    <div className="flex items-center justify-between">
+                        <span className="font-medium">{session?.name || 'Reflect Session'}</span>
+                        <Chip variant="light" startContent={<RiCalendar2Line fontSize="1rem" />}>
                             {formatDate(session.start_date, {
                                 dateStyle: 'short',
                             })}{' '}

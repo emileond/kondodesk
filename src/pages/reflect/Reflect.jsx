@@ -17,6 +17,7 @@ import {
     Divider,
     Alert,
     Chip,
+    Input,
 } from '@heroui/react';
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from 'react';
@@ -43,6 +44,12 @@ function ReflectPage() {
     const [dateRange, setDateRange] = useState({ from: null, to: null });
     const [selectedProjects, setSelectedProjects] = useState([]);
     const [showCarousel, setShowCarousel] = useState(false);
+    const formatter = new Intl.DateTimeFormat(navigator.language, {
+        dateStyle: 'medium',
+    });
+    const [sessionName, setSessionName] = useState(
+        `Reflect session ${formatter.format(new Date())}`,
+    );
 
     // Define features for the carousel
     const carouselFeatures = [
@@ -144,7 +151,13 @@ function ReflectPage() {
             return;
         }
 
+        if (!sessionName.trim()) {
+            toast.error('Please enter a session name');
+            return;
+        }
+
         const payload = {
+            name: sessionName.trim(),
             start_date: toUTC(dateRange.from),
             end_date: toUTC(dateRange.to),
             projects: selectedProjects,
@@ -160,6 +173,8 @@ function ReflectPage() {
                 navigate(`/reflect/session/${newSession.id}`);
                 onClose();
                 reset();
+                // Reset session name to default
+                setSessionName(`Reflect session ${formatter.format(new Date())}`);
             },
             onError: (error) => {
                 toast.error(error.message || 'Failed to create reflection session');
@@ -211,6 +226,23 @@ function ReflectPage() {
                             </ModalHeader>
                             <ModalBody>
                                 <div className="flex flex-col gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <p className="font-medium text-sm text-gray-700">
+                                            Session Name
+                                        </p>
+                                        <p className="text-default-500 text-xs">
+                                            Give your reflection session a name.
+                                        </p>
+                                        <div className="mt-1">
+                                            <Input
+                                                value={sessionName}
+                                                onChange={(e) => setSessionName(e.target.value)}
+                                                placeholder="Enter session name"
+                                                isRequired
+                                            />
+                                        </div>
+                                    </div>
+                                    <Divider />
                                     <div className="flex flex-col gap-2">
                                         <p className="font-medium text-sm text-gray-700">
                                             Timeframe

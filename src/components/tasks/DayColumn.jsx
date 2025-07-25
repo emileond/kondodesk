@@ -95,13 +95,14 @@ const DayColumn = ({ day, filters }) => {
     const dateStr = day.format('YYYY-MM-DD');
     const isToday = day.isSame(dayjs(), 'day');
     const isWeekend = day.day() === 0 || day.day() === 6; // 0 is Sunday, 6 is Saturday
+    const isPast = day.isBefore(dayjs(), 'day'); // Check if the day is in the past
 
     return (
         <>
             <NewTaskModal isOpen={isOpen} onOpenChange={onOpenChange} defaultDate={newTaskDate} />
             <div
                 key={dateStr}
-                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3' : 'bg-content2'} border-1 border-default-200 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md flex-shrink-0 snap-center overflow-y-hidden`}
+                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3' : 'bg-content2'} border-1 border-default-200 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md flex-shrink-0 snap-center overflow-y-hidden ${isPast ? 'opacity-60' : ''}`}
             >
                 <div
                     className={`p-2 border-b-2 ${isToday ? 'border-secondary' : 'border-default'}`}

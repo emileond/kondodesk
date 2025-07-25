@@ -9,7 +9,8 @@ import toast from 'react-hot-toast';
 import Paywall from '../components/marketing/Paywall.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import SubscriptionInfo from '../components/billing/SubscriptionInfo'; // <-- Import the new component
+import SubscriptionInfo from '../components/billing/SubscriptionInfo';
+import TagsSettings from '../components/settings/TagsSettings'; // Import the new component
 
 function SettingsPage() {
     const [currentWorkspace] = useCurrentWorkspace();
@@ -65,7 +66,7 @@ function SettingsPage() {
                 volumePricing={false}
             />
             <PageLayout title="Workspace settings" maxW="2xl">
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-6 mb-16">
                     <Card shadow="sm">
                         <CardHeader>
                             <h4 className="font-medium">General</h4>
@@ -113,14 +114,17 @@ function SettingsPage() {
                             </div>
                         </CardFooter>
                     </Card>
-
-                    {/* --- THIS IS THE UPDATED BILLING CARD --- */}
                     <Card shadow="sm">
                         <CardHeader>
                             <h4 className="font-medium">Billing</h4>
                         </CardHeader>
                         <CardBody>
                             <SubscriptionInfo onUpgradeClick={() => setIsPaywallOpen(true)} />
+                        </CardBody>
+                    </Card>
+                    <Card shadow="sm">
+                        <CardBody>
+                            <TagsSettings />
                         </CardBody>
                     </Card>
                 </div>

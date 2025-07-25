@@ -46,12 +46,12 @@ export const useCreateTag = (currentWorkspace) => {
         mutationFn: createTag,
         onSuccess: () => {
             // Invalidate and refetch the tags query for the workspace
-            queryClient.invalidateQueries(['tags', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries({ queryKey: ['tags', currentWorkspace?.workspace_id] });
         },
     });
 };
 
-// Function to update a tag
+// Function to update a tag's name, color, or other properties
 const updateTag = async ({ tagId, updates }) => {
     const { error } = await supabaseClient.from('tags').update(updates).eq('id', tagId);
 
@@ -71,7 +71,7 @@ export const useUpdateTag = (currentWorkspace) => {
         },
         onSuccess: () => {
             // Invalidate and refetch the tags query for the workspace
-            queryClient.invalidateQueries(['tags', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries({ queryKey: ['tags', currentWorkspace?.workspace_id] });
         },
     });
 };
@@ -96,7 +96,7 @@ export const useDeleteTag = (currentWorkspace) => {
         },
         onSuccess: () => {
             // Invalidate and refetch the tags query for the workspace
-            queryClient.invalidateQueries(['tags', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries({ queryKey: ['tags', currentWorkspace?.workspace_id] });
         },
     });
 };

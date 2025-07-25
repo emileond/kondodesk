@@ -2,7 +2,16 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { supabaseClient } from '../../lib/supabase.js';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
-import { Button, useDisclosure, Modal, ModalContent, ModalBody, Spinner } from '@heroui/react';
+import {
+    Button,
+    useDisclosure,
+    Modal,
+    ModalContent,
+    ModalHeader,
+    ModalBody,
+    ModalFooter,
+    Spinner,
+} from '@heroui/react';
 import { RiExpandLeftLine, RiContractRightLine } from 'react-icons/ri';
 import BacklogPanel from './BacklogPanel.jsx';
 import { useUpdateMultipleTasks } from '../../hooks/react-query/tasks/useTasks.js';
@@ -12,11 +21,17 @@ import DayColumn from './DayColumn.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import TasksFilters from './TasksFilters.jsx';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
-// Extend dayjs with the plugins
 dayjs.extend(utc);
 
-const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanResponse }) => {
+const UpcomingTasks = ({
+    onAutoPlan,
+    onRollback,
+    lastPlanResponse,
+    setLastPlanResponse,
+    dateRange,
+}) => {
     const [filters, setFilters] = useState({
         project_id: null,
         milestone_id: null,
@@ -34,20 +49,28 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
     } = useDisclosure();
     const [loadingMessage, setLoadingMessage] = useState('Optimizing plan...');
 
+    // State and controls for the new summary modal
+    const [planSummary, setPlanSummary] = useState('');
+    const {
+        isOpen: isSummaryOpen,
+        onOpen: onSummaryOpen,
+        onClose: onSummaryClose,
+    } = useDisclosure();
+
     const { mutateAsync: updateMultipleTasks } = useUpdateMultipleTasks(currentWorkspace);
 
-    // Array of loading messages to display
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const loadingMessages = [
-        'Optimizing plan...',
-        'Finding the smartest schedule...',
-        'Analyzing task priorities...',
-        'Balancing your workload...',
-        'Calculating optimal distribution...',
-        'Applying AI scheduling algorithms...',
-    ];
+    const loadingMessages = useMemo(
+        () => [
+            'Optimizing plan...',
+            'Finding the smartest schedule...',
+            'Analyzing task priorities...',
+            'Balancing your workload...',
+            'Calculating optimal distribution...',
+            'Applying AI scheduling algorithms...',
+        ],
+        [],
+    );
 
-    // Function to cycle through loading messages
     useEffect(() => {
         let messageInterval;
         if (isLoadingOpen) {
@@ -55,46 +78,39 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
             messageInterval = setInterval(() => {
                 index = (index + 1) % loadingMessages.length;
                 setLoadingMessage(loadingMessages[index]);
-            }, 3000); // Change message every 3 seconds
+            }, 3000);
         }
-
-        return () => {
-            if (messageInterval) clearInterval(messageInterval);
-        };
+        return () => clearInterval(messageInterval);
     }, [isLoadingOpen, loadingMessages]);
 
-    // Calculate the date range to display
     const days = useMemo(() => {
-        const today = dayjs();
-        const dayOfWeek = today.day(); // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
-        const daysToAddForCurrentWeek = dayOfWeek === 0 ? 6 : 6 - dayOfWeek; // Days remaining in the current week (ends on Saturday)
-        const totalDays = daysToAddForCurrentWeek + 14; // Remaining days in current week + 2 full weeks
-
+        if (!dateRange.from || !dateRange.to) return [];
+        const start = dayjs(dateRange.from);
+        const end = dayjs(dateRange.to);
         const result = [];
-        for (let i = 0; i < totalDays; i++) {
-            result.push(today.add(i, 'day'));
+        let current = start;
+        while (current.isBefore(end) || current.isSame(end, 'day')) {
+            result.push(current);
+            current = current.add(1, 'day');
         }
         return result;
-    }, []);
+    }, [dateRange]);
 
-    const startDate = days[0]?.startOf('day').toISOString();
-    const endDate = days[days.length - 1]?.endOf('day').toISOString();
+    const startDate = days.length > 0 ? days[0].startOf('day').toISOString() : null;
+    const endDate = days.length > 0 ? days[days.length - 1].endOf('day').toISOString() : null;
 
     const [isBacklogCollapsed, setIsBacklogCollapsed] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('isBacklogCollapsed') === 'true';
-        }
-        return false;
+        return typeof window !== 'undefined'
+            ? localStorage.getItem('isBacklogCollapsed') === 'true'
+            : false;
     });
 
-    // This effect persists the collapsed state to localStorage whenever it changes.
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem('isBacklogCollapsed', String(isBacklogCollapsed));
         }
     }, [isBacklogCollapsed]);
 
-    // This callback is passed to the child components to toggle the state.
     const handleToggleCollapse = useCallback(() => {
         setIsBacklogCollapsed((prevState) => !prevState);
     }, []);
@@ -104,23 +120,16 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
             console.error('No plan response to rollback');
             return;
         }
-
         onLoadingOpen();
         setLoadingMessage('Rolling back changes...');
-
         const tasksToUpdate = lastPlanResponse.map((task) => ({
             taskId: task.id,
             updates: { date: null },
         }));
-
         try {
             await updateMultipleTasks({ tasks: tasksToUpdate });
             setLastPlanResponse(null);
             toast.success('Changes reverted');
-
-            await queryClient.cancelQueries({
-                queryKey: ['tasks', currentWorkspace?.workspace_id],
-            });
             await queryClient.invalidateQueries({
                 queryKey: ['tasks', currentWorkspace?.workspace_id],
             });
@@ -145,6 +154,12 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
         onLoadingOpen();
         setLoadingMessage('Optimizing plan...');
 
+        if (!startDate || !endDate) {
+            toast.error('Please select a valid date range.');
+            onLoadingClose();
+            return;
+        }
+
         const availableDates = [];
         const start = dayjs(startDate);
         const end = dayjs(endDate);
@@ -166,7 +181,6 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
             const key = current.format('YYYY-MM-DD');
             const weekday = current.day();
             const weekdayName = current.format('dddd');
-
             if (weekday >= 1 && weekday <= 5) {
                 const taskCount = countsByDay[key] || 0;
                 if (taskCount < 2) {
@@ -192,18 +206,19 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
                 })
                 .json();
 
-            setLastPlanResponse(response);
+            // Handle the new response structure
+            setLastPlanResponse(response.plan);
+            setPlanSummary(response.reasoning);
+            onSummaryOpen(); // Open the summary modal
 
-            if (response) {
-                await queryClient.cancelQueries({
-                    queryKey: ['tasks', currentWorkspace?.workspace_id],
-                });
+            if (response.plan && response.plan.length > 0) {
                 await queryClient.invalidateQueries({
                     queryKey: ['tasks', currentWorkspace?.workspace_id],
                 });
             }
         } catch (error) {
             console.error('Error in auto plan:', error);
+            toast.error('Failed to generate a plan. Please try again.');
         } finally {
             onLoadingClose();
         }
@@ -215,19 +230,16 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
         queryClient,
         onLoadingOpen,
         onLoadingClose,
+        onSummaryOpen,
     ]);
 
     const handleFiltersChange = useCallback((newFilters) => {
         setFilters(newFilters);
     }, []);
-    
+
     useEffect(() => {
-        if (onAutoPlan && currentWorkspace) {
-            onAutoPlan.current = autoPlan;
-        }
-        if (onRollback && currentWorkspace) {
-            onRollback.current = handleRollback;
-        }
+        if (onAutoPlan && currentWorkspace) onAutoPlan.current = autoPlan;
+        if (onRollback && currentWorkspace) onRollback.current = handleRollback;
     }, [onAutoPlan, onRollback, currentWorkspace, autoPlan, handleRollback]);
 
     return (
@@ -245,15 +257,35 @@ const UpcomingTasks = ({ onAutoPlan, onRollback, lastPlanResponse, setLastPlanRe
                     </ModalBody>
                 </ModalContent>
             </Modal>
+
+            {/* Plan Summary Modal */}
+            <Modal isOpen={isSummaryOpen} onOpenChange={onSummaryClose}>
+                <ModalContent>
+                    <ModalHeader>Auto-Plan Complete</ModalHeader>
+                    <ModalBody>
+                        <div className="h-52">
+                            <DotLottieReact src="/lottie/calendar.lottie" autoplay loop />
+                        </div>
+                        <p className="text-default-700">{planSummary}</p>
+                        <p className="mt-4 text-sm text-default-500">
+                            If you're not happy with this plan, you can undo it by clicking the
+                            "Rollback" button.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="primary" onPress={onSummaryClose}>
+                            Got it
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
             <div className="flex justify-between mb-2">
                 <TasksFilters
                     defaultToAllUsers
                     onFiltersChange={handleFiltersChange}
                     initialFilters={filters}
                 />
-                <p className="text-sm text-default-600">
-                    {dayjs(startDate).format('MMM D')} - {dayjs(endDate).format('MMM D')}
-                </p>
                 <Button
                     size="sm"
                     variant="light"
