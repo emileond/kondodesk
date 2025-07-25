@@ -185,7 +185,7 @@ export async function onRequestPost(context) {
                         headers,
                     })
                     .json();
-                const zoho_user_id = userProfileResponse.users[0].id;
+                const zoho_user_id = userProfileResponse.id;
 
                 console.log(`Processing tasks for portal: ${portal.portal_name} (${portal.id})`);
                 let index = 1;
