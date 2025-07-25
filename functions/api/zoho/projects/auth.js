@@ -117,7 +117,7 @@ export async function onRequestPost(context) {
 
         // 2. Fetch the Portal ID first
         const portalsResponse = await ky
-            .get(`https://projectsapi.zoho.com/api/v3/portals/`, { headers })
+            .get(`https://projectsapi.zoho.com/api/v3/portals`, { headers })
             .json();
         if (!portalsResponse.portals || portalsResponse.portals.length === 0) {
             throw new Error('No Zoho Projects portals found for this user.');

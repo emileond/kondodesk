@@ -76,7 +76,6 @@ export async function onRequestDelete(context) {
 export async function onRequestPost(context) {
     const body = await context.request.json();
     const { code, user_id, workspace_id } = body;
-    console.log(body);
 
     if (!code || !user_id || !workspace_id) {
         return Response.json({ success: false, error: 'Missing data' }, { status: 400 });
@@ -103,6 +102,8 @@ export async function onRequestPost(context) {
             .json();
 
         const tokenData = await tokenResponse;
+
+        console.log(tokenData);
 
         if (tokenData.error || !tokenData.access_token) {
             console.error('Nifty token exchange error:', tokenData);
