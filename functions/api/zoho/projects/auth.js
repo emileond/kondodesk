@@ -185,22 +185,23 @@ export async function onRequestPost(context) {
             .json();
         const zoho_user_id = userProfileResponse.id;
 
-        const filterObject = {
-            criteria: [
-                {
-                    // ✅ Corrected based on your task object example
-                    api_name: 'owner',
-                    criteria_condition: 'in',
-                    value: [zoho_user_id], // The user's ID
-                },
-                {
-                    api_name: 'status_type',
-                    criteria_condition: 'equals',
-                    value: 'open', // For tasks that aren't complete
-                },
-            ],
-            pattern: '1AND2', // Combine the two rules with AND
-        };
+        const filterObject = [
+            {
+                criteria: [
+                    {
+                        api_name: 'owner',
+                        criteria_condition: 'in',
+                        value: [zoho_user_id],
+                    },
+                    {
+                        api_name: 'status_type',
+                        criteria_condition: 'equals',
+                        value: 'open',
+                    },
+                ],
+                pattern: '1AND2',
+            },
+        ];
 
         const filterParam = encodeURIComponent(JSON.stringify(filterObject));
 

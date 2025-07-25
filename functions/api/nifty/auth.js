@@ -84,7 +84,7 @@ export async function onRequestPost(context) {
     try {
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        const credentials = `${NIFTY_CLIENT_ID}:${NIFTY_CLIENT_SECRET}`;
+        const credentials = `${context.env.NIFTY_CLIENT_ID}:${context.env.NIFTY_CLIENT_SECRET}`;
         const encodedCredentials = Buffer.from(credentials).toString('base64');
 
         // 1. Exchange code for access token
