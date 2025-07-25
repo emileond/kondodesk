@@ -189,8 +189,8 @@ export async function onRequestPost(context) {
             {
                 criteria: [
                     {
-                        api_name: 'owner_id',
-                        criteria_condition: 'in',
+                        api_name: 'owner',
+                        criteria_condition: 'equals',
                         value: [zoho_user_id],
                     },
                     // {
@@ -213,7 +213,7 @@ export async function onRequestPost(context) {
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `https://projectsapi.zoho.com/api/v3/portal/${portal.id}/tasks?page=${page}&per_page=100&filter=${filterParam}`;
+                    const url = `https://projectsapi.zoho.com/api/v3/portal/${portal.id}/tasks?page=${page}&per_page=100`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 
