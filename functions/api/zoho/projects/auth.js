@@ -229,7 +229,7 @@ export async function onRequestPost(context) {
                                     integration_source: 'zoho_projects',
                                     external_id: task.id,
                                     external_data: task,
-                                    host: task.link.web.url,
+                                    host: `https://projects.zoho.com/portal/${portal.id}/task-detail/${task.id}`,
                                     assignee: user_id,
                                     creator: user_id,
                                 },
