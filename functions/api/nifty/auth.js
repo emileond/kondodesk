@@ -84,17 +84,19 @@ export async function onRequestPost(context) {
     try {
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
+        const credentials = `${NIFTY_CLIENT_ID}:${NIFTY_CLIENT_SECRET}`;
+        const encodedCredentials = Buffer.from(credentials).toString('base64');
+
         // 1. Exchange code for access token
         const tokenResponse = await ky
-            .post('https://nifty.pm/oauth/token', {
+            .post('https://openapi.niftypm.com/oauth/token', {
                 json: {
                     grant_type: 'authorization_code',
-                    client_id: context.env.NIFTY_CLIENT_ID,
-                    client_secret: context.env.NIFTY_CLIENT_SECRET,
                     code: code,
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/nifty',
                 },
                 headers: {
+                    authorization: encodedCredentials,
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
@@ -134,14 +136,13 @@ export async function onRequestPost(context) {
 
         // Get user's assigned tasks from Nifty
         const tasksResponse = await ky
-            .get('https://api.niftypm.com/api/v1.0/tasks', {
+            .get('https://openapi.niftypm.com/api/v1.0/tasks', {
                 headers: {
                     Authorization: `Bearer ${tokenData.access_token}`,
                     Accept: 'application/json',
                 },
                 searchParams: {
-                    assignee: 'me',
-                    status: 'open',
+                    completed: 'false',
                     limit: 100,
                 },
             })

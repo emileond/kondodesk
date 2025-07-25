@@ -207,7 +207,7 @@ export async function onRequestPost(context) {
         for (const portal of portals) {
             try {
                 console.log(`Processing tasks for portal: ${portal.portal_name} (${portal.id})`);
-                let index = 1;
+                let page = 1;
                 let hasMoreTasks = true;
 
                 // Loop through all pages of tasks from the Zoho Projects API
