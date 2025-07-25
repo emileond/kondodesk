@@ -181,7 +181,9 @@ export async function onRequestPost(context) {
         for (const portal of portals) {
             try {
                 const userProfileResponse = await ky
-                    .get(`${api_domain}/api/v3/portal/${portal.id}/users/me/`, { headers })
+                    .get(`https://projectsapi.zoho.com/api/v3/portal/894115651/users/me`, {
+                        headers,
+                    })
                     .json();
                 const zoho_user_id = userProfileResponse.users[0].id;
 
@@ -191,7 +193,7 @@ export async function onRequestPost(context) {
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `${api_domain}/api/v3/portal/${portal.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted&user_id=${zoho_user_id}`;
+                    const url = `https://projectsapi.zoho.com/api/v3/portal/${portal.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted&user_id=${zoho_user_id}`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 
