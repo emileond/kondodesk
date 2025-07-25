@@ -174,7 +174,7 @@ export async function onRequestPost(context) {
 
                 // Loop through all pages of tasks from the Zoho Projects API
                 while (hasMoreTasks) {
-                    const url = `${api_domain}restapi/projects/${project.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted`;
+                    const url = `${api_domain}/restapi/projects/${project.id}/tasks/?index=${index}&range=${API_MAX_RESULTS}&status=notcompleted`;
                     const pageData = await ky.get(url, { headers }).json();
                     const pageTasks = pageData.tasks || [];
 
@@ -190,7 +190,7 @@ export async function onRequestPost(context) {
                                     integration_source: 'zoho_projects',
                                     external_id: task.id,
                                     external_data: task,
-                                    host: `https://projectsapi.zoho.com/restapi/projects/${project.id}`,
+                                    host: `${api_domain}/restapi/projects/${project.id}`,
                                     assignee: user_id,
                                     creator: user_id,
                                 },
