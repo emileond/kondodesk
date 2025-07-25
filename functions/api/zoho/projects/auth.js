@@ -189,15 +189,15 @@ export async function onRequestPost(context) {
             {
                 criteria: [
                     {
-                        api_name: 'owner',
+                        api_name: 'owner_id',
                         criteria_condition: 'in',
                         value: [zoho_user_id],
                     },
-                    {
-                        api_name: 'status_type',
-                        criteria_condition: 'equals',
-                        value: 'open',
-                    },
+                    // {
+                    //     api_name: 'status_type',
+                    //     criteria_condition: 'equals',
+                    //     value: 'open',
+                    // },
                 ],
                 pattern: '1AND2',
             },
