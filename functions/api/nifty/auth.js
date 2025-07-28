@@ -145,13 +145,13 @@ export async function onRequestPost(context) {
 
             // Get a page of tasks from Nifty
             const tasksResponse = await ky
-                .get('https://openapi.niftypm.com/api/v1.0/tasks/personal', {
+                .get('https://openapi.niftypm.com/api/v1.0/tasks', {
                     headers: {
                         Authorization: `Bearer ${tokenData.access_token}`,
                         Accept: 'application/json',
                     },
                     searchParams: {
-                        completed: 'false',
+                        // completed: 'false',
                         limit: DB_BATCH_SIZE,
                         offset: offset,
                     },
