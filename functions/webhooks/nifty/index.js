@@ -47,8 +47,7 @@ async function handleTaskCreation(supabase, task) {
     }));
 
     const { error: upsertError } = await supabase.from('tasks').upsert(taskDataForUpsert, {
-        onConflict: 'integration_source, external_id, host, workspace_id',,
-
+        onConflict: 'integration_source, external_id, host, workspace_id',
     });
 
     if (upsertError) throw new Error(`[Create] Failed to upsert tasks: ${upsertError.message}`);
