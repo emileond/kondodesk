@@ -151,7 +151,7 @@ export async function onRequestPost(context) {
                         Accept: 'application/json',
                     },
                     searchParams: {
-                        // completed: 'false',
+                        completed: false,
                         limit: DB_BATCH_SIZE,
                         offset: offset,
                     },
@@ -163,9 +163,9 @@ export async function onRequestPost(context) {
             const tasks = tasksResponse.tasks || [];
 
             if (tasks.length > 0) {
-                // Process the fetched tasks in smaller batches for the database
+                // Process the fetched tasks
                 const upsertPromises = tasks.map((task) => {
-                    // Your existing Supabase upsert logic is correct
+                    // Return the promise from the upsert call
                     return supabase.from('tasks').upsert(
                         {
                             name: task.title,
@@ -183,7 +183,19 @@ export async function onRequestPost(context) {
                         },
                     );
                 });
-                await Promise.all(upsertPromises);
+
+                // Wait for all the upsert promises to resolve
+                const results = await Promise.all(upsertPromises);
+
+                // Optionally, check for errors after all operations are complete
+                results.forEach((result, index) => {
+                    if (result.error) {
+                        console.error(
+                            `Error saving task ${tasks[index].id} to database:`,
+                            result.error,
+                        );
+                    }
+                });
             }
 
             // Update loop control variables for the next iteration
