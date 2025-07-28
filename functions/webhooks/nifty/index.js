@@ -66,6 +66,8 @@ export async function onRequestPost(context) {
         const event = payload.eventType;
         const task = payload.data;
 
+        console.log(task);
+
         if (!event || !task || !task.id) {
             return new Response(
                 JSON.stringify({ success: false, error: 'Invalid webhook payload' }),
