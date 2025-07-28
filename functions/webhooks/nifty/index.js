@@ -54,17 +54,21 @@ async function handleTaskCreation(supabase, task) {
 }
 
 async function handleTaskUpdate(supabase, task) {
-    // Call the database function you just created
+    // Convert the incoming description to the Tiptap JSON format
+    const tiptapDescription = toTiptap(task.description);
+
+    // Call the database function with the new description parameter
     const { error } = await supabase.rpc('update_nifty_task', {
         p_external_id: task.id,
         p_new_name: task.name,
         p_new_status: task.completedOn ? 'completed' : 'pending',
         p_new_data: task,
+        p_new_description: tiptapDescription, // <-- Pass the converted description
     });
 
     if (error) {
-        console.error(`[Update] Failed to update task ${task.id}:`, error);
-        return Response.json({ success: false, error: error.message }, { status: 500 });
+        // Throw an error to be caught by the main handler
+        throw new Error(`[Update] RPC failed for task ${task.id}: ${error.message}`);
     }
 }
 
