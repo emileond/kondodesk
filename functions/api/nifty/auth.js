@@ -168,11 +168,11 @@ export async function onRequestPost(context) {
                     // Return the promise from the upsert call
                     return supabase.from('tasks').upsert(
                         {
-                            name: task.title,
+                            name: task.name,
                             description: task.description ? JSON.stringify(task.description) : null,
                             workspace_id,
                             integration_source: 'nifty',
-                            external_id: task.id.toString(),
+                            external_id: task.id,
                             external_data: task,
                             host: 'https://nifty.pm',
                             assignee: user_id,
