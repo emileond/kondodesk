@@ -116,7 +116,7 @@ export async function onRequestPost(context) {
         }
 
         const niftyUserResponse = await ky
-            .get('https://openapi.niftypm.com/api/v1.0/me', {
+            .get('https://openapi.niftypm.com/api/v1.0/users/me', {
                 headers: {
                     Authorization: `Bearer ${tokenData.access_token}`,
                     Accept: 'application/json',
