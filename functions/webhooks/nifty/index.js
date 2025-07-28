@@ -19,7 +19,7 @@ async function handleTaskCreation(supabase, task) {
     const { data: userMappings, error: mappingError } = await supabase
         .from('user_integrations')
         .select('user_id, workspace_id')
-        .eq('integration_source', 'nifty')
+        .eq('type', 'nifty')
         .in('external_data->>id', niftyAssigneeIds);
 
     if (mappingError)
