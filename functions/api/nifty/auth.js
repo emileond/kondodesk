@@ -109,7 +109,10 @@ export async function onRequestPost(context) {
 
         if (tokenData.error || !tokenData.access_token) {
             console.error('Nifty token exchange error:', tokenData);
-            throw new Error(tokenData.error_description || 'Failed to get Nifty access token');
+            return Response.json(
+                { success: false, error: 'Failed to get Nifty access token' },
+                { status: 500 },
+            );
         }
 
         // 2. Save the initial integration data
@@ -142,7 +145,7 @@ export async function onRequestPost(context) {
 
             // Get a page of tasks from Nifty
             const tasksResponse = await ky
-                .get('https://openapi.niftypm.com/api/v1.0/tasks', {
+                .get('https://openapi.niftypm.com/api/v1.0/tasks/personal', {
                     headers: {
                         Authorization: `Bearer ${tokenData.access_token}`,
                         Accept: 'application/json',
@@ -155,6 +158,8 @@ export async function onRequestPost(context) {
                 })
                 .json();
 
+            console.log(tasksResponse);
+
             const tasks = tasksResponse.tasks || [];
 
             if (tasks.length > 0) {
@@ -164,7 +169,7 @@ export async function onRequestPost(context) {
                     return supabase.from('tasks').upsert(
                         {
                             name: task.title,
-                            description: task.description ? JSON.stringify(/*...*/) : null,
+                            description: task.description ? JSON.stringify(task.description) : null,
                             workspace_id,
                             integration_source: 'nifty',
                             external_id: task.id.toString(),
