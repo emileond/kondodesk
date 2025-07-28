@@ -9,32 +9,30 @@ function toTiptap(text) {
     };
 }
 
-async function handleTaskEvent(supabase, task) {
-    // 1. Get Nifty assignee IDs from the payload.
-    const niftyAssigneeIds = task.assignees?.map((a) => a.member).filter(Boolean) || [];
-
-    // If no one is assigned, there's nothing to do.
+async function handleTaskCreation(supabase, task) {
+    const niftyAssigneeIds = task.assignees?.map((a) => a).filter(Boolean) || [];
     if (niftyAssigneeIds.length === 0) {
-        console.log(`Nifty task ${task.id} has no assignees, no action taken.`);
+        console.log(`[Create] Nifty task ${task.id} has no assignees, no action taken.`);
         return;
     }
 
-    // 2. Find which of these assignees have an active integration in your app.
     const { data: userMappings, error: mappingError } = await supabase
         .from('user_integrations')
         .select('user_id, workspace_id')
         .eq('integration_source', 'nifty')
         .in('external_data->>id', niftyAssigneeIds);
 
-    if (mappingError) throw new Error(`Failed to map Nifty users: ${mappingError.message}`);
+    if (mappingError)
+        throw new Error(`[Create] Failed to map Nifty users: ${mappingError.message}`);
 
     const usersToSync = userMappings || [];
     if (usersToSync.length === 0) {
-        console.log(`Nifty task ${task.id} has no assigned users with active integrations.`);
+        console.log(
+            `[Create] Nifty task ${task.id} has no assigned users with active integrations.`,
+        );
         return;
     }
 
-    // 3. Prepare the data and upsert the task for all relevant users.
     const taskDataForUpsert = usersToSync.map((user) => ({
         name: task.name,
         description: JSON.stringify(toTiptap(task.description)),
@@ -52,8 +50,21 @@ async function handleTaskEvent(supabase, task) {
         onConflict: 'integration_source, external_id, assignee',
     });
 
-    if (upsertError) {
-        throw new Error(`Failed to upsert tasks: ${upsertError.message}`);
+    if (upsertError) throw new Error(`[Create] Failed to upsert tasks: ${upsertError.message}`);
+}
+
+async function handleTaskUpdate(supabase, task) {
+    // Call the database function you just created
+    const { error } = await supabase.rpc('update_nifty_task', {
+        p_external_id: task.id,
+        p_new_name: task.name,
+        p_new_status: task.completedOn ? 'completed' : 'pending',
+        p_new_data: task,
+    });
+
+    if (error) {
+        console.error(`[Update] Failed to update task ${task.id}:`, error);
+        return Response.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
@@ -62,11 +73,8 @@ export async function onRequestPost(context) {
     try {
         const payload = await context.request.json();
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
-
         const event = payload.eventType;
         const task = payload.data;
-
-        console.log(task);
 
         if (!event || !task || !task.id) {
             return new Response(
@@ -78,41 +86,32 @@ export async function onRequestPost(context) {
             );
         }
 
-        // --- Handle both created and updated events with the same logic ---
-        if (event === 'taskCreated' || event === 'taskUpdated') {
-            await handleTaskEvent(supabase, task);
-            console.log(`Successfully processed ${event} for Nifty task ${task.id}`);
-            return new Response(JSON.stringify({ success: true }), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
-        // Handle task taskDeleted events
-        if (event === 'taskDeleted') {
+        // --- Route events to the correct handler ---
+        if (event === 'taskCreated') {
+            await handleTaskCreation(supabase, task);
+        } else if (event === 'taskUpdated') {
+            await handleTaskUpdate(supabase, task);
+        } else if (event === 'taskDeleted') {
             const { error } = await supabase
                 .from('tasks')
                 .delete()
                 .eq('integration_source', 'nifty')
                 .eq('external_id', task.id);
 
-            if (error) {
-                console.error('Error deleting Nifty task from database:', error);
-                return new Response(
-                    JSON.stringify({ success: false, error: 'Failed to delete task' }),
-                    {
-                        status: 500,
-                    },
-                );
-            }
-
-            console.log(`Successfully processed ${event} for Nifty task ${task.id}`);
-            return new Response(JSON.stringify({ success: true }), {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            if (error)
+                throw new Error(`[Delete] Failed to delete task ${task.id}: ${error.message}`);
+        } else {
+            return new Response(
+                JSON.stringify({ success: false, error: 'Unsupported event type' }),
+                {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
         }
 
-        return new Response(JSON.stringify({ success: false, error: 'Unsupported event type' }), {
-            status: 400,
+        console.log(`Successfully processed ${event} for Nifty task ${task.id}`);
+        return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error) {
