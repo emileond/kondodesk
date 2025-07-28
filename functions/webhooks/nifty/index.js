@@ -9,94 +9,52 @@ function toTiptap(text) {
     };
 }
 
-/**
- * Handles the reconciliation logic for a Nifty task event.
- * It ensures that a task exists in your app for every assigned user
- * who has the Nifty integration, and removes it for those who don't.
- */
 async function handleTaskEvent(supabase, task) {
     // 1. Get Nifty assignee IDs from the payload.
-    // Assumes task.assignees is an array like [{ member: 'nifty-user-id-123' }]
     const niftyAssigneeIds = task.assignees?.map((a) => a.member).filter(Boolean) || [];
 
+    // If no one is assigned, there's nothing to do.
+    if (niftyAssigneeIds.length === 0) {
+        console.log(`Nifty task ${task.id} has no assignees, no action taken.`);
+        return;
+    }
+
     // 2. Find which of these assignees have an active integration in your app.
-    // This maps Nifty user IDs to your internal user and workspace IDs.
     const { data: userMappings, error: mappingError } = await supabase
         .from('user_integrations')
         .select('user_id, workspace_id')
         .eq('integration_source', 'nifty')
-        .in('external_data->>id', niftyAssigneeIds); // Query based on your JSONB structure
+        .in('external_data->>id', niftyAssigneeIds);
 
     if (mappingError) throw new Error(`Failed to map Nifty users: ${mappingError.message}`);
 
-    const usersWhoShouldHaveTask = userMappings || [];
-    const internalUserIdsToKeep = usersWhoShouldHaveTask.map((u) => u.user_id);
-
-    // 3. Get all users in Weekfuse who are currently assigned to this external task.
-    const { data: existingTasks, error: fetchError } = await supabase
-        .from('tasks')
-        .select('assignee')
-        .eq('integration_source', 'nifty')
-        .eq('external_id', task.id.toString());
-
-    if (fetchError) throw new Error(`Failed to fetch existing tasks: ${fetchError.message}`);
-
-    const currentInternalUserIds = existingTasks.map((t) => t.assignee);
-
-    // 4. Reconcile the lists to determine who to upsert and who to delete.
-    const userIdsToRemove = currentInternalUserIds.filter(
-        (id) => !internalUserIdsToKeep.includes(id),
-    );
-
-    // --- Prepare Database Operations ---
-    const promises = [];
-
-    // A) UPSERT tasks for all users who should have it.
-    // This handles both new assignments (insert) and existing ones (update).
-    if (usersWhoShouldHaveTask.length > 0) {
-        const taskDataForUpsert = usersWhoShouldHaveTask.map((user) => ({
-            name: task.title,
-            description: JSON.stringify(toTiptap(task.description)),
-            workspace_id: user.workspace_id,
-            integration_source: 'nifty',
-            external_id: task.id.toString(),
-            external_data: task,
-            host: 'https://nifty.pm',
-            assignee: user.user_id,
-            creator: user.user_id, // Assigning the task to the user as creator
-            status: task.completed ? 'completed' : 'pending',
-        }));
-
-        promises.push(
-            supabase.from('tasks').upsert(taskDataForUpsert, {
-                // This constraint is crucial for your 1-task-per-user model
-                onConflict: 'integration_source, external_id, assignee',
-            }),
-        );
+    const usersToSync = userMappings || [];
+    if (usersToSync.length === 0) {
+        console.log(`Nifty task ${task.id} has no assigned users with active integrations.`);
+        return;
     }
 
-    // B) DELETE tasks for users who were unassigned in Nifty.
-    if (userIdsToRemove.length > 0) {
-        promises.push(
-            supabase
-                .from('tasks')
-                .delete()
-                .eq('integration_source', 'nifty')
-                .eq('external_id', task.id.toString())
-                .in('assignee', userIdsToRemove),
-        );
-    }
+    // 3. Prepare the data and upsert the task for all relevant users.
+    const taskDataForUpsert = usersToSync.map((user) => ({
+        name: task.name,
+        description: JSON.stringify(toTiptap(task.description)),
+        workspace_id: user.workspace_id,
+        integration_source: 'nifty',
+        external_id: task.id,
+        external_data: task,
+        host: 'https://nifty.pm',
+        assignee: user.user_id,
+        creator: user.user_id,
+        status: task.completed ? 'completed' : 'pending',
+    }));
 
-    // Execute all operations concurrently
-    const results = await Promise.all(promises);
-
-    // Check for errors in the results
-    results.forEach((result) => {
-        if (result.error) {
-            console.error('A database operation failed during reconciliation:', result.error);
-            // You might want to add more robust error handling/retries here
-        }
+    const { error: upsertError } = await supabase.from('tasks').upsert(taskDataForUpsert, {
+        onConflict: 'integration_source, external_id, assignee',
     });
+
+    if (upsertError) {
+        throw new Error(`Failed to upsert tasks: ${upsertError.message}`);
+    }
 }
 
 // Main Cloudflare Worker entry point
@@ -129,7 +87,7 @@ export async function onRequestPost(context) {
 
         // Handle task taskDeleted events
         if (event === 'taskDeleted') {
-            const { , error } = await supabase
+            const { error } = await supabase
                 .from('tasks')
                 .delete()
                 .eq('integration_source', 'nifty')
