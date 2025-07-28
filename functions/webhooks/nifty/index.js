@@ -67,6 +67,8 @@ export async function onRequestPost(context) {
         // Parse the webhook payload
         const payload = JSON.parse(rawPayload);
 
+        console.log(payload);
+
         // Initialize Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
@@ -84,16 +86,22 @@ export async function onRequestPost(context) {
         // Only handle task events
         if (event === 'task.updated' || event === 'task.created') {
             // Convert description to Tiptap format if available
-            const tiptapDescription = task.description ? {
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [{
-                        type: 'text',
-                        text: task.description
-                    }]
-                }]
-            } : null;
+            const tiptapDescription = task.description
+                ? {
+                      type: 'doc',
+                      content: [
+                          {
+                              type: 'paragraph',
+                              content: [
+                                  {
+                                      type: 'text',
+                                      text: task.description,
+                                  },
+                              ],
+                          },
+                      ],
+                  }
+                : null;
 
             // Update the task in the database
             const { data: updateData, error: updateError } = await supabase

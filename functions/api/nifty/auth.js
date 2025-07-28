@@ -115,6 +115,24 @@ export async function onRequestPost(context) {
             );
         }
 
+        const niftyUserResponse = await ky
+            .get('https://openapi.niftypm.com/api/v1.0/me', {
+                headers: {
+                    Authorization: `Bearer ${tokenData.access_token}`,
+                    Accept: 'application/json',
+                },
+            })
+            .json();
+
+        const niftyUserId = niftyUserResponse.id;
+        if (!niftyUserId) {
+            console.error('Nifty user ID not found in response:', niftyUserResponse);
+            return Response.json(
+                { success: false, error: 'Failed to get Nifty user ID' },
+                { status: 500 },
+            );
+        }
+
         // 2. Save the initial integration data
         const expires_at = tokenData.expires_in
             ? calculateExpiresAt(tokenData.expires_in - 600)
@@ -129,6 +147,7 @@ export async function onRequestPost(context) {
             last_sync: toUTC(),
             expires_at,
             config: { syncStatus: 'prompt' },
+            external_data: niftyUserResponse,
         });
 
         if (upsertError) throw new Error('Failed to save integration data');
@@ -151,6 +170,7 @@ export async function onRequestPost(context) {
                         Accept: 'application/json',
                     },
                     searchParams: {
+                        assignees: [niftyUserId],
                         completed: false,
                         limit: DB_BATCH_SIZE,
                         offset: offset,
