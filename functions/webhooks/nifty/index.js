@@ -1,68 +1,68 @@
 import { createClient } from '@supabase/supabase-js';
 
-const validateNiftyWebhook = async (request, secret, payload) => {
-    // Get the signature from the headers
-    const signature = request.headers.get('X-Nifty-Signature');
-
-    if (!signature || !signature.startsWith('sha256=')) {
-        return false;
-    }
-
-    // Extract the hash from the signature
-    const receivedHash = signature.substring(7); // Remove 'sha256=' prefix
-
-    // Convert the secret to a key
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
-    const key = await crypto.subtle.importKey(
-        'raw',
-        keyData,
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign'],
-    );
-
-    // Calculate the expected signature
-    const payloadData = encoder.encode(payload);
-    const signatureBuffer = await crypto.subtle.sign('HMAC', key, payloadData);
-
-    // Convert the signature to hex
-    const signatureBytes = new Uint8Array(signatureBuffer);
-    const expectedHash = Array.from(signatureBytes)
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-
-    // Use a constant-time comparison to prevent timing attacks
-    if (receivedHash.length !== expectedHash.length) {
-        return false;
-    }
-
-    let result = 0;
-    for (let i = 0; i < receivedHash.length; i++) {
-        result |= receivedHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
-    }
-
-    return result === 0;
-};
+// const validateNiftyWebhook = async (request, secret, payload) => {
+//     // Get the signature from the headers
+//     const signature = request.headers.get('X-Nifty-Signature');
+//
+//     if (!signature || !signature.startsWith('sha256=')) {
+//         return false;
+//     }
+//
+//     // Extract the hash from the signature
+//     const receivedHash = signature.substring(7); // Remove 'sha256=' prefix
+//
+//     // Convert the secret to a key
+//     const encoder = new TextEncoder();
+//     const keyData = encoder.encode(secret);
+//     const key = await crypto.subtle.importKey(
+//         'raw',
+//         keyData,
+//         { name: 'HMAC', hash: 'SHA-256' },
+//         false,
+//         ['sign'],
+//     );
+//
+//     // Calculate the expected signature
+//     const payloadData = encoder.encode(payload);
+//     const signatureBuffer = await crypto.subtle.sign('HMAC', key, payloadData);
+//
+//     // Convert the signature to hex
+//     const signatureBytes = new Uint8Array(signatureBuffer);
+//     const expectedHash = Array.from(signatureBytes)
+//         .map((b) => b.toString(16).padStart(2, '0'))
+//         .join('');
+//
+//     // Use a constant-time comparison to prevent timing attacks
+//     if (receivedHash.length !== expectedHash.length) {
+//         return false;
+//     }
+//
+//     let result = 0;
+//     for (let i = 0; i < receivedHash.length; i++) {
+//         result |= receivedHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+//     }
+//
+//     return result === 0;
+// };
 
 export async function onRequestPost(context) {
     try {
         // Get the raw payload as text for signature validation
         const rawPayload = await context.request.text();
 
-        // Validate the webhook signature
-        const isValid = await validateNiftyWebhook(
-            context.request,
-            context.env.NIFTY_WEBHOOK_SECRET,
-            rawPayload,
-        );
-
-        if (!isValid) {
-            return Response.json(
-                { success: false, error: 'Invalid webhook signature' },
-                { status: 401 },
-            );
-        }
+        // // Validate the webhook signature
+        // const isValid = await validateNiftyWebhook(
+        //     context.request,
+        //     context.env.NIFTY_WEBHOOK_SECRET,
+        //     rawPayload,
+        // );
+        //
+        // if (!isValid) {
+        //     return Response.json(
+        //         { success: false, error: 'Invalid webhook signature' },
+        //         { status: 401 },
+        //     );
+        // }
 
         // Parse the webhook payload
         const payload = JSON.parse(rawPayload);

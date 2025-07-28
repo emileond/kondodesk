@@ -170,7 +170,7 @@ export async function onRequestPost(context) {
                         Accept: 'application/json',
                     },
                     searchParams: {
-                        assignees: [niftyUserId],
+                        member_id: niftyUserId,
                         completed: false,
                         limit: DB_BATCH_SIZE,
                         offset: offset,
