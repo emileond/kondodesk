@@ -61,14 +61,18 @@ async function handleTaskUpdate(supabase, task) {
     const { error } = await supabase.rpc('update_nifty_task', {
         p_external_id: task.id,
         p_new_name: task.name,
-        p_new_status: task.completedOn ? 'completed' : 'pending',
+        p_new_status: task.completed ? 'completed' : 'pending',
         p_new_data: task,
-        p_new_description: tiptapDescription, // <-- Pass the converted description
+        p_new_description: tiptapDescription ? JSON.stringify(tiptapDescription) : null,
     });
 
     if (error) {
-        // Throw an error to be caught by the main handler
-        throw new Error(`[Update] RPC failed for task ${task.id}: ${error.message}`);
+        console.error(`[Update] RPC failed for task ${task.id}: ${error.message}`);
+
+        return Response.json(
+            { success: false, error: `Failed to update Nifty task ${task.id}: ${error.message}` },
+            { status: 500 },
+        );
     }
 }
 
@@ -81,12 +85,9 @@ export async function onRequestPost(context) {
         const task = payload.data;
 
         if (!event || !task || !task.id) {
-            return new Response(
-                JSON.stringify({ success: false, error: 'Invalid webhook payload' }),
-                {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json' },
-                },
+            return Response.json(
+                { success: false, error: 'Invalid webhook payload' },
+                { status: 400 },
             );
         }
 
@@ -105,24 +106,16 @@ export async function onRequestPost(context) {
             if (error)
                 throw new Error(`[Delete] Failed to delete task ${task.id}: ${error.message}`);
         } else {
-            return new Response(
-                JSON.stringify({ success: false, error: 'Unsupported event type' }),
-                {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json' },
-                },
+            return Response.json(
+                { success: false, error: 'Unsupported webhook event' },
+                { status: 400 },
             );
         }
 
         console.log(`Successfully processed ${event} for Nifty task ${task.id}`);
-        return new Response(JSON.stringify({ success: true }), {
-            headers: { 'Content-Type': 'application/json' },
-        });
+        return Response.json({ success: true });
     } catch (error) {
         console.error('Error processing Nifty webhook:', error);
-        return new Response(JSON.stringify({ success: false, error: 'Internal Server Error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
