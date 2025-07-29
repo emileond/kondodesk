@@ -105,19 +105,16 @@ export async function onRequestPatch(context) {
         const niftyStatus = state === 'completed' ? 'completed' : 'open';
 
         // Update the task status in Nifty
-        const response = await ky.patch(
-            `https://openapi.niftypm.com/api/v1.0/tasks/${external_id}`,
-            {
-                json: {
-                    completed: state === 'completed',
-                },
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
+        const response = await ky.put(`https://openapi.niftypm.com/api/v1.0/tasks/${external_id}`, {
+            json: {
+                completed: state === 'completed',
             },
-        );
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+        });
 
         if (response.status !== 200) {
             console.log(response);
