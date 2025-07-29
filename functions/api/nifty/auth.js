@@ -105,8 +105,6 @@ export async function onRequestPost(context) {
 
         const tokenData = await tokenResponse;
 
-        console.log(tokenData);
-
         if (tokenData.error || !tokenData.access_token) {
             console.error('Nifty token exchange error:', tokenData);
             return Response.json(

@@ -52,6 +52,11 @@ const IntegrationSourceSelect = ({
             startContent: <Avatar className={iconClass} src="/integrations/microsoft_todo.png" />,
         },
         {
+            label: 'Nifty',
+            value: 'nifty',
+            startContent: <Avatar className={iconClass} src="/integrations/nifty.png" />,
+        },
+        {
             label: 'Tick tick',
             value: 'ticktick',
             startContent: <Avatar className={iconClass} src="/integrations/ticktick.png" />,

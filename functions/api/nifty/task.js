@@ -47,7 +47,8 @@ export async function onRequestPatch(context) {
 
         // Check if token has expired
         const currentTime = dayjs().utc();
-        const tokenExpired = !integration.expires_at || currentTime.isAfter(dayjs(integration.expires_at));
+        const tokenExpired =
+            !integration.expires_at || currentTime.isAfter(dayjs(integration.expires_at));
 
         let access_token = integration.access_token;
         let refresh_token = integration.refresh_token;
@@ -57,7 +58,7 @@ export async function onRequestPatch(context) {
             console.log('Access token expired, refreshing');
 
             const res = await ky
-                .post('https://nifty.pm/oauth/token', {
+                .post('https://openapi.niftypm.com/oauth/token', {
                     json: {
                         grant_type: 'refresh_token',
                         client_id: context.env.NIFTY_CLIENT_ID,
@@ -66,7 +67,7 @@ export async function onRequestPatch(context) {
                     },
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
+                        Accept: 'application/json',
                     },
                 })
                 .json();
@@ -104,16 +105,19 @@ export async function onRequestPatch(context) {
         const niftyStatus = state === 'completed' ? 'completed' : 'open';
 
         // Update the task status in Nifty
-        const response = await ky.patch(`https://api.niftypm.com/api/v1.0/tasks/${external_id}`, {
-            json: {
-                status: niftyStatus,
+        const response = await ky.patch(
+            `https://openapi.niftypm.com/api/v1.0/tasks/${external_id}`,
+            {
+                json: {
+                    completed: state === 'completed',
+                },
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
             },
-            headers: {
-                'Authorization': `Bearer ${access_token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-        });
+        );
 
         if (response.status !== 200) {
             console.log(response);
@@ -127,8 +131,6 @@ export async function onRequestPatch(context) {
             );
         }
 
-        const updatedTask = await response.json();
-
         // Update the task in Supabase with the new state
         const { data: task, error: selectError } = await supabase
             .from('tasks')
@@ -138,7 +140,7 @@ export async function onRequestPatch(context) {
 
         const updatedExternalData = {
             ...task.external_data,
-            status: niftyStatus,
+            completed: state === 'completed',
         };
 
         const { error: updateError } = await supabase
@@ -161,7 +163,7 @@ export async function onRequestPatch(context) {
 
         return Response.json({
             success: true,
-            message: `Nifty task status updated to ${niftyStatus}`,
+            message: `Nifty task status updated to ${state}`,
         });
     } catch (error) {
         console.log('Error updating Nifty task:', error);
