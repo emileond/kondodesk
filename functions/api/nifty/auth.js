@@ -176,8 +176,6 @@ export async function onRequestPost(context) {
                 })
                 .json();
 
-            console.log(tasksResponse);
-
             const tasks = tasksResponse.tasks || [];
 
             if (tasks.length > 0) {
