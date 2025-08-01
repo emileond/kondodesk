@@ -135,6 +135,7 @@ export async function onRequestPost(context) {
         const expires_at = tokenData.expires_in
             ? calculateExpiresAt(tokenData.expires_in - 600)
             : null;
+
         const { error: upsertError } = await supabase.from('user_integrations').upsert({
             type: 'nifty',
             access_token: tokenData.access_token,
