@@ -234,9 +234,9 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                 <div className="flex gap-6">
                     <form
                         onSubmit={handleSubmit(onSubmit)}
-                        className="basis-2/3 grow overflow-y-auto"
+                        className="basis-2/3 grow overflow-y-auto flex flex-col"
                     >
-                        <ModalBody className="pt-6 overflow-y-auto max-h-[75vh]">
+                        <ModalBody className="basis-4/5 grow pt-6 overflow-y-auto max-h-[75vh]">
                             <div className="flex flex-col gap-6 ">
                                 <div className="flex">
                                     <TaskCheckbox

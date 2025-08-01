@@ -160,12 +160,12 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
             );
         }
         case 'nifty': {
-            const projectId = external_data?.project?.id;
+            const projectId = external_data?.project;
             const taskId = external_data?.id;
             let webUrl = '#';
 
             if (projectId && taskId) {
-                webUrl = `https://nifty.pm/projects/${projectId}/tasks/${taskId}`;
+                webUrl = `https://nifty.pm/${projectId}/task/${taskId}`;
             }
             return (
                 <div className="flex gap-1 items-center">
@@ -175,7 +175,7 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                         showAnchorIcon
                         href={webUrl}
                     >
-                        Open in Nifty
+                        {external_data?.nice_id}
                     </Link>
                 </div>
             );
