@@ -55,7 +55,7 @@ export const ContainerScroll = ({ children }) => {
                                 endContent={<RiArrowRightLine fontSize="1rem" />}
                                 className="mb-6"
                             >
-                                Special launch offer. Pay once, use forever.
+                                14-day free trial, no credit card required
                             </Chip>
                             <div className="text-4xl font-semibold space-y-3">
                                 <span className="text-default-500">Achieve Your Goals,</span>
@@ -78,7 +78,7 @@ export const ContainerScroll = ({ children }) => {
                                 variant="shadow"
                                 className="mb-12"
                             >
-                                Unlock Lifetime Access
+                                Get started
                             </Button>
                         </>
                     }

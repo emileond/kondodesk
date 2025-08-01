@@ -81,7 +81,7 @@ function PricingCard({
                     size="lg"
                     className="font-medium"
                 >
-                    {isLTD ? 'Get Lifetime Access' : 'Get Started'}
+                    {isLTD ? 'Get Lifetime Access' : `Get started`}
                 </Button>
             </CardFooter>
         </Card>

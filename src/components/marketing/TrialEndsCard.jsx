@@ -27,7 +27,7 @@ function TrialEndsCard() {
             <Card
                 shadow="none"
                 isPressable
-                className={`bg-gradient-to-b from-secondary-100 to-content1 border-1 border-secondary-300 shadow-none hover:scale-105 cursor-pointer`}
+                className={`bg-gradient-to-b from-primary-100 to-content1 border-1 border-primary-300 shadow-none hover:scale-105 cursor-pointer`}
                 onPress={handleClick}
             >
                 <CardBody className="text-center">
@@ -43,12 +43,12 @@ function TrialEndsCard() {
                         <Button
                             isDisabled
                             size="sm"
-                            color="secondary"
+                            color="primary"
                             className="opacity-100 font-medium"
                             variant="shadow"
                             endContent={<RiArrowRightLine fontSize="1rem" />}
                         >
-                            Get lifetime access
+                            Choose a plan
                         </Button>
                     </div>
                 </CardBody>
@@ -61,7 +61,7 @@ function TrialEndsCard() {
                         setIsPaywallOpen(false);
                     }
                 }}
-                feature="lifetime access"
+                feature="unlimited access"
             />
         </>
     );

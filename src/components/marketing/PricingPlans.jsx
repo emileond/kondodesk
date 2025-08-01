@@ -3,11 +3,7 @@ import PricingCard from './PricingCard';
 import { useState } from 'react';
 import { useUser } from '../../hooks/react-query/user/useUser';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
-import CountdownTimer from './CountdownTimer.jsx';
 
-// --- Data Definitions ---
-
-// Load Variant IDs from environment variables
 const subscriptionVariantIds = {
     personal: {
         monthly: import.meta.env.VITE_LEMON_SQUEEZY_PERSONAL_MONTHLY_ID,
@@ -29,14 +25,32 @@ const subscriptionPlans = [
         name: 'Personal Plan',
         price: 12,
         yearlyPrice: 108,
-        features: ['1 User', '3 Guests', 'All Features'],
+        features: [
+            '1 User',
+            '3 Guests',
+            '2Gb Storage',
+            'Smart planning',
+            'AI-guided reflections',
+            'Productivity & Mindfulness Tools',
+            'Limited Integrations',
+        ],
         variants: subscriptionVariantIds.personal,
     },
     {
         name: 'Team Plan',
         price: 49,
         yearlyPrice: 432,
-        features: ['Up to 50 Users & Guests', 'All Features'],
+        features: [
+            '25 users',
+            '100 guests',
+            '250Gb Storage',
+            'Smart Planning',
+            'AI-guided reflections',
+            'Productivity & Mindfulness Tools',
+            'All Integrations',
+            'API Access (soon)',
+            'Custom Domain (soon)',
+        ],
         highlight: true,
         variants: subscriptionVariantIds.team,
     },
@@ -87,7 +101,7 @@ const constructCheckoutUrl = (variantId, email, workspaceId, userId) => {
 };
 
 // --- Main Component ---
-function PricingPlans({ showLTD = true }) {
+function PricingPlans({ showLTD = false }) {
     const [isYearly, setIsYearly] = useState(true);
     const { data: user } = useUser();
     const [currentWorkspace] = useCurrentWorkspace();
@@ -115,7 +129,7 @@ function PricingPlans({ showLTD = true }) {
                     Monthly
                 </Button>
             </ButtonGroup>
-            <div className="w-full flex flex-wrap gap-4">
+            <div className="w-full flex flex-wrap justify-center gap-4">
                 {subscriptionPlans.map((plan, index) => {
                     const variantId = isYearly ? plan.variants.yearly : plan.variants.monthly;
                     const checkoutUrl = constructCheckoutUrl(
