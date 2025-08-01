@@ -2,17 +2,70 @@ import { logger, task, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { createClient } from '@supabase/supabase-js';
 import dayjs from 'dayjs';
 import { toUTC, calculateExpiresAt } from '../utils/dateUtils';
-import ky from 'ky';
+import ky, { HTTPError } from 'ky';
 
-// Initialize Supabase client
 const supabase = createClient(
     process.env.SUPABASE_URL as string,
     process.env.SUPABASE_SERVICE_KEY as string,
 );
 
+/**
+ * Reusable helper to refresh the Nifty OAuth token.
+ */
+const refreshTokenForNifty = async ({ integration_id, refresh_token }) => {
+    logger.log('Refreshing Nifty token...', { integration_id });
+    try {
+        const res = await ky
+            .post('https://openapi.niftypm.com/oauth/token', {
+                json: {
+                    grant_type: 'refresh_token',
+                    client_id: process.env.NIFTY_CLIENT_ID,
+                    client_secret: process.env.NIFTY_CLIENT_SECRET,
+                    refresh_token: refresh_token,
+                },
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            })
+            .json<any>();
+
+        if (res.error) {
+            throw new AbortTaskRunError(`Token refresh failed: ${res.error_description}`);
+        }
+
+        await supabase
+            .from('user_integrations')
+            .update({
+                access_token: res.access_token,
+                refresh_token: res.refresh_token,
+                expires_at: calculateExpiresAt(res.expires_in),
+                status: 'active',
+            })
+            .eq('id', integration_id);
+        logger.log('Token refreshed successfully.');
+        return res;
+    } catch (error) {
+        if (error instanceof HTTPError) {
+            throw new AbortTaskRunError(
+                `Token refresh failed with status ${error.response.status}`,
+            );
+        }
+        throw error;
+    }
+};
+
 export const niftySync = task({
     id: 'nifty-sync',
     maxDuration: 3000,
+    onSuccess: async (payload) => {
+        await supabase
+            .from('user_integrations')
+            .update({ last_sync: toUTC(), status: 'active' })
+            .eq('id', payload.id);
+        logger.log(`Successfully synced Nifty integration for ID: ${payload.id}`);
+    },
+    onFailure: async (payload) => {
+        await supabase.from('user_integrations').update({ status: 'error' }).eq('id', payload.id);
+        logger.log(`Failed to sync, status changed to error for integration: ${payload.id}`);
+    },
     run: async (payload: any) => {
         logger.log(`Starting Nifty sync for integration ID: ${payload.id}`);
         let {
@@ -24,62 +77,24 @@ export const niftySync = task({
             workspace_id,
         } = payload;
 
-        try {
-            // Token refresh logic (unchanged)
-            const tokenExpired =
-                !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
-            if (tokenExpired && refresh_token) {
-                // ... your token refresh code remains here ...
-                logger.log('Nifty token expired, refreshing...');
-                const res = await ky
-                    .post('https://openapi.niftypm.com/oauth/token', {
-                        json: {
-                            grant_type: 'refresh_token',
-                            client_id: process.env.NIFTY_CLIENT_ID,
-                            client_secret: process.env.NIFTY_CLIENT_SECRET,
-                            refresh_token: refresh_token,
-                        },
-                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                    })
-                    .json<any>();
-
-                if (res.error) {
-                    throw new AbortTaskRunError(`Token refresh failed: ${res.error_description}`);
-                }
-
-                access_token = res.access_token;
-
-                await supabase
-                    .from('user_integrations')
-                    .update({
-                        access_token,
-                        refresh_token: res.refresh_token || refresh_token,
-                        expires_at: calculateExpiresAt(res.expires_in),
-                    })
-                    .eq('id', integration_id);
-                logger.log('Token refreshed successfully.');
-            }
-
+        /**
+         * The core sync logic, extracted into a function.
+         */
+        const performNiftySync = async (currentToken: string) => {
             const niftyUserId = external_data?.id;
             if (!niftyUserId) {
                 throw new AbortTaskRunError('Nifty user ID not found in external_data.');
             }
 
-            // NEW: Keep track of all active task IDs from the API
             const activeApiTaskIds: string[] = [];
             const DB_BATCH_SIZE = 50;
             let hasMore = true;
             let offset = 0;
 
-            // Get user's assigned tasks from Nifty
             while (hasMore) {
-                logger.log(`Fetching tasks from offset: ${offset}`);
                 const tasksResponse = await ky
                     .get('https://openapi.niftypm.com/api/v1.0/tasks', {
-                        headers: {
-                            Authorization: `Bearer ${access_token}`,
-                            Accept: 'application/json',
-                        },
+                        headers: { Authorization: `Bearer ${currentToken}` },
                         searchParams: {
                             member_id: niftyUserId,
                             completed: false,
@@ -92,11 +107,9 @@ export const niftySync = task({
                 const tasks = tasksResponse.tasks || [];
 
                 if (tasks.length > 0) {
-                    // NEW: Add all task IDs from this page to our master list
                     tasks.forEach((task) => activeApiTaskIds.push(task.id));
-
-                    const upsertPromises = tasks.map((task) => {
-                        return supabase.from('tasks').upsert(
+                    const upsertPromises = tasks.map((task) =>
+                        supabase.from('tasks').upsert(
                             {
                                 name: task.name,
                                 description: task.description
@@ -113,23 +126,18 @@ export const niftySync = task({
                                 completed_at: null,
                             },
                             { onConflict: 'integration_source, external_id, host, workspace_id' },
-                        );
-                    });
+                        ),
+                    );
                     await Promise.all(upsertPromises);
                 }
-
                 hasMore = tasksResponse.hasMore;
                 offset += DB_BATCH_SIZE;
             }
 
-            // NEW: Reconcile completed tasks after fetching all active ones
-            logger.log(`Found ${activeApiTaskIds.length} active tasks in Nifty. Reconciling...`);
+            // Reconcile completed tasks
             const query = supabase
                 .from('tasks')
-                .update({
-                    status: 'completed',
-                    completed_at: toUTC(),
-                })
+                .update({ status: 'completed', completed_at: toUTC() })
                 .eq('workspace_id', workspace_id)
                 .eq('integration_source', 'nifty')
                 .eq('status', 'pending');
@@ -137,29 +145,52 @@ export const niftySync = task({
             if (activeApiTaskIds.length > 0) {
                 query.not('external_id', 'in', `(${activeApiTaskIds.join(',')})`);
             }
-            const { error: updateError } = await query;
-            if (updateError) {
-                logger.error('Error during task reconciliation:', updateError);
-            } else {
-                logger.log('Successfully reconciled completed tasks.');
+            await query;
+        };
+
+        try {
+            // 1. Proactive Check (Optimization)
+            const tokenExpired =
+                !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
+            if (tokenExpired && refresh_token) {
+                const newTokens = await refreshTokenForNifty({ integration_id, refresh_token });
+                access_token = newTokens.access_token;
             }
 
-            // Update final sync status
-            await supabase
-                .from('user_integrations')
-                .update({ last_sync: toUTC(), status: 'active' })
-                .eq('id', payload.id);
+            try {
+                // First attempt to sync tasks
+                await performNiftySync(access_token);
+            } catch (error) {
+                // 2. Reactive Handler (Reliability Fallback)
+                if (error instanceof ky.HTTPError && error.response.status === 401) {
+                    logger.log('Nifty API returned 401. Forcing token refresh and retrying.', {
+                        error,
+                    });
 
-            logger.log(`Successfully synced Nifty integration for ID: ${payload.id}`);
+                    if (!refresh_token) {
+                        throw new AbortTaskRunError(
+                            'Cannot refresh token: no refresh_token available.',
+                        );
+                    }
+
+                    const newTokens = await refreshTokenForNifty({ integration_id, refresh_token });
+                    access_token = newTokens.access_token;
+
+                    // Retry with the new token
+                    await performNiftySync(access_token);
+                } else {
+                    throw error;
+                }
+            }
+
+            // If we reach here, the sync was successful
             return { success: true };
         } catch (error) {
-            logger.error(`Error syncing Nifty integration ID ${payload.id}:`, error);
             if (error instanceof AbortTaskRunError) {
-                await supabase
-                    .from('user_integrations')
-                    .update({ status: 'error' })
-                    .eq('id', payload.id);
+                throw error;
             }
+
+            logger.error(`Error syncing Nifty integration ID ${payload.id}:`, error);
             return { success: false, error: error.message };
         }
     },
