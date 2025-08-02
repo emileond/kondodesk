@@ -96,7 +96,7 @@ export async function onRequestPost(context) {
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/nifty',
                 },
                 headers: {
-                    authorization: encodedCredentials,
+                    authorization: `Basic ${encodedCredentials}`,
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },

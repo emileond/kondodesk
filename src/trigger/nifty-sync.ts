@@ -25,14 +25,12 @@ const refreshTokenForNifty = async ({ integration_id, refresh_token }) => {
                     refresh_token: refresh_token,
                 },
                 headers: {
-                    authorization: encodedCredentials,
+                    authorization: `Basic ${encodedCredentials}`,
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
             })
             .json<any>();
-
-        console.log(res);
 
         if (res.error) {
             throw new AbortTaskRunError(`Token refresh failed: ${res.error_description}`);
