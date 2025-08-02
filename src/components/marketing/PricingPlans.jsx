@@ -39,7 +39,7 @@ const subscriptionPlans = [
     {
         name: 'Team Plan',
         price: 49,
-        yearlyPrice: 432,
+        yearlyPrice: 468,
         features: [
             '25 users',
             '100 guests',

@@ -15,17 +15,24 @@ const supabase = createClient(
 const refreshTokenForNifty = async ({ integration_id, refresh_token }) => {
     logger.log('Refreshing Nifty token...', { integration_id });
     try {
+        const credentials = `${process.env.NIFTY_CLIENT_ID}:${process.env.NIFTY_CLIENT_SECRET}`;
+        const encodedCredentials = Buffer.from(credentials).toString('base64');
+
         const res = await ky
             .post('https://openapi.niftypm.com/oauth/token', {
                 json: {
                     grant_type: 'refresh_token',
-                    client_id: process.env.NIFTY_CLIENT_ID,
-                    client_secret: process.env.NIFTY_CLIENT_SECRET,
                     refresh_token: refresh_token,
                 },
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                headers: {
+                    authorization: encodedCredentials,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
             })
             .json<any>();
+
+        console.log(res);
 
         if (res.error) {
             throw new AbortTaskRunError(`Token refresh failed: ${res.error_description}`);
