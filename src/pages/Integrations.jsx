@@ -59,21 +59,21 @@ function IntegrationsPage() {
                 <Tabs selectedKey={activeTab} onSelectionChange={setActiveTab} className="w-full">
                     <Tab key="task-management" title="Task Management">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                            <GithubIntegrationCard />
-                            <JiraIntegrationCard />
-                            <TrelloIntegrationCard />
                             <AsanaIntegrationCard />
                             <ClickupIntegrationCard />
+                            <GithubIntegrationCard />
+                            {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
+                            <JiraIntegrationCard />
                             <TickTickIntegrationCard />
                             <TodoistIntegrationCard />
+                            <TrelloIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && (
                                 <MicrosoftToDoIntegrationCard />
                             )}
-                            {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}
+                            <NiftyIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && (
                                 <ZohoProjectsIntegrationCard />
                             )}
-                            {user?.email === 'sonarart@gmail.com' && <NiftyIntegrationCard />}
                             {/*<MondayIntegrationCard />*/}
                         </div>
                     </Tab>

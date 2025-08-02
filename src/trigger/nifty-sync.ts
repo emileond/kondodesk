@@ -1,5 +1,6 @@
 import { logger, task, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { createClient } from '@supabase/supabase-js';
+import { markdownToTipTap } from '../utils/editorUtils';
 import dayjs from 'dayjs';
 import { toUTC, calculateExpiresAt } from '../utils/dateUtils';
 import ky, { HTTPError } from 'ky';
@@ -118,7 +119,7 @@ export const niftySync = task({
                             {
                                 name: task.name,
                                 description: task.description
-                                    ? JSON.stringify(task.description)
+                                    ? markdownToTipTap(task.description)
                                     : null,
                                 workspace_id,
                                 integration_source: 'nifty',

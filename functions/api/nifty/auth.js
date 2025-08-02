@@ -1,6 +1,7 @@
 import ky from 'ky';
 import { createClient } from '@supabase/supabase-js';
 import { toUTC, calculateExpiresAt } from '../../../src/utils/dateUtils.js';
+import { markdownToTipTap } from '../../../src/utils/editorUtils.js';
 
 // Handle DELETE requests for disconnecting Nifty integration
 export async function onRequestDelete(context) {
@@ -186,7 +187,9 @@ export async function onRequestPost(context) {
                     return supabase.from('tasks').upsert(
                         {
                             name: task.name,
-                            description: task.description ? JSON.stringify(task.description) : null,
+                            description: task.description
+                                ? markdownToTipTap(task.description)
+                                : null,
                             workspace_id,
                             integration_source: 'nifty',
                             external_id: task.id,
