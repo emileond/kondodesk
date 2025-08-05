@@ -42,6 +42,9 @@ function RoadmapPage() {
                             <div className="space-y-3 overflow-y-auto h-[70vh] p-2">
                                 {items
                                     ?.filter((item) => item.status === col.title)
+                                    ?.sort(
+                                        (a, b) => new Date(b.created_at) - new Date(a.created_at),
+                                    )
                                     ?.map((item) => (
                                         <FeatureRequestCard
                                             key={item.id}

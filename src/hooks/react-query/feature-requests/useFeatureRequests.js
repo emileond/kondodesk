@@ -3,12 +3,11 @@ import { supabaseClient } from '../../../lib/supabase';
 
 // Fetch feature requests filtered by status
 const fetchFeatureRequests = async ({ statusList, id }) => {
-    let query = supabaseClient.from('feature_requests').select('title, description, id, status');
-
     if (id) {
         let query = supabaseClient
             .from('feature_requests')
             .select('title, description, id, status');
+
         query = query.eq('id', id).single();
         const { data, error } = await query;
         if (error) throw new Error('Failed to fetch feature request');
