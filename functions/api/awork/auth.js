@@ -161,6 +161,7 @@ export async function onRequestPost(context) {
         // Get user's tasks from Awork API
         let page = 1;
         let hasMore = true;
+        const filterExpression = "(taskStatus/type ne 'done' and taskStatus/type ne 'canceled')";
 
         while (hasMore) {
             try {
@@ -169,8 +170,8 @@ export async function onRequestPost(context) {
                         searchParams: {
                             page: page,
                             pageSize: 100,
-                            filterBy: "(TaskStatusType ne 'done' and TaskStatusType ne 'canceled')",
-                            orderBy: 'createdOn desc',
+                            filterby: filterExpression,
+                            orderby: 'createdOn desc',
                         },
                         headers: {
                             Authorization: `Bearer ${tokenData.access_token}`,
