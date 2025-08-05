@@ -73,15 +73,10 @@ export const microsoftToDoSync = task({
     },
     run: async (payload: any) => {
         logger.log(`Starting Microsoft To Do sync for integration ID: ${payload.id}`);
-        let {
-            access_token,
-            refresh_token,
-            id: integration_id,
-            external_data,
-            workspace_id,
-        } = payload;
+        let { access_token, refresh_token, id: integration_id, workspace_id } = payload;
 
-        const newDeltaLinks = external_data?.deltaLinks || {};
+        // NEW: This array will hold all active task IDs from the API.
+        const activeApiTaskIds: string[] = [];
 
         const performMicrosoftToDoSync = async (currentToken: string) => {
             const headers = { Authorization: `Bearer ${currentToken}`, Accept: 'application/json' };
@@ -95,38 +90,36 @@ export const microsoftToDoSync = task({
                 return;
             }
 
-            // MODIFIED: Define the batch size for DB operations
             const DB_BATCH_SIZE = 50;
 
             for (const list of taskLists) {
                 try {
                     logger.log(`Processing list: ${list.displayName} (${list.id})`);
+
+                    // MODIFIED: Fetch regular tasks, not a delta.
                     let nextLink: string | null =
-                        newDeltaLinks[list.id] ||
-                        `https://graph.microsoft.com/v1.0/me/todo/lists/${list.id}/tasks/delta`;
+                        `https://graph.microsoft.com/v1.0/me/todo/lists/${list.id}/tasks`;
 
                     while (nextLink) {
-                        const pageResponse = await ky.get(nextLink, { headers }).json<any>();
-                        const changedTasks = pageResponse.value || [];
+                        // MODIFIED: We now fetch pages of active tasks only.
+                        const pageResponse = await ky
+                            .get(nextLink, {
+                                headers,
+                                searchParams: {
+                                    // Use $filter to get tasks where status is not 'completed'
+                                    $filter: "status ne 'completed'",
+                                },
+                            })
+                            .json<any>();
 
-                        // These arrays will hold all changes for the current API page
-                        const deleteIds = [];
-                        const upsertPayloads = [];
+                        const activeTasks = pageResponse.value || [];
 
-                        for (const task of changedTasks) {
-                            if (task['@removed']) {
-                                deleteIds.push(task.id);
-                            } else if (task.status === 'completed') {
-                                upsertPayloads.push({
-                                    external_id: task.id,
-                                    status: 'completed',
-                                    completed_at: task.completedDateTime?.dateTime || toUTC(),
-                                    workspace_id,
-                                    integration_source: 'microsoft_todo',
-                                    host: 'https://to-do.office.com',
-                                });
-                            } else {
-                                upsertPayloads.push({
+                        if (activeTasks.length > 0) {
+                            const upsertPayloads = activeTasks.map((task) => {
+                                // Add task ID to our master list for final reconciliation
+                                activeApiTaskIds.push(task.id);
+                                // Prepare the upsert payload
+                                return {
                                     name: task.title,
                                     description: task.body?.content || null,
                                     workspace_id,
@@ -136,47 +129,52 @@ export const microsoftToDoSync = task({
                                     host: 'https://to-do.office.com',
                                     assignee: payload.user_id,
                                     creator: payload.user_id,
-                                    status: 'pending',
+                                    status: 'pending', // Explicitly set status
                                     completed_at: null,
+                                };
+                            });
+
+                            // Batch process the upserts for this page
+                            for (let i = 0; i < upsertPayloads.length; i += DB_BATCH_SIZE) {
+                                const batch = upsertPayloads.slice(i, i + DB_BATCH_SIZE);
+                                await supabase.from('tasks').upsert(batch, {
+                                    onConflict:
+                                        'integration_source, external_id, host, workspace_id',
                                 });
                             }
                         }
-
-                        // MODIFIED: Batch process all database operations
-                        logger.log(
-                            `Processing ${upsertPayloads.length} upserts and ${deleteIds.length} deletes from page.`,
-                        );
-
-                        // Batch upserts
-                        for (let i = 0; i < upsertPayloads.length; i += DB_BATCH_SIZE) {
-                            const batch = upsertPayloads.slice(i, i + DB_BATCH_SIZE);
-                            await supabase.from('tasks').upsert(batch, {
-                                onConflict: 'integration_source, external_id, host, workspace_id',
-                            });
-                        }
-
-                        // Batch deletes
-                        for (let i = 0; i < deleteIds.length; i += DB_BATCH_SIZE) {
-                            const batch = deleteIds.slice(i, i + DB_BATCH_SIZE);
-                            await supabase.from('tasks').delete().in('external_id', batch);
-                        }
-
-                        // Delta link logic remains the same
-                        if (pageResponse['@odata.deltaLink']) {
-                            newDeltaLinks[list.id] = pageResponse['@odata.deltaLink'];
-                            nextLink = null;
-                        } else {
-                            nextLink = pageResponse['@odata.nextLink'] || null;
-                        }
+                        // Use the nextLink for pagination, no deltaLink involved.
+                        nextLink = pageResponse['@odata.nextLink'] || null;
                     }
                 } catch (listError) {
                     logger.error(`Failed to process list ${list.id}:`, listError);
                 }
             }
+
+            // NEW: Final reconciliation step, same as other integrations
+            logger.log(
+                `Found ${activeApiTaskIds.length} active tasks across all lists. Reconciling...`,
+            );
+
+            const query = supabase
+                .from('tasks')
+                .update({
+                    status: 'completed',
+                    completed_at: toUTC(),
+                })
+                .eq('workspace_id', workspace_id)
+                .eq('integration_source', 'microsoft_todo')
+                .eq('status', 'pending');
+
+            if (activeApiTaskIds.length > 0) {
+                query.not('external_id', 'in', `(${activeApiTaskIds.join(',')})`);
+            }
+            await query;
+            logger.log('Reconciliation complete.');
         };
 
         try {
-            // Token refresh and retry logic (unchanged)
+            // Token refresh and retry logic remains the same
             const tokenExpired =
                 !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
             if (tokenExpired && refresh_token) {
@@ -194,12 +192,11 @@ export const microsoftToDoSync = task({
                     throw error;
                 }
             }
-
-            // MODIFIED: Return the collected delta links so onSuccess can save them
-            return { success: true, deltaLinks: newDeltaLinks };
+            // A simple success return, onSuccess will handle the final update
+            return { success: true };
         } catch (error) {
             logger.error(`Error syncing MS To Do integration ID ${payload.id}:`, error);
-            throw error;
+            throw error; // Let the onFailure hook handle the error status
         }
     },
 });
