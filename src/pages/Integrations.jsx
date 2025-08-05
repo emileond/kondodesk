@@ -67,9 +67,7 @@ function IntegrationsPage() {
                             <TickTickIntegrationCard />
                             <TodoistIntegrationCard />
                             <TrelloIntegrationCard />
-                            {user?.email === 'sonarart@gmail.com' && (
-                                <MicrosoftToDoIntegrationCard />
-                            )}
+                            <MicrosoftToDoIntegrationCard />
                             <NiftyIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && (
                                 <ZohoProjectsIntegrationCard />
