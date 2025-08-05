@@ -17,6 +17,7 @@ import { useState } from 'react';
 import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/GoogleTasksIntegrationCard.jsx';
 import ZohoProjectsIntegrationCard from '../components/integrations/zoho/projects/ZohoProjectsIntegrationCard.jsx';
 import NiftyIntegrationCard from '../components/integrations/nifty/NiftyIntegrationCard.jsx';
+import AworkIntegrationCard from '../components/integrations/awork/AworkIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -60,6 +61,7 @@ function IntegrationsPage() {
                     <Tab key="task-management" title="Task Management">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
                             <AsanaIntegrationCard />
+                            {user?.email === 'sonarart@gmail.com' && <AworkIntegrationCard />}
                             <ClickupIntegrationCard />
                             <GithubIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && <GoogleTasksIntegrationCard />}

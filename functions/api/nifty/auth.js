@@ -124,6 +124,7 @@ export async function onRequestPost(context) {
             .json();
 
         const niftyUserId = niftyUserResponse.id;
+
         if (!niftyUserId) {
             console.error('Nifty user ID not found in response:', niftyUserResponse);
             return Response.json(
@@ -150,7 +151,12 @@ export async function onRequestPost(context) {
             external_data: niftyUserResponse,
         });
 
-        if (upsertError) throw new Error('Failed to save integration data');
+        if (upsertError) {
+            return Response.json(
+                { success: false, error: 'Failed to save integration data' },
+                { status: 500 },
+            );
+        }
 
         // 3. Process all assigned tasks using Nifty API
         console.log('Starting Nifty initial task sync...');

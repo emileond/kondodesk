@@ -262,6 +262,21 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                     console.error('Error updating Nifty task:', error);
                 }
                 break;
+
+            case 'awork':
+                try {
+                    const taskStatusType = newStatus === 'completed' ? 'done' : 'progress';
+                    await ky.patch('/api/awork/task', {
+                        json: {
+                            external_id: task.external_id,
+                            taskStatusType,
+                            user_id: user.id,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Error updating Awork task:', error);
+                }
+                break;
         }
         setIsLoading(false);
     };

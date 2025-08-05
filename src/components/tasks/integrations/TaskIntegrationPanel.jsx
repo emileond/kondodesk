@@ -11,6 +11,7 @@ import MicrosoftToDoTaskDetails from './microsoft/todo/MicrosoftToDoTaskDetails.
 import GoogleTasksDetails from './google/tasks/GoogleTasksDetails.jsx';
 import ZohoProjectsTaskDetails from './zoho/projects/ZohoProjectsTaskDetails.jsx';
 import NiftyTaskDetails from './nifty/NiftyTaskDetails.jsx';
+import AworkTaskDetails from './awork/AworkTaskDetails.jsx';
 
 const TaskIntegrationLink = ({ source, external_data, host }) => {
     switch (source) {
@@ -180,6 +181,26 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                 </div>
             );
         }
+        case 'awork': {
+            const taskId = external_data?.id;
+            let webUrl = '#';
+
+            if (taskId) {
+                webUrl = `https://app.awork.com/tasks/${taskId}`;
+            }
+            return (
+                <div className="flex gap-1 items-center">
+                    <Link
+                        className="font-medium text-blue-700 text-sm"
+                        isExternal
+                        showAnchorIcon
+                        href={webUrl}
+                    >
+                        Open in Awork
+                    </Link>
+                </div>
+            );
+        }
     }
 };
 
@@ -212,6 +233,8 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
             return <ZohoProjectsTaskDetails task_id={task_id} external_data={external_data} />;
         case 'nifty':
             return <NiftyTaskDetails external_data={external_data} />;
+        case 'awork':
+            return <AworkTaskDetails external_data={external_data} />;
     }
 };
 
