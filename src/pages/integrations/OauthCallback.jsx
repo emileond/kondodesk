@@ -445,6 +445,38 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleAworkCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            await ky.post('/api/awork/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+
+            toast.success('Awork Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'awork'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'awork'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Awork Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Awork:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -496,6 +528,9 @@ const OAuthCallback = () => {
                 break;
             case 'nifty':
                 handleNiftyCallback({ code });
+                break;
+            case 'awork':
+                handleAworkCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');
