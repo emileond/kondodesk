@@ -180,9 +180,7 @@ export async function onRequestPost(context) {
                     })
                     .json();
 
-                console.log('tasks', tasksResponse);
-
-                const tasks = tasksResponse.data || [];
+                const tasks = tasksResponse || [];
 
                 if (tasks.length === 0) {
                     hasMore = false;
@@ -201,25 +199,10 @@ export async function onRequestPost(context) {
                         return supabase.from('tasks').upsert(
                             {
                                 name: task.name,
-                                description: task.description
-                                    ? JSON.stringify({
-                                          type: 'doc',
-                                          content: [
-                                              {
-                                                  type: 'paragraph',
-                                                  content: [
-                                                      {
-                                                          type: 'text',
-                                                          text: task.description,
-                                                      },
-                                                  ],
-                                              },
-                                          ],
-                                      })
-                                    : null,
+                                description: task.description || null,
                                 workspace_id,
                                 integration_source: 'awork',
-                                external_id: task.id.toString(),
+                                external_id: task.id,
                                 external_data: task,
                                 host: 'https://app.awork.com',
                                 assignee: user_id,
