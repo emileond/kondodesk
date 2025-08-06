@@ -27,6 +27,11 @@ const IntegrationSourceSelect = ({
             startContent: <Avatar className={iconClass} src="/integrations/asana.png" />,
         },
         {
+            label: 'Awork',
+            value: 'awork',
+            startContent: <Avatar className={iconClass} src="/integrations/awork.png" />,
+        },
+        {
             label: 'Clickup',
             value: 'clickup',
             startContent: <Avatar className={iconClass} src="/integrations/clickup.png" />,
