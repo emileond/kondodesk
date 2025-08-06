@@ -180,6 +180,8 @@ export async function onRequestPost(context) {
                     })
                     .json();
 
+                console.log('tasks', tasksResponse);
+
                 const tasks = tasksResponse.data || [];
 
                 if (tasks.length === 0) {
