@@ -1,6 +1,7 @@
 import ky from 'ky';
 import { createClient } from '@supabase/supabase-js';
 import { toUTC, calculateExpiresAt } from '../../../src/utils/dateUtils.js';
+import { htmlToTiptap } from '../../../src/utils/editorUtils.js';
 
 // Handle DELETE requests for disconnecting Awork integration
 export async function onRequestDelete(context) {
@@ -199,7 +200,9 @@ export async function onRequestPost(context) {
                         return supabase.from('tasks').upsert(
                             {
                                 name: task.name,
-                                description: task.description || null,
+                                description: task.description
+                                    ? htmlToTiptap(task.description)
+                                    : null,
                                 workspace_id,
                                 integration_source: 'awork',
                                 external_id: task.id,

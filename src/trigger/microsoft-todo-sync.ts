@@ -20,8 +20,8 @@ const refreshToken = async ({ integration_id, refresh_token }) => {
             .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
                 // Microsoft's token endpoint expects form-urlencoded data
                 body: new URLSearchParams({
-                    client_id: process.env.MICROSOFT_TODO_CLIENT_ID as string,
-                    client_secret: process.env.MICROSOFT_TODO_CLIENT_SECRET as string,
+                    client_id: process.env.MICROSOFT_CLIENT_ID as string,
+                    client_secret: process.env.MICROSOFT_CLIENT_SECRET as string,
                     refresh_token: refresh_token,
                     grant_type: 'refresh_token',
                 }),
@@ -123,7 +123,7 @@ export const microsoftToDoSync = task({
                                     name: task.title,
                                     description: task.body?.content || null,
                                     workspace_id,
-                                    integration_source: 'microsoft_todo',
+                                    integration_source: 'microsoft',
                                     external_id: task.id,
                                     external_data: { ...task, listId: list.id },
                                     host: 'https://to-do.office.com',
@@ -163,7 +163,7 @@ export const microsoftToDoSync = task({
                     completed_at: toUTC(),
                 })
                 .eq('workspace_id', workspace_id)
-                .eq('integration_source', 'microsoft_todo')
+                .eq('integration_source', 'microsoft')
                 .eq('status', 'pending');
 
             if (activeApiTaskIds.length > 0) {

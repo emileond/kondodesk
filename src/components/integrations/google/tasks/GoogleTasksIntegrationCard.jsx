@@ -175,6 +175,7 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="google_tasks"
+                icon="google_tasks"
                 name="Google Tasks"
                 isLoading={loading}
                 isPending={isPending}
@@ -215,7 +216,9 @@ const GoogleTasksIntegrationCard = ({ isCompact }) => {
                                                 <Radio value="prompt">
                                                     Ask before updating in Google Tasks
                                                 </Radio>
-                                                <Radio value="never">Do nothing in Google Tasks</Radio>
+                                                <Radio value="never">
+                                                    Do nothing in Google Tasks
+                                                </Radio>
                                             </RadioGroup>
                                         )}
                                     />

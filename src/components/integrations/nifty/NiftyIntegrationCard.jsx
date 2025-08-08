@@ -173,11 +173,11 @@ const NiftyIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="nifty"
+                icon="nifty"
                 name="Nifty"
                 isCompact={isCompact}
                 isLoading={loading}
                 isPending={isPending}
-                icon={<RiTaskLine />}
                 description="Import Nifty tasks assigned to you."
                 status={status}
                 onConnect={handleConnect}

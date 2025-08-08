@@ -68,8 +68,8 @@ const deleteIntegration = async ({ id, installation_id, type }) => {
             await ky.delete('/api/asana/auth', {
                 json: { id },
             });
-        } else if (type === 'microsoft_todo' && id) {
-            await ky.delete('/api/microsoft/todo/auth', {
+        } else if (type === 'microsoft' && id) {
+            await ky.delete('/api/microsoft/disconnect', {
                 json: { id },
             });
         } else if (type === 'google_tasks' && id) {

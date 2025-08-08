@@ -177,6 +177,7 @@ const TodoistIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="todoist"
+                icon="todoist"
                 name="Todoist"
                 isCompact={isCompact}
                 isLoading={loading}

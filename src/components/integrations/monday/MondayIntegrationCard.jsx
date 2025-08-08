@@ -175,6 +175,7 @@ const MondayIntegrationCard = () => {
         <>
             <IntegrationCard
                 id="monday"
+                icon="monday"
                 name="Monday.com"
                 isLoading={loading}
                 isPending={isPending}

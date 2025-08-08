@@ -36,9 +36,12 @@ export async function onRequestPost(context) {
                     const resourceParts = resource.split('/');
                     const listIdIndex = resourceParts.indexOf('lists') + 1;
                     const taskIdIndex = resourceParts.indexOf('tasks') + 1;
-                    
+
                     if (listIdIndex <= 0 || taskIdIndex <= 0) {
-                        console.log('Could not extract listId or taskId from resource path:', resource);
+                        console.log(
+                            'Could not extract listId or taskId from resource path:',
+                            resource,
+                        );
                         continue;
                     }
 
@@ -46,16 +49,19 @@ export async function onRequestPost(context) {
                     const taskId = resourceParts[taskIdIndex];
 
                     // Find the integration that matches this subscription
-                    // Note: In a real implementation, you'd need to store subscription IDs 
+                    // Note: In a real implementation, you'd need to store subscription IDs
                     // and map them to user integrations
                     const { data: integrations, error: integrationError } = await supabase
                         .from('user_integrations')
                         .select('workspace_id, user_id, config, access_token')
-                        .eq('type', 'microsoft_todo')
+                        .eq('type', 'microsoft')
                         .eq('status', 'active');
 
                     if (integrationError || !integrations || integrations.length === 0) {
-                        console.error('Error fetching Microsoft To Do integrations:', integrationError);
+                        console.error(
+                            'Error fetching Microsoft To Do integrations:',
+                            integrationError,
+                        );
                         continue;
                     }
 
@@ -75,12 +81,12 @@ export async function onRequestPost(context) {
                                 name: resourceData?.title || 'Microsoft To Do Task',
                                 description: resourceData?.body?.content || null,
                                 workspace_id,
-                                integration_source: 'microsoft_todo',
+                                integration_source: 'microsoft',
                                 external_id: taskId,
-                                external_data: { 
-                                    ...resourceData, 
+                                external_data: {
+                                    ...resourceData,
                                     listId: listId,
-                                    webhookCreated: true 
+                                    webhookCreated: true,
                                 },
                                 host: 'https://to-do.office.com',
                                 assignee: user_id,
@@ -100,14 +106,14 @@ export async function onRequestPost(context) {
                                 .update({
                                     name: resourceData?.title || 'Microsoft To Do Task',
                                     description: resourceData?.body?.content || null,
-                                    external_data: { 
-                                        ...resourceData, 
+                                    external_data: {
+                                        ...resourceData,
                                         listId: listId,
-                                        webhookUpdated: true 
+                                        webhookUpdated: true,
                                     },
                                     project_id: project_id,
                                 })
-                                .eq('integration_source', 'microsoft_todo')
+                                .eq('integration_source', 'microsoft')
                                 .eq('external_id', taskId)
                                 .eq('workspace_id', workspace_id)
                                 .select();
@@ -124,7 +130,7 @@ export async function onRequestPost(context) {
                     const resourceParts = resource.split('/');
                     const listIdIndex = resourceParts.indexOf('lists') + 1;
                     const taskIdIndex = resourceParts.indexOf('tasks') + 1;
-                    
+
                     if (listIdIndex > 0 && taskIdIndex > 0) {
                         const taskId = resourceParts[taskIdIndex];
 
@@ -132,7 +138,7 @@ export async function onRequestPost(context) {
                         const { error: deleteError } = await supabase
                             .from('tasks')
                             .delete()
-                            .eq('integration_source', 'microsoft_todo')
+                            .eq('integration_source', 'microsoft')
                             .eq('external_id', taskId);
 
                         if (deleteError) {

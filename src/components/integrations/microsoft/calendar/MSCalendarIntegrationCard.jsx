@@ -18,51 +18,46 @@ import {
     useDisclosure,
     RadioGroup,
     Radio,
-    Divider,
 } from '@heroui/react';
 import useCurrentWorkspace from '../../../../hooks/useCurrentWorkspace.js';
 import { useQueryClient } from '@tanstack/react-query';
-import ProjectSelect from '../../../../components/form/ProjectSelect.jsx';
 
-const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
+const MSCalendarIntegrationCard = ({ isCompact }) => {
     const { data: user } = useUser();
     const { data: integration, isLoading, isPending } = useUserIntegration(user?.id, 'microsoft');
-    const deleteIntegration = useDeleteIntegration(user.id, 'microsoft');
-    const updateIntegrationConfig = useUpdateIntegrationConfig(user.id, 'microsoft');
+    const deleteIntegration = useDeleteIntegration(user?.id, 'microsoft');
+    const updateIntegrationConfig = useUpdateIntegrationConfig(user?.id, 'microsoft');
     const [status, setStatus] = useState('inactive');
     const [loading, setLoading] = useState(false);
     const [currentWorkspace] = useCurrentWorkspace();
     const queryClient = useQueryClient();
 
-    // Configuration modal state
     const { isOpen, onOpen, onClose } = useDisclosure();
 
-    // Form setup with react-hook-form
-    const {
-        handleSubmit,
-        setValue,
-        control,
-        formState: { errors },
-    } = useForm();
+    const { handleSubmit, setValue, control } = useForm();
 
     const handleConnect = () => {
         // scopes
-        const requiredScopes = ['Tasks.ReadWrite', 'User.Read', 'offline_access'];
+        const requiredScopes = [
+            'Calendars.ReadWrite',
+            'Calendars.ReadWrite.Shared',
+            'User.Read',
+            'offline_access',
+        ];
         const existingScopes = integration?.scopes || [];
         const allScopes = new Set([...existingScopes, ...requiredScopes]);
 
-        // Generate a random state parameter for security
         const state = Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('microsoft_todo_oauth_state', state);
+        localStorage.setItem('microsoft_calendar_oauth_state', state);
 
         const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
 
         const authUrl = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
-        authUrl.searchParams.set('client_id', clientId); // This should be replaced with actual client ID
+        authUrl.searchParams.set('client_id', clientId);
         authUrl.searchParams.set('response_type', 'code');
         authUrl.searchParams.set(
             'redirect_uri',
-            'https://weekfuse.com/integrations/oauth/callback/microsoft_todo',
+            'https://weekfuse.com/integrations/oauth/callback/microsoft_calendar',
         );
         authUrl.searchParams.set('scope', Array.from(allScopes).join(' '));
         authUrl.searchParams.set('state', state);
@@ -73,88 +68,62 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
 
     const handleDisconnect = () => {
         if (!integration) return;
-
         setLoading(true);
         deleteIntegration.mutate(
             {
                 id: integration.id,
                 installation_id: integration.installation_id,
                 type: 'microsoft',
-                serviceToDisconnect: 'tasks',
+                serviceToDisconnect: 'calendar',
             },
             {
-                onSuccess: () => {
+                onSuccess: async () => {
                     setStatus('inactive');
-                    toast.success('Microsoft To Do Integration disconnected');
-                    // Invalidate all task-related queries for the workspace
-                    queryClient.invalidateQueries({
-                        queryKey: ['tasks', currentWorkspace?.workspace_id],
-                        refetchType: 'all',
-                    });
-                    queryClient.invalidateQueries({
-                        queryKey: ['backlogTasks', currentWorkspace?.workspace_id],
-                        refetchType: 'all',
-                    });
-                    queryClient.invalidateQueries({
-                        queryKey: ['fuzzySearchTasks', currentWorkspace?.workspace_id],
-                        refetchType: 'all',
+                    toast.success('Microsoft Calendar Integration disconnected');
+                    await queryClient.invalidateQueries({
+                        queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
                     });
                 },
                 onError: (error) => {
-                    console.error('Error disconnecting Microsoft To Do:', error);
-                    toast.error('Failed to disconnect Microsoft To Do Integration');
+                    console.error('Error disconnecting Microsoft Calendar:', error);
+                    toast.error('Failed to disconnect Microsoft Calendar Integration');
                 },
-                onSettled: () => {
-                    setLoading(false);
-                },
+                onSettled: () => setLoading(false),
             },
         );
     };
 
     const handleConfigure = () => {
-        // Set default values from existing config when opening the modal
         if (integration && integration.config) {
             if (integration.config.syncStatus) {
                 setValue('syncStatus', integration.config.syncStatus);
             }
-            if (integration.config.project_id) {
-                setValue('project_id', integration.config.project_id);
-            }
         } else {
-            // Default to 'auto' if no config exists
             setValue('syncStatus', 'auto');
         }
         onOpen();
     };
 
     const onSubmit = (data) => {
-        console.log(data);
         if (!integration) return;
-
         setLoading(true);
-        // Use form data for the config
-        const config = {
-            syncStatus: data.syncStatus,
-            project_id: data.project_id,
-        };
+        const config = { syncStatus: data.syncStatus };
 
         updateIntegrationConfig.mutate(
+            { id: integration.id, config },
             {
-                id: integration.id,
-                config,
-            },
-            {
-                onSuccess: () => {
-                    toast.success('Microsoft To Do configuration saved');
+                onSuccess: async () => {
+                    toast.success('Microsoft Calendar configuration saved');
+                    await queryClient.invalidateQueries({
+                        queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
+                    });
                     onClose();
                 },
                 onError: (error) => {
-                    console.error('Error saving Microsoft To Do configuration:', error);
-                    toast.error('Failed to save Microsoft To Do configuration');
+                    console.error('Error saving Microsoft Calendar configuration:', error);
+                    toast.error('Failed to save Microsoft Calendar configuration');
                 },
-                onSettled: () => {
-                    setLoading(false);
-                },
+                onSettled: () => setLoading(false),
             },
         );
     };
@@ -163,8 +132,6 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
         setLoading(isLoading);
         if (integration) {
             setStatus(integration.status);
-
-            // Set form values if integration config exists
             if (integration.config && integration.config.syncStatus) {
                 setValue('syncStatus', integration.config.syncStatus);
             }
@@ -174,13 +141,13 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     return (
         <>
             <IntegrationCard
-                id="microsoft_todo"
-                icon="microsoft_todo"
-                name="Microsoft To Do"
+                id="microsoft_calendar"
+                icon="microsoft_calendar"
+                name="Microsoft Calendar"
                 isLoading={loading}
                 isPending={isPending}
                 isCompact={isCompact}
-                description="Import Microsoft To Do tasks assigned to you."
+                description="Import your events from Microsoft Calendar."
                 status={status}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
@@ -191,15 +158,15 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
 
             <Modal isOpen={isOpen} onClose={onClose}>
                 <ModalContent>
-                    <form onSubmit={handleSubmit(onSubmit)} id="microsoft-todo-config">
-                        <ModalHeader>Microsoft To Do Configuration</ModalHeader>
+                    <form onSubmit={handleSubmit(onSubmit)} id="ms-calendar-config">
+                        <ModalHeader>Microsoft Calendar Configuration</ModalHeader>
                         <ModalBody>
                             <div className="space-y-6">
                                 <div className="space-y-3">
-                                    <span className="font-semibold">Sync task status</span>
+                                    <span className="font-semibold">Sync event changes</span>
                                     <p className="text-default-600 text-sm">
-                                        What should happen when you change the status of an imported
-                                        task?
+                                        How should Weekfuse update event changes back to Microsoft
+                                        Calendar?
                                     </p>
                                     <Controller
                                         name="syncStatus"
@@ -211,34 +178,15 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
                                                 onValueChange={field.onChange}
                                             >
                                                 <Radio value="auto">
-                                                    Automatically update in Microsoft To Do
+                                                    Automatically update in Microsoft Calendar
                                                 </Radio>
                                                 <Radio value="prompt">
-                                                    Ask before updating in Microsoft To Do
+                                                    Ask before updating in Microsoft Calendar
                                                 </Radio>
                                                 <Radio value="never">
-                                                    Do nothing in Microsoft To Do
+                                                    Do nothing in Microsoft Calendar
                                                 </Radio>
                                             </RadioGroup>
-                                        )}
-                                    />
-                                </div>
-                                <Divider />
-                                <div className="space-y-3">
-                                    <span className="font-semibold">Assign to project</span>
-                                    <p className="text-default-600 text-sm">
-                                        Choose a project for all tasks imported from Microsoft To Do
-                                    </p>
-                                    <Controller
-                                        name="project_id"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <ProjectSelect
-                                                defaultValue={field.value}
-                                                onChange={(option) => {
-                                                    field.onChange(option ? option.value : null);
-                                                }}
-                                            />
                                         )}
                                     />
                                 </div>
@@ -251,7 +199,7 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
                             <Button
                                 color="primary"
                                 type="submit"
-                                form="microsoft-todo-config"
+                                form="ms-calendar-config"
                                 isLoading={loading}
                             >
                                 Save
@@ -264,4 +212,4 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     );
 };
 
-export default MicrosoftToDoIntegrationCard;
+export default MSCalendarIntegrationCard;

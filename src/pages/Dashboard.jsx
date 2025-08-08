@@ -31,6 +31,7 @@ import KanbanView from '../components/tasks/KanbanView.jsx';
 import TableView from '../components/tasks/TableView.jsx';
 import { PomodoroWidget } from '../components/widgets/pomodoro/PomodoroWidget.jsx';
 import { BreathExerciseWidget } from '../components/widgets/relax/BreathExerciseWidget.jsx';
+import EventCalendar from '../components/calendar/EventCalendar.jsx';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -225,6 +226,8 @@ function DashboardPage() {
         }
     }, [completedPercentage, todayTasks]);
 
+    const [viewCalendar, setViewCalendar] = useState(false);
+
     return (
         <AppLayout>
             <Paywall
@@ -238,7 +241,7 @@ function DashboardPage() {
             />
             <NewTaskModal isOpen={isOpen} onOpenChange={onOpenChange} defaultDate={new Date()} />
             <PageLayout
-                maxW={pageView === 'list' ? '3xl' : '6xl'}
+                maxW={viewCalendar ? 'full' : pageView === 'list' ? '3xl' : '6xl'}
                 title="Today"
                 primaryAction="New task"
                 icon={<RiAddLine fontSize="1.1rem" />}
@@ -251,110 +254,128 @@ function DashboardPage() {
                 }
             >
                 <TaskViewToggle pageKey="today" onChange={handleViewChange} />
-                <TasksFilters
-                    showFilters={showFilters}
-                    onShowFiltersChange={setShowFilters}
-                    onFiltersChange={handleFiltersChange}
-                    initialFilters={filters}
-                />
-                <div className="flex flex-col gap-3 mb-9">
-                    <div ref={parent} className="flex flex-col gap-2">
-                        {hasTooManyTasks && !isTaskAlertDismissed && (
-                            <Alert
-                                description={getRandomTaskOverloadMessage()}
-                                color="primary"
-                                onClose={handleDismiss}
-                            />
-                        )}
-                        {todayTasks && todayTasks.length > 0 && (
-                            <div className="py-3 flex gap-3">
-                                <Progress
-                                    label={`${completedTasksCount}/${todayTasks.length} completed`}
-                                    aria-label="Today's progress"
-                                    size="sm"
-                                    color="success"
-                                    maxValue={todayTasks.length}
-                                    value={completedTasksCount}
+                <div className="flex justify-between items-start">
+                    <TasksFilters
+                        showFilters={showFilters}
+                        onShowFiltersChange={setShowFilters}
+                        onFiltersChange={handleFiltersChange}
+                        initialFilters={filters}
+                    />
+                    {/*<Button*/}
+                    {/*    variant="flat"*/}
+                    {/*    size="sm"*/}
+                    {/*    startContent={<RiCalendarScheduleLine fontSize="1rem" />}*/}
+                    {/*    onPress={() => setViewCalendar(!viewCalendar)}*/}
+                    {/*>*/}
+                    {/*    Calendar*/}
+                    {/*</Button>*/}
+                </div>
+                <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 mb-9 basis-3/4 grow">
+                        <div ref={parent} className="flex flex-col gap-2">
+                            {hasTooManyTasks && !isTaskAlertDismissed && (
+                                <Alert
+                                    description={getRandomTaskOverloadMessage()}
+                                    color="primary"
+                                    onClose={handleDismiss}
                                 />
-                                {completedPercentage === 100 && (
-                                    <div>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="font-medium text-default-500"
-                                            onPress={() => setHideTasks(!hideTasks)}
-                                            endContent={
-                                                hideTasks ? (
-                                                    <RiExpandVerticalSLine fontSize="1rem" />
-                                                ) : (
-                                                    <RiCollapseVerticalLine fontSize="1rem" />
-                                                )
-                                            }
-                                        >
-                                            {hideTasks ? 'Show' : 'Hide'} tasks
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {hasOVerdueTasks && (
-                            <Accordion>
-                                <AccordionItem
-                                    key="overdue-tasks"
-                                    textValue="overdue tasks"
-                                    title={
-                                        <div className="w-full flex items-center gap-3 justify-between">
-                                            <span className="text-sm font-medium">
-                                                Overdue ({overdueTasks?.length})
-                                            </span>
-                                            <DatePicker
-                                                onChange={(val) => {
-                                                    (rescheduleOverdueTasks(val),
-                                                        setIsRescheduling(true));
-                                                }}
-                                                trigger={
-                                                    <div className="flex gap-2 text-xs text-primary rounded-md border-2 border-default bg-primary-50 hover:text-primary-500 py-1.5 px-3">
-                                                        <RiCalendarScheduleLine fontSize="1rem" />
-                                                        Reschedule
-                                                    </div>
+                            )}
+                            {todayTasks && todayTasks.length > 0 && (
+                                <div className="py-3 flex gap-3">
+                                    <Progress
+                                        label={`${completedTasksCount}/${todayTasks.length} completed`}
+                                        aria-label="Today's progress"
+                                        size="sm"
+                                        color="success"
+                                        maxValue={todayTasks.length}
+                                        value={completedTasksCount}
+                                    />
+                                    {completedPercentage === 100 && (
+                                        <div>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="font-medium text-default-500"
+                                                onPress={() => setHideTasks(!hideTasks)}
+                                                endContent={
+                                                    hideTasks ? (
+                                                        <RiExpandVerticalSLine fontSize="1rem" />
+                                                    ) : (
+                                                        <RiCollapseVerticalLine fontSize="1rem" />
+                                                    )
                                                 }
-                                            />
+                                            >
+                                                {hideTasks ? 'Show' : 'Hide'} tasks
+                                            </Button>
                                         </div>
-                                    }
-                                >
-                                    <div className="flex flex-col gap-2">
-                                        {overdueTasks?.map((task) => (
-                                            <TaskCard key={task.id} task={task} sm />
-                                        ))}
-                                    </div>
-                                </AccordionItem>
-                            </Accordion>
-                        )}
-                        {todayTasks?.length === 0 ? (
-                            <EmptyState
-                                title="Nothing here yet"
-                                description="Let’s get you rolling, start by creating your first to-do"
-                                primaryAction="Add a task"
-                                onClick={onOpenChange}
-                            />
-                        ) : !hideTasks ? (
-                            renderTasksView()
-                        ) : (
-                            <div>
-                                <div className="flex flex-col items-center gap-3 px-12">
-                                    <div className="h-64">
-                                        <DotLottieReact src="/lottie/done.lottie" autoplay />
-                                    </div>
-                                    <h2 className="text-default-800 text-2xl font-semibold mt-[-50px] mb-1">
-                                        That’s a wrap!
-                                    </h2>
-                                    <p className="text-default-600 text-center text-pretty">
-                                        Grab snack, blast some tunes, or just kick back and relax.
-                                    </p>
+                                    )}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            {hasOVerdueTasks && (
+                                <Accordion>
+                                    <AccordionItem
+                                        key="overdue-tasks"
+                                        textValue="overdue tasks"
+                                        title={
+                                            <div className="w-full flex items-center gap-3 justify-between">
+                                                <span className="text-sm font-medium">
+                                                    Overdue ({overdueTasks?.length})
+                                                </span>
+                                                <DatePicker
+                                                    onChange={(val) => {
+                                                        (rescheduleOverdueTasks(val),
+                                                            setIsRescheduling(true));
+                                                    }}
+                                                    trigger={
+                                                        <div className="flex gap-2 text-xs text-primary rounded-md border-2 border-default bg-primary-50 hover:text-primary-500 py-1.5 px-3">
+                                                            <RiCalendarScheduleLine fontSize="1rem" />
+                                                            Reschedule
+                                                        </div>
+                                                    }
+                                                />
+                                            </div>
+                                        }
+                                    >
+                                        <div className="flex flex-col gap-2">
+                                            {overdueTasks?.map((task) => (
+                                                <TaskCard key={task.id} task={task} sm />
+                                            ))}
+                                        </div>
+                                    </AccordionItem>
+                                </Accordion>
+                            )}
+                            {todayTasks?.length === 0 ? (
+                                <EmptyState
+                                    title="Nothing here yet"
+                                    description="Let’s get you rolling, start by creating your first to-do"
+                                    primaryAction="Add a task"
+                                    onClick={onOpenChange}
+                                />
+                            ) : !hideTasks ? (
+                                renderTasksView()
+                            ) : (
+                                <div>
+                                    <div className="flex flex-col items-center gap-3 px-12">
+                                        <div className="h-64">
+                                            <DotLottieReact src="/lottie/done.lottie" autoplay />
+                                        </div>
+                                        <h2 className="text-default-800 text-2xl font-semibold mt-[-50px] mb-1">
+                                            That’s a wrap!
+                                        </h2>
+                                        <p className="text-default-600 text-center text-pretty">
+                                            Grab snack, blast some tunes, or just kick back and
+                                            relax.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
+                    {/*{viewCalendar && (*/}
+                    {/*    <div className="basis-1/4 shrink min-w-[360px]">*/}
+                    {/*        <EventCalendar initialView="day" views={['day']} />*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
                 </div>
             </PageLayout>
         </AppLayout>

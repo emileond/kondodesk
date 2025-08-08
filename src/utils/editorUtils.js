@@ -3,6 +3,218 @@ import MarkdownIt from 'markdown-it';
  * Utility functions for editor-related operations
  */
 
+// START OF HTML TO TIPTAP
+
+/**
+ * Applies a Tiptap mark to an array of Tiptap nodes.
+ *
+ * It iterates through the nodes and adds the given mark to all `text` nodes.
+ * This is used to handle HTML tags like <strong>, <em>, <a>, etc.
+ *
+ * @param {Array<object>} nodes - An array of Tiptap nodes.
+ * @param {object} mark - The mark to apply (e.g., { type: 'bold' }).
+ * @returns {Array<object>} The array of nodes with the mark applied.
+ */
+const applyMark = (nodes, mark) => {
+    return nodes.map((node) => {
+        // We only apply marks to text nodes. Other nodes (like hardBreak) are passed through.
+        if (node.type === 'text') {
+            // Create a new node to avoid direct mutation and add the new mark.
+            const newNode = { ...node };
+            newNode.marks = [...(node.marks || []), mark];
+            return newNode;
+        }
+        // Return non-text nodes (e.g., hardBreak) as is.
+        return node;
+    });
+};
+
+/**
+ * Converts a single DOM node into a Tiptap node or an array of nodes.
+ *
+ * This is the core recursive function that traverses the DOM tree.
+ *
+ * @param {Node} domNode - The DOM node to convert.
+ * @returns {object | Array<object> | null} A Tiptap node, an array of nodes, or null if the node should be ignored.
+ */
+const domNodeToTiptap = (domNode) => {
+    // 1. Convert text nodes
+    if (domNode.nodeType === Node.TEXT_NODE) {
+        const text = domNode.textContent;
+        // Ignore empty or whitespace-only text nodes, which the DOM parser often creates.
+        return text && text.trim() !== '' ? { type: 'text', text } : null;
+    }
+
+    // 2. Convert element nodes
+    if (domNode.nodeType === Node.ELEMENT_NODE) {
+        const { tagName } = domNode;
+        // Recursively convert all child nodes first.
+        const children = nodesToTiptap(domNode.childNodes);
+
+        switch (tagName.toLowerCase()) {
+            // BLOCK NODES
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+                return {
+                    type: 'heading',
+                    attrs: { level: parseInt(tagName.charAt(1), 10) },
+                    content: children,
+                };
+            case 'p':
+                return {
+                    type: 'paragraph',
+                    // A paragraph can be empty, in which case Tiptap expects no content property.
+                    content: children.length > 0 ? children : undefined,
+                };
+            case 'ul':
+                return { type: 'bulletList', content: children };
+            case 'ol':
+                return { type: 'orderedList', content: children };
+            case 'li': {
+                const content = [];
+                let inlineNodes = [];
+
+                // Tiptap's schema requires that list items contain block-level content (like paragraphs).
+                // This logic groups consecutive inline nodes (text, breaks, marks) into a single paragraph
+                // to ensure the structure is valid.
+                for (const child of children) {
+                    // Check if the child is an inline node.
+                    const isInline =
+                        child.type === 'text' ||
+                        child.type === 'hardBreak' ||
+                        child.marks?.length > 0;
+                    if (isInline) {
+                        inlineNodes.push(child);
+                    } else {
+                        // When a block node is found, first wrap any preceding inline nodes in a paragraph.
+                        if (inlineNodes.length > 0) {
+                            content.push({ type: 'paragraph', content: inlineNodes });
+                            inlineNodes = [];
+                        }
+                        // Then, add the block node itself.
+                        content.push(child);
+                    }
+                }
+                // Add any remaining inline nodes at the end.
+                if (inlineNodes.length > 0) {
+                    content.push({ type: 'paragraph', content: inlineNodes });
+                }
+
+                // A list item should not be empty.
+                return {
+                    type: 'listItem',
+                    content: content.length > 0 ? content : [{ type: 'paragraph' }],
+                };
+            }
+            case 'blockquote':
+                return { type: 'blockquote', content: children };
+            case 'hr':
+                return { type: 'horizontalRule' };
+            case 'br':
+                return { type: 'hardBreak' };
+            case 'pre':
+                // Tiptap's codeBlock expects a single text node in its content.
+                return {
+                    type: 'codeBlock',
+                    attrs: { language: null }, // HTML <pre> has no standard language attribute.
+                    content: [{ type: 'text', text: domNode.textContent }],
+                };
+
+            // INLINE MARKS
+            case 'strong':
+            case 'b':
+                return applyMark(children, { type: 'bold' });
+            case 'em':
+            case 'i':
+                return applyMark(children, { type: 'italic' });
+            case 's':
+            case 'strike':
+            case 'del':
+                return applyMark(children, { type: 'strike' });
+            case 'u':
+                return applyMark(children, { type: 'underline' });
+            case 'code':
+                return applyMark(children, { type: 'code' });
+            case 'a': {
+                const href = domNode.getAttribute('href');
+                // Only apply the link mark if an href exists.
+                return href ? applyMark(children, { type: 'link', attrs: { href } }) : children;
+            }
+
+            // For unknown or wrapper tags (div, span), we don't create a specific node.
+            // Instead, we "unwrap" them by just returning their processed children.
+            default:
+                return children;
+        }
+    }
+
+    // 3. Ignore other node types (like comments)
+    return null;
+};
+
+/**
+ * Converts a NodeList of DOM nodes into an array of Tiptap nodes.
+ *
+ * @param {NodeListOf<ChildNode>} domNodes - The DOM nodes to convert.
+ * @returns {Array<object>} An array of Tiptap nodes.
+ */
+const nodesToTiptap = (domNodes) => {
+    const tiptapNodes = [];
+    domNodes.forEach((domNode) => {
+        const tiptapNode = domNodeToTiptap(domNode);
+        if (tiptapNode) {
+            // If the converter returns an array (from an unwrapped tag),
+            // spread its contents into the result list.
+            if (Array.isArray(tiptapNode)) {
+                tiptapNodes.push(...tiptapNode);
+            } else {
+                tiptapNodes.push(tiptapNode);
+            }
+        }
+    });
+    return tiptapNodes;
+};
+
+/**
+ * Converts an HTML string to a Tiptap JSON object.
+ *
+ * This utility parses HTML using the browser's DOM parser and recursively
+ * converts the DOM tree into the Tiptap node format. It supports common
+ * tags for headings, paragraphs, lists, marks, and more.
+ *
+ * @param {string | null | undefined} html - The HTML string to convert.
+ * @returns {object} A Tiptap-compatible document object.
+ */
+export const htmlToTiptap = (html) => {
+    // If input is null, undefined, or empty, return an empty Tiptap document.
+    if (!html) {
+        return {
+            type: 'doc',
+            content: [],
+        };
+    }
+
+    // Use the browser's DOMParser to safely and reliably parse the HTML string.
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Recursively convert the parsed DOM body into Tiptap nodes.
+    const content = nodesToTiptap(doc.body.childNodes);
+
+    return {
+        type: 'doc',
+        content,
+    };
+};
+
+// END OF HTML TO TIPTAP
+
+// START OF MARKDOWN TO TIPTAP
+
 /**
  * Converts markdown text to Tiptap format
  *
@@ -462,6 +674,10 @@ const parseBlockquote = (tokens, startIndex) => {
     return { content, endIndex: i };
 };
 
+// END OF MARKDOWN TO TIPTAP CONVERTER
+
+// START OF JIRA TO TIPTAP CONVERTER
+
 /**
  * Converts a Jira Atlassian Document Format (ADF) object to a Tiptap-compatible JSON document.
  * This function assumes the input `jiraAdfContent` is already a JavaScript object
@@ -744,3 +960,5 @@ const convertJiraEmoji = (emojiNode) => {
         text: emojiNode.attrs.shortName,
     };
 };
+
+// END OF JIRA TO TIPTAP CONVERTER

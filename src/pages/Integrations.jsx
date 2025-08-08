@@ -18,6 +18,7 @@ import GoogleTasksIntegrationCard from '../components/integrations/google/tasks/
 import ZohoProjectsIntegrationCard from '../components/integrations/zoho/projects/ZohoProjectsIntegrationCard.jsx';
 import NiftyIntegrationCard from '../components/integrations/nifty/NiftyIntegrationCard.jsx';
 import AworkIntegrationCard from '../components/integrations/awork/AworkIntegrationCard.jsx';
+import MSCalendarIntegrationCard from '../components/integrations/microsoft/calendar/MSCalendarIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -80,6 +81,7 @@ function IntegrationsPage() {
 
                     <Tab key="calendar" title="Calendar">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            {user?.email === 'sonarart@gmail.com' && <MSCalendarIntegrationCard />}
                             {/* Calendar integrations will be added here in the future */}
                             <div className="col-span-full text-center py-8 text-gray-500">
                                 Calendar integrations coming soon!

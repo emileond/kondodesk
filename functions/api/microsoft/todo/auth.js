@@ -2,74 +2,6 @@ import ky from 'ky';
 import { createClient } from '@supabase/supabase-js';
 import { toUTC, calculateExpiresAt } from '../../../../src/utils/dateUtils.js';
 
-// Handle DELETE requests for disconnecting Microsoft To Do integration
-export async function onRequestDelete(context) {
-    try {
-        const body = await context.request.json();
-        const { id } = body;
-
-        if (!id) {
-            return Response.json({ success: false, error: 'Missing id' }, { status: 400 });
-        }
-
-        // Initialize Supabase client
-        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
-
-        const { data, error } = await supabase
-            .from('user_integrations')
-            .select('access_token, user_id, workspace_id')
-            .eq('type', 'microsoft_todo')
-            .eq('id', id)
-            .single();
-
-        if (error) {
-            console.error('Error fetching Microsoft To Do integration from database:', error);
-            return Response.json(
-                { success: false, error: 'Failed to delete integration data' },
-                { status: 500 },
-            );
-        }
-
-        const { user_id, workspace_id } = data;
-
-        // Delete the token from the database
-        const { error: deleteError } = await supabase
-            .from('user_integrations')
-            .delete()
-            .eq('type', 'microsoft_todo')
-            .eq('id', id);
-
-        if (deleteError) {
-            console.error('Error deleting Microsoft To Do integration from database:', deleteError);
-            return Response.json(
-                { success: false, error: 'Failed to delete integration data' },
-                { status: 500 },
-            );
-        }
-
-        // Delete the backlog tasks from the database
-        await supabase
-            .from('tasks')
-            .delete()
-            .eq('integration_source', 'microsoft_todo')
-            .eq('status', 'pending')
-            .eq('creator', user_id)
-            .eq('workspace_id', workspace_id)
-            .is('date', null);
-
-        return Response.json({ success: true });
-    } catch (error) {
-        console.error('Error disconnecting Microsoft To Do integration:', error);
-        return Response.json(
-            {
-                success: false,
-                error: 'Internal server error',
-            },
-            { status: 500 },
-        );
-    }
-}
-
 // Handle POST requests for initiating Microsoft To Do OAuth flow
 export async function onRequestPost(context) {
     const body = await context.request.json();
@@ -86,8 +18,8 @@ export async function onRequestPost(context) {
         const tokenResponse = await ky
             .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
                 body: new URLSearchParams({
-                    client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                    client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                    client_id: context.env.MICROSOFT_CLIENT_ID,
+                    client_secret: context.env.MICROSOFT_CLIENT_SECRET,
                     code,
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/microsoft_todo',
                     grant_type: 'authorization_code',
@@ -96,18 +28,23 @@ export async function onRequestPost(context) {
             })
             .json();
 
-        const { access_token, refresh_token, expires_in } = await tokenResponse;
+        const { access_token, refresh_token, expires_in, scope } = await tokenResponse;
         if (!access_token)
-            throw new Error(tokenResponse.error || 'Failed to get Microsoft access token');
+            return Response.json(
+                { success: false, error: 'Failed to get access token' },
+                { status: 500 },
+            );
 
         const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
+
+        const grantedScopes = scope ? scope.split(' ') : [];
 
         // 2. Save the initial integration data
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
         const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
-                type: 'microsoft_todo',
+                type: 'microsoft',
                 access_token,
                 refresh_token,
                 user_id,
@@ -115,12 +52,16 @@ export async function onRequestPost(context) {
                 status: 'active',
                 last_sync: toUTC(),
                 expires_at,
-                config: { syncStatus: 'prompt' },
+                scopes: grantedScopes,
             })
             .select('id')
             .single();
 
-        if (upsertError) throw new Error('Failed to save integration data');
+        if (upsertError)
+            return Response.json(
+                { success: false, error: 'Failed to save integration data' },
+                { status: 500 },
+            );
         const integration_id = upsertData.id;
 
         // Fetch user data and update record
@@ -165,7 +106,7 @@ export async function onRequestPost(context) {
                                         name: task.title,
                                         description: task.body?.content || null,
                                         workspace_id,
-                                        integration_source: 'microsoft_todo',
+                                        integration_source: 'microsoft',
                                         external_id: task.id,
                                         external_data: {
                                             ...task,
