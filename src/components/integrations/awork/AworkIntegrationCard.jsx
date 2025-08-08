@@ -173,11 +173,11 @@ const AworkIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="awork"
+                icon="awork"
                 name="Awork"
                 isCompact={isCompact}
                 isLoading={loading}
                 isPending={isPending}
-                icon={<RiBuilding2Line />}
                 description="Import Awork tasks assigned to you."
                 status={status}
                 onConnect={handleConnect}

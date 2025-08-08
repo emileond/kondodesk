@@ -42,7 +42,7 @@ export async function onRequestPost(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at, external_data')
-            .eq('type', 'microsoft_todo')
+            .eq('type', 'microsoft')
             .eq('status', 'active')
             .eq('user_id', user_id)
             .eq('workspace_id', workspace_id)
@@ -75,8 +75,8 @@ export async function onRequestPost(context) {
             const newToken = await ky
                 .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
                     body: new URLSearchParams({
-                        client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                        client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                        client_id: context.env.MICROSOFT_CLIENT_ID,
+                        client_secret: context.env.MICROSOFT_CLIENT_SECRET,
                         refresh_token: integration.refresh_token,
                         grant_type: 'refresh_token',
                         scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
@@ -110,7 +110,7 @@ export async function onRequestPost(context) {
                     refresh_token: refreshToken,
                     expires_at: expiresAt,
                 })
-                .eq('type', 'microsoft_todo')
+                .eq('type', 'microsoft')
                 .eq('status', 'active')
                 .eq('user_id', user_id)
                 .eq('workspace_id', workspace_id);
@@ -125,21 +125,18 @@ export async function onRequestPost(context) {
         if (status === 'completed') {
             updatePayload.completedDateTime = {
                 dateTime: new Date().toISOString(),
-                timeZone: 'UTC'
+                timeZone: 'UTC',
             };
         }
 
-        await ky.patch(
-            `https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`,
-            {
-                json: updatePayload,
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
+        await ky.patch(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`, {
+            json: updatePayload,
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
             },
-        );
+        });
 
         // Update the task in Supabase if needed
         const { data: task, error: selectError } = await supabase
@@ -169,7 +166,7 @@ export async function onRequestPost(context) {
                 .from('tasks')
                 .update({ external_data: updatedExternalData })
                 .eq('id', task_id)
-                .eq('integration_source', 'microsoft_todo');
+                .eq('integration_source', 'microsoft');
         }
 
         return Response.json({

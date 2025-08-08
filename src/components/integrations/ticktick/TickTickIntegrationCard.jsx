@@ -175,6 +175,7 @@ const TickTickIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="ticktick"
+                icon="ticktick"
                 name="TickTick"
                 isCompact={isCompact}
                 isLoading={loading}

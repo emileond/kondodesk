@@ -152,6 +152,7 @@ const JiraIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="jira"
+                icon="jira"
                 name="Jira"
                 isLoading={loading}
                 isPending={isPending}

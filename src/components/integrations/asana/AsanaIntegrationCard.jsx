@@ -164,6 +164,7 @@ const AsanaIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="asana"
+                icon="asana"
                 name="Asana"
                 isLoading={loading}
                 isPending={isPending}

@@ -157,6 +157,7 @@ const ZohoProjectsIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="zoho_projects"
+                icon="zoho_projects"
                 name="Zoho Projects"
                 isLoading={loading}
                 isPending={isPending}

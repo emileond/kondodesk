@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft_todo')
+            .eq('type', 'microsoft')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -50,8 +50,8 @@ export async function onRequestGet(context) {
                 .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
                     body: new URLSearchParams({
                         grant_type: 'refresh_token',
-                        client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                        client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                        client_id: context.env.MICROSOFT_CLIENT_ID,
+                        client_secret: context.env.MICROSOFT_CLIENT_SECRET,
                         refresh_token: integration.refresh_token,
                         scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
                     }),
@@ -69,7 +69,7 @@ export async function onRequestGet(context) {
                     refresh_token: newToken.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft_todo' });
+                .match({ user_id, workspace_id, type: 'microsoft' });
         }
         // --- End Token Refresh Logic ---
 
@@ -117,7 +117,7 @@ export async function onRequestPatch(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft_todo')
+            .eq('type', 'microsoft')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -141,8 +141,8 @@ export async function onRequestPatch(context) {
                 .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
                     body: new URLSearchParams({
                         grant_type: 'refresh_token',
-                        client_id: context.env.MICROSOFT_TODO_CLIENT_ID,
-                        client_secret: context.env.MICROSOFT_TODO_CLIENT_SECRET,
+                        client_id: context.env.MICROSOFT_CLIENT_ID,
+                        client_secret: context.env.MICROSOFT_CLIENT_SECRET,
                         refresh_token: integration.refresh_token,
                         scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
                     }),
@@ -160,7 +160,7 @@ export async function onRequestPatch(context) {
                     refresh_token: newToken.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft_todo' });
+                .match({ user_id, workspace_id, type: 'microsoft' });
         }
         // --- End Token Refresh Logic ---
 
@@ -236,7 +236,7 @@ export async function onRequestPatch(context) {
                         : null,
             })
             .eq('external_id', taskId)
-            .eq('integration_source', 'microsoft_todo')
+            .eq('integration_source', 'microsoft')
             .eq('workspace_id', workspace_id);
 
         return Response.json({

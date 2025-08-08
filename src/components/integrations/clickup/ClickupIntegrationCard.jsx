@@ -176,6 +176,7 @@ const ClickupIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="clickup"
+                icon="clickup"
                 name="Clickup"
                 isCompact={isCompact}
                 isLoading={loading}

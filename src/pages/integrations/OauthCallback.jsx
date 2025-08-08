@@ -306,7 +306,7 @@ const OAuthCallback = () => {
         }
     };
 
-    const handleMicrosoftToDoCallback = async ({ code }) => {
+    const handleMicrosoftToDoCallback = async ({ code }) => { // ms todo
         setLoading(true);
         try {
             await ky.post('/api/microsoft/todo/auth', {
@@ -374,6 +374,45 @@ const OAuthCallback = () => {
                 errorMessage = errorData.message || errorMessage;
             }
             console.error('Error connecting to Google Tasks:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
+    const handleMicrosoftCalendarCallback = async ({ code, state }) => {
+        setLoading(true);
+        try {
+            // Optional: CSRF protection (if state used on connect)
+            const storedState = localStorage.getItem('microsoft_calendar_oauth_state');
+            if (storedState && state && state !== storedState) {
+                throw new Error('State verification failed');
+            }
+            if (storedState) localStorage.removeItem('microsoft_calendar_oauth_state');
+
+            await ky.post('/api/microsoft/calendar/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+
+            toast.success('Microsoft Calendar Integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Microsoft Calendar Integration';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Microsoft Calendar:', error);
             toast.error(errorMessage);
         } finally {
             setLoading(false);
@@ -516,6 +555,9 @@ const OAuthCallback = () => {
                 break;
             case 'microsoft_todo':
                 handleMicrosoftToDoCallback({ code });
+                break;
+            case 'microsoft_calendar':
+                handleMicrosoftCalendarCallback({ code });
                 break;
             case 'google_tasks':
                 {

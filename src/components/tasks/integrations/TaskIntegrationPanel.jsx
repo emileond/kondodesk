@@ -113,7 +113,7 @@ const TaskIntegrationLink = ({ source, external_data, host }) => {
                     </Link>
                 </div>
             );
-        case 'microsoft_todo':
+        case 'microsoft':
             return (
                 <div className="flex gap-1 items-center">
                     <Link
@@ -225,7 +225,7 @@ export const TaskIntegrationDetails = ({ task_id, source, external_data }) => {
 
         case 'todoist':
             return <TodoistTaskDetails external_data={external_data} />;
-        case 'microsoft_todo':
+        case 'microsoft':
             return <MicrosoftToDoTaskDetails task_id={task_id} external_data={external_data} />;
         case 'google_tasks':
             return <GoogleTasksDetails task_id={task_id} external_data={external_data} />;

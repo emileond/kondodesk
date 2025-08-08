@@ -141,7 +141,7 @@ function IntegrationCard({
                             {id === 'github' ? (
                                 icon
                             ) : (
-                                <Image alt="logo" src={`/integrations/${id}.png`} width={32} />
+                                <Image alt="logo" src={`/integrations/${icon}.png`} width={32} />
                             )}
                         </div>
                         <h3 className="text-lg font-semibold">{name}</h3>

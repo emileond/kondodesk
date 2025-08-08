@@ -173,6 +173,7 @@ const TrelloIntegrationCard = ({ isCompact }) => {
         <>
             <IntegrationCard
                 id="trello"
+                icon="trello"
                 name="Trello"
                 isCompact={isCompact}
                 isLoading={loading}
