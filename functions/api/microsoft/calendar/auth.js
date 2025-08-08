@@ -58,7 +58,7 @@ export async function onRequestPost(context) {
                     redirect_uri:
                         'https://weekfuse.com/integrations/oauth/callback/microsoft_calendar',
                     grant_type: 'authorization_code',
-                    scope: 'offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read',
+                    scope: 'Calendars.ReadWrite Calendars.ReadWrite.Shared User.Read offline_access',
                 }),
             })
             .json();

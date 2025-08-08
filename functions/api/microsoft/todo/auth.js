@@ -23,7 +23,7 @@ export async function onRequestPost(context) {
                     code,
                     redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/microsoft_todo',
                     grant_type: 'authorization_code',
-                    scope: 'https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read offline_access',
+                    scope: 'Tasks.ReadWrite User.Read offline_access',
                 }),
             })
             .json();
