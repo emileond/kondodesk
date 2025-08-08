@@ -37,7 +37,7 @@ export const useUserIntegration = (user_id, type) => {
 };
 
 // Delete integration
-const deleteIntegration = async ({ id, installation_id, type }) => {
+const deleteIntegration = async ({ id, installation_id, type, serviceToDisconnect }) => {
     try {
         if (type === 'github' && installation_id) {
             await ky.delete('/api/github/auth', {
@@ -70,7 +70,7 @@ const deleteIntegration = async ({ id, installation_id, type }) => {
             });
         } else if (type === 'microsoft' && id) {
             await ky.delete('/api/microsoft/disconnect', {
-                json: { id },
+                json: { id, serviceToDisconnect },
             });
         } else if (type === 'google_tasks' && id) {
             await ky.delete('/api/google/tasks/auth', {
