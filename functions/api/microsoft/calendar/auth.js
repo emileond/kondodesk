@@ -115,9 +115,7 @@ export async function onRequestPost(context) {
         }
 
         // 3) Fetch calendars
-        const calendars = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
-
-        console.log('cals', calendars);
+        const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
 
         if (!calendars || !Array.isArray(calendars.value)) {
             return Response.json(
@@ -125,6 +123,8 @@ export async function onRequestPost(context) {
                 { status: 500 },
             );
         }
+
+        const calendars = cals.value.filter((cal) => cal.canShare);
 
         // Upsert calendars
         for (let i = 0; i < calendars.length; i += DB_BATCH_SIZE) {
