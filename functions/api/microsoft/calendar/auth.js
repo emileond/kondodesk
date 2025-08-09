@@ -115,7 +115,14 @@ export async function onRequestPost(context) {
         }
 
         // 3) Fetch calendars
-        const calendars = await fetchAllPages(`${GRAPH_BASE}/me/calendars`, headers);
+        const calendars = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
+
+        if (!calendars || !Array.isArray(calendars.value)) {
+            return Response.json(
+                { success: false, error: 'Failed to fetch calendars' },
+                { status: 500 },
+            );
+        }
 
         // Upsert calendars
         for (let i = 0; i < calendars.length; i += DB_BATCH_SIZE) {
