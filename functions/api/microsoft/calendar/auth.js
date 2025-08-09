@@ -78,21 +78,18 @@ export async function onRequestPost(context) {
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
         const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
-            .upsert(
-                {
-                    type: 'microsoft',
-                    access_token,
-                    refresh_token,
-                    user_id,
-                    workspace_id,
-                    status: 'active',
-                    last_sync: toUTC(),
-                    expires_at,
-                    config: { syncStatus: 'prompt' },
-                    scopes: grantedScopes,
-                },
-                { onConflict: 'type, user_id, workspace_id' },
-            )
+            .upsert({
+                type: 'microsoft',
+                access_token,
+                refresh_token,
+                user_id,
+                workspace_id,
+                status: 'active',
+                last_sync: toUTC(),
+                expires_at,
+                config: { syncStatus: 'prompt' },
+                scopes: grantedScopes,
+            })
             .select('id')
             .single();
 
