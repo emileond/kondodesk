@@ -49,6 +49,7 @@ export async function onRequestPost(context) {
                 workspace_id,
                 status: 'active',
                 last_sync: toUTC(),
+                config: { syncStatus: 'prompt' },
                 expires_at,
             })
             .select('id')

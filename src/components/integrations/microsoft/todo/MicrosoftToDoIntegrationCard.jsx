@@ -40,12 +40,10 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     // Configuration modal state
     const { isOpen, onOpen, onClose } = useDisclosure();
 
-    const isTasksConnected = useMemo(() => {
-        if (!integration || !integration.scopes) return false;
-        return integration.scopes.some((s) => s.endsWith('Tasks.ReadWrite'));
+    const status = useMemo(() => {
+        if (!integration || integration.status === 'inactive') return 'inactive';
+        else return integration.status;
     }, [integration]);
-
-    const status = isTasksConnected ? 'active' : 'inactive';
 
     // Form setup with react-hook-form
     const { handleSubmit, setValue, control } = useForm();

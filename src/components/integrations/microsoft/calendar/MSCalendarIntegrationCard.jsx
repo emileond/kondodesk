@@ -19,7 +19,6 @@ import {
     RadioGroup,
     Radio,
 } from '@heroui/react';
-import useCurrentWorkspace from '../../../../hooks/useCurrentWorkspace.js';
 import { useQueryClient } from '@tanstack/react-query';
 
 const MSCalendarIntegrationCard = ({ isCompact }) => {
@@ -36,12 +35,10 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
 
     const { isOpen, onOpen, onClose } = useDisclosure();
 
-    const isCalConnected = useMemo(() => {
-        if (!integration || !integration.scopes) return false;
-        return integration.scopes.some((s) => s.endsWith('Calendars.ReadWrite'));
+    const status = useMemo(() => {
+        if (!integration || integration.status === 'inactive') return 'inactive';
+        else return integration.status;
     }, [integration]);
-
-    const status = isCalConnected ? 'active' : 'inactive';
 
     const { handleSubmit, setValue, control } = useForm();
 
