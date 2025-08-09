@@ -13,7 +13,7 @@ async function refreshAccessToken(context, integration) {
                 client_id: context.env.MICROSOFT_CLIENT_ID,
                 client_secret: context.env.MICROSOFT_CLIENT_SECRET,
                 refresh_token: integration.refresh_token,
-                scope: 'offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read',
+                scope: 'Calendars.ReadWrite Calendars.ReadWrite.Shared User.Read offline_access',
             }),
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -117,7 +117,7 @@ export async function onRequestPost(context) {
         // 3) Fetch calendars
         const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
 
-        if (!calendars || !Array.isArray(calendars.value)) {
+        if (!cals || !Array.isArray(cals.value)) {
             return Response.json(
                 { success: false, error: 'Failed to fetch calendars' },
                 { status: 500 },
