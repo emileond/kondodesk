@@ -9,7 +9,7 @@ async function getAccessToken(context, supabase, workspace_id, user_id) {
     const { data: integration, error } = await supabase
         .from('user_integrations')
         .select('access_token, refresh_token, expires_at')
-        .eq('type', 'microsoft')
+        .eq('type', 'microsoft_todo')
         .eq('status', 'active')
         .eq('workspace_id', workspace_id)
         .eq('user_id', user_id)
@@ -46,7 +46,7 @@ async function getAccessToken(context, supabase, workspace_id, user_id) {
                 refresh_token: newToken.refresh_token,
                 expires_at: calculateExpiresAt(newToken.expires_in),
             })
-            .match({ user_id, workspace_id, type: 'microsoft' });
+            .match({ user_id, workspace_id, type: 'microsoft_todo' });
     }
 
     return { accessToken };
@@ -155,7 +155,7 @@ export async function onRequestPatch(context) {
                 web_link: updatedEvent.webLink || null,
             })
             .eq('external_id', eventId)
-            .eq('source', 'microsoft')
+            .eq('source', 'microsoft_calendar')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id);
 

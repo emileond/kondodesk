@@ -26,9 +26,13 @@ import ProjectSelect from '../../../../components/form/ProjectSelect.jsx';
 
 const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     const { data: user } = useUser();
-    const { data: integration, isLoading, isPending } = useUserIntegration(user?.id, 'microsoft');
-    const deleteIntegration = useDeleteIntegration(user.id, 'microsoft');
-    const updateIntegrationConfig = useUpdateIntegrationConfig(user.id, 'microsoft');
+    const {
+        data: integration,
+        isLoading,
+        isPending,
+    } = useUserIntegration(user?.id, 'microsoft_todo');
+    const deleteIntegration = useDeleteIntegration(user.id, 'microsoft_todo');
+    const updateIntegrationConfig = useUpdateIntegrationConfig(user.id, 'microsoft_todo');
     const [loading, setLoading] = useState(false);
     const [currentWorkspace] = useCurrentWorkspace();
     const queryClient = useQueryClient();
@@ -44,19 +48,9 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     const status = isTasksConnected ? 'active' : 'inactive';
 
     // Form setup with react-hook-form
-    const {
-        handleSubmit,
-        setValue,
-        control,
-        formState: { errors },
-    } = useForm();
+    const { handleSubmit, setValue, control } = useForm();
 
     const handleConnect = () => {
-        // scopes
-        const requiredScopes = ['Tasks.ReadWrite', 'User.Read', 'offline_access'];
-        const existingScopes = integration?.scopes || [];
-        const allScopes = new Set([...existingScopes, ...requiredScopes]);
-
         // Generate a random state parameter for security
         const state = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('microsoft_todo_oauth_state', state);
@@ -70,7 +64,7 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
             'redirect_uri',
             'https://weekfuse.com/integrations/oauth/callback/microsoft_todo',
         );
-        authUrl.searchParams.set('scope', Array.from(allScopes).join(' '));
+        authUrl.searchParams.set('scope', 'Tasks.ReadWrite User.Read offline_access');
         authUrl.searchParams.set('state', state);
         authUrl.searchParams.set('response_mode', 'query');
 
@@ -84,15 +78,14 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
         deleteIntegration.mutate(
             {
                 id: integration.id,
-                installation_id: integration.installation_id,
                 type: 'microsoft',
-                serviceToDisconnect: 'tasks',
+                serviceToDisconnect: 'todo',
             },
             {
                 onSuccess: () => {
                     toast.success('Microsoft To Do Integration disconnected');
                     queryClient.invalidateQueries({
-                        queryKey: ['user_integration', user?.id, 'microsoft'],
+                        queryKey: ['user_integration', user?.id, 'microsoft_todo'],
                     });
                     // Invalidate all task-related queries for the workspace
                     queryClient.invalidateQueries({

@@ -199,7 +199,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                 }
                 break;
 
-            case 'microsoft':
+            case 'microsoft_todo':
                 try {
                     const listId = task?.external_data?.listId;
                     if (!listId) {

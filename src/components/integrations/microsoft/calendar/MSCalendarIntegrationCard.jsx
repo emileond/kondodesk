@@ -24,11 +24,14 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const MSCalendarIntegrationCard = ({ isCompact }) => {
     const { data: user } = useUser();
-    const { data: integration, isLoading, isPending } = useUserIntegration(user?.id, 'microsoft');
-    const deleteIntegration = useDeleteIntegration(user?.id, 'microsoft');
-    const updateIntegrationConfig = useUpdateIntegrationConfig(user?.id, 'microsoft');
+    const {
+        data: integration,
+        isLoading,
+        isPending,
+    } = useUserIntegration(user?.id, 'microsoft_calendar');
+    const deleteIntegration = useDeleteIntegration(user?.id, 'microsoft_calendar');
+    const updateIntegrationConfig = useUpdateIntegrationConfig(user?.id, 'microsoft_calendar');
     const [loading, setLoading] = useState(false);
-    const [currentWorkspace] = useCurrentWorkspace();
     const queryClient = useQueryClient();
 
     const { isOpen, onOpen, onClose } = useDisclosure();
@@ -43,16 +46,6 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
     const { handleSubmit, setValue, control } = useForm();
 
     const handleConnect = () => {
-        // scopes
-        const requiredScopes = [
-            'Calendars.ReadWrite',
-            'Calendars.ReadWrite.Shared',
-            'User.Read',
-            'offline_access',
-        ];
-        const existingScopes = integration?.scopes || [];
-        const allScopes = new Set([...existingScopes, ...requiredScopes]);
-
         const state = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('microsoft_calendar_oauth_state', state);
 
@@ -65,7 +58,10 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
             'redirect_uri',
             'https://weekfuse.com/integrations/oauth/callback/microsoft_calendar',
         );
-        authUrl.searchParams.set('scope', Array.from(allScopes).join(' '));
+        authUrl.searchParams.set(
+            'scope',
+            'Calendars.ReadWrite Calendars.ReadWrite.Shared User.Read offline_access',
+        );
         authUrl.searchParams.set('state', state);
         authUrl.searchParams.set('response_mode', 'query');
 
@@ -78,7 +74,6 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
         deleteIntegration.mutate(
             {
                 id: integration.id,
-                installation_id: integration.installation_id,
                 type: 'microsoft',
                 serviceToDisconnect: 'calendar',
             },
@@ -86,7 +81,7 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
                 onSuccess: async () => {
                     toast.success('Microsoft Calendar Integration disconnected');
                     queryClient.invalidateQueries({
-                        queryKey: ['user_integration', user?.id, 'microsoft'],
+                        queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
                     });
                 },
                 onError: (error) => {

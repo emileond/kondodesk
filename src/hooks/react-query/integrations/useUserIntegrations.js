@@ -6,7 +6,7 @@ import ky from 'ky';
 const fetchIntegration = async ({ user_id, type }) => {
     const { data, error } = await supabaseClient
         .from('user_integrations')
-        .select('id, status, installation_id, config, scopes')
+        .select('id, status, installation_id, config')
         .eq('user_id', user_id)
         .eq('type', type)
         .single();
