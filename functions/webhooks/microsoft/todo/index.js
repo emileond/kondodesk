@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
                     const { data: integrations, error: integrationError } = await supabase
                         .from('user_integrations')
                         .select('workspace_id, user_id, config, access_token')
-                        .eq('type', 'microsoft')
+                        .eq('type', 'microsoft_todo')
                         .eq('status', 'active');
 
                     if (integrationError || !integrations || integrations.length === 0) {
@@ -81,7 +81,7 @@ export async function onRequestPost(context) {
                                 name: resourceData?.title || 'Microsoft To Do Task',
                                 description: resourceData?.body?.content || null,
                                 workspace_id,
-                                integration_source: 'microsoft',
+                                integration_source: 'microsoft_todo',
                                 external_id: taskId,
                                 external_data: {
                                     ...resourceData,
@@ -113,7 +113,7 @@ export async function onRequestPost(context) {
                                     },
                                     project_id: project_id,
                                 })
-                                .eq('integration_source', 'microsoft')
+                                .eq('integration_source', 'microsoft_todo')
                                 .eq('external_id', taskId)
                                 .eq('workspace_id', workspace_id)
                                 .select();
@@ -138,7 +138,7 @@ export async function onRequestPost(context) {
                         const { error: deleteError } = await supabase
                             .from('tasks')
                             .delete()
-                            .eq('integration_source', 'microsoft')
+                            .eq('integration_source', 'microsoft_todo')
                             .eq('external_id', taskId);
 
                         if (deleteError) {

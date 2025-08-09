@@ -42,7 +42,7 @@ export async function onRequestPost(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at, external_data')
-            .eq('type', 'microsoft')
+            .eq('type', 'microsoft_todo')
             .eq('status', 'active')
             .eq('user_id', user_id)
             .eq('workspace_id', workspace_id)
@@ -110,7 +110,7 @@ export async function onRequestPost(context) {
                     refresh_token: refreshToken,
                     expires_at: expiresAt,
                 })
-                .eq('type', 'microsoft')
+                .eq('type', 'microsoft_todo')
                 .eq('status', 'active')
                 .eq('user_id', user_id)
                 .eq('workspace_id', workspace_id);
@@ -166,7 +166,7 @@ export async function onRequestPost(context) {
                 .from('tasks')
                 .update({ external_data: updatedExternalData })
                 .eq('id', task_id)
-                .eq('integration_source', 'microsoft');
+                .eq('integration_source', 'microsoft_todo');
         }
 
         return Response.json({

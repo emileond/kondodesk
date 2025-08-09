@@ -5,37 +5,6 @@ import { toUTC, calculateExpiresAt } from '../../../../src/utils/dateUtils.js';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const DB_BATCH_SIZE = 50;
 
-async function refreshAccessToken(context, integration) {
-    const newToken = await ky
-        .post('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                client_id: context.env.MICROSOFT_CLIENT_ID,
-                client_secret: context.env.MICROSOFT_CLIENT_SECRET,
-                refresh_token: integration.refresh_token,
-                scope: 'Calendars.ReadWrite Calendars.ReadWrite.Shared User.Read offline_access',
-            }),
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        })
-        .json();
-
-    return newToken;
-}
-
-async function fetchAllPages(url, headers) {
-    let nextLink = url;
-    const allItems = [];
-    while (nextLink) {
-        const page = await ky.get(nextLink, { headers }).json();
-        const items = page.value || [];
-        allItems.push(...items);
-        nextLink = page['@odata.nextLink'] || null;
-    }
-    return allItems;
-}
-
 // POST -> exchange code and import calendars & events
 export async function onRequestPost(context) {
     try {
@@ -63,7 +32,7 @@ export async function onRequestPost(context) {
             })
             .json();
 
-        const { access_token, refresh_token, expires_in, scope } = tokenResponse;
+        const { access_token, refresh_token, expires_in } = tokenResponse;
         if (!access_token)
             return Response.json(
                 { success: false, error: 'Failed to get access token' },
@@ -72,14 +41,12 @@ export async function onRequestPost(context) {
 
         const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
 
-        const grantedScopes = scope ? scope.split(' ') : [];
-
         // 2) Save integration
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
         const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
-                type: 'microsoft',
+                type: 'microsoft_calendar',
                 access_token,
                 refresh_token,
                 user_id,
@@ -88,7 +55,6 @@ export async function onRequestPost(context) {
                 last_sync: toUTC(),
                 expires_at,
                 config: { syncStatus: 'prompt' },
-                scopes: grantedScopes,
             })
             .select('id')
             .single();
@@ -137,7 +103,7 @@ export async function onRequestPost(context) {
                         external_id: cal.id,
                         name: cal.name,
                         color: cal.color || null,
-                        source: 'microsoft',
+                        source: 'microsoft_calendar',
                         is_enabled: true,
                         workspace_id,
                         user_id,
@@ -163,7 +129,7 @@ export async function onRequestPost(context) {
             .from('calendars')
             .select('id, external_id')
             .eq('integration_id', integration_id)
-            .eq('source', 'microsoft')
+            .eq('source', 'microsoft_calendar')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id);
 
@@ -192,7 +158,7 @@ export async function onRequestPost(context) {
                                     start_time: start,
                                     end_time: end,
                                     is_all_day: isAllDay,
-                                    source: 'microsoft',
+                                    source: 'microsoft_calendar',
                                     web_link: ev.webLink || null,
                                     workspace_id,
                                     user_id,

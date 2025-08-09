@@ -28,7 +28,7 @@ export async function onRequestPost(context) {
             })
             .json();
 
-        const { access_token, refresh_token, expires_in, scope } = await tokenResponse;
+        const { access_token, refresh_token, expires_in } = await tokenResponse;
         if (!access_token)
             return Response.json(
                 { success: false, error: 'Failed to get access token' },
@@ -37,14 +37,12 @@ export async function onRequestPost(context) {
 
         const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
 
-        const grantedScopes = scope ? scope.split(' ') : [];
-
         // 2. Save the initial integration data
         const expires_at = expires_in ? calculateExpiresAt(expires_in - 600) : null;
         const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
             .upsert({
-                type: 'microsoft',
+                type: 'microsoft_todo',
                 access_token,
                 refresh_token,
                 user_id,
@@ -52,7 +50,6 @@ export async function onRequestPost(context) {
                 status: 'active',
                 last_sync: toUTC(),
                 expires_at,
-                scopes: grantedScopes,
             })
             .select('id')
             .single();
@@ -109,7 +106,7 @@ export async function onRequestPost(context) {
                                         name: task.title,
                                         description: task.body?.content || null,
                                         workspace_id,
-                                        integration_source: 'microsoft',
+                                        integration_source: 'microsoft_todo',
                                         external_id: task.id,
                                         external_data: {
                                             ...task,

@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft')
+            .eq('type', 'microsoft_todo')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -69,7 +69,7 @@ export async function onRequestGet(context) {
                     refresh_token: newToken.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft' });
+                .match({ user_id, workspace_id, type: 'microsoft_todo' });
         }
         // --- End Token Refresh Logic ---
 
@@ -117,7 +117,7 @@ export async function onRequestPatch(context) {
         const { data: integration, error: integrationError } = await supabase
             .from('user_integrations')
             .select('access_token, refresh_token, expires_at')
-            .eq('type', 'microsoft')
+            .eq('type', 'microsoft_todo')
             .eq('status', 'active')
             .eq('workspace_id', workspace_id)
             .eq('user_id', user_id)
@@ -160,7 +160,7 @@ export async function onRequestPatch(context) {
                     refresh_token: newToken.refresh_token,
                     expires_at: calculateExpiresAt(newToken.expires_in),
                 })
-                .match({ user_id, workspace_id, type: 'microsoft' });
+                .match({ user_id, workspace_id, type: 'microsoft_todo' });
         }
         // --- End Token Refresh Logic ---
 
@@ -236,7 +236,7 @@ export async function onRequestPatch(context) {
                         : null,
             })
             .eq('external_id', taskId)
-            .eq('integration_source', 'microsoft')
+            .eq('integration_source', 'microsoft_todo')
             .eq('workspace_id', workspace_id);
 
         return Response.json({

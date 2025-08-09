@@ -53,7 +53,7 @@ const IntegrationSourceSelect = ({
         },
         {
             label: 'MS To Do',
-            value: 'microsoft',
+            value: 'microsoft_todo',
             startContent: <Avatar className={iconClass} src="/integrations/microsoft_todo.png" />,
         },
         {
