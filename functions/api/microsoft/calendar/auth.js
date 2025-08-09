@@ -124,7 +124,7 @@ export async function onRequestPost(context) {
             );
         }
 
-        const calendars = cals.value.filter((cal) => cal.canShare);
+        const calendars = cals.value;
 
         // Upsert calendars
         for (let i = 0; i < calendars.length; i += DB_BATCH_SIZE) {
