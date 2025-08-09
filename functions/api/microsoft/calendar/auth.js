@@ -145,7 +145,17 @@ export async function onRequestPost(context) {
                     { onConflict: 'integration_id, external_id, source, workspace_id, user_id' },
                 ),
             );
-            await Promise.all(upserts);
+            const results = await Promise.all(upserts);
+
+            // Loop through the results and check for an error on each one
+            results.forEach((result, index) => {
+                if (result.error) {
+                    console.error(
+                        `Failed to upsert calendar (external_id: ${batch[index].id}):`,
+                        result.error,
+                    );
+                }
+            });
         }
 
         // Build calendarId map (external_id -> id)
@@ -193,7 +203,16 @@ export async function onRequestPost(context) {
                                 },
                             );
                         });
-                        await Promise.all(upserts);
+                        const eventResults = await Promise.all(upserts);
+
+                        eventResults.forEach((result, index) => {
+                            if (result.error) {
+                                console.error(
+                                    `Failed to upsert event (external_id: ${batch[index].id}):`,
+                                    result.error,
+                                );
+                            }
+                        });
                     }
 
                     nextLink = page['@odata.nextLink'] || null;
