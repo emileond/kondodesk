@@ -125,6 +125,7 @@ export async function onRequestPost(context) {
         }
 
         const calendars = cals.value;
+        console.log(calendars);
 
         // Upsert calendars
         for (let i = 0; i < calendars.length; i += DB_BATCH_SIZE) {
