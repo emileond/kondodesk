@@ -35,11 +35,13 @@ export async function onRequestDelete(context) {
                 .eq('type', 'microsoft_calendar')
                 .eq('id', id);
 
-            console.error(error);
-            return Response.json(
-                { success: false, error: 'Error deleting token' },
-                { status: 500 },
-            );
+            if (error) {
+                console.error(error);
+                return Response.json(
+                    { success: false, error: 'Error deleting token' },
+                    { status: 500 },
+                );
+            }
         }
 
         return Response.json({ success: true });
