@@ -117,6 +117,8 @@ export async function onRequestPost(context) {
         // 3) Fetch calendars
         const calendars = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
 
+        console.log('cals', calendars);
+
         if (!calendars || !Array.isArray(calendars.value)) {
             return Response.json(
                 { success: false, error: 'Failed to fetch calendars' },
