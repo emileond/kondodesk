@@ -1,5 +1,5 @@
 import IntegrationCard from '../../IntegrationCard.jsx';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import {
     useUserIntegration,
@@ -29,13 +29,19 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     const { data: integration, isLoading, isPending } = useUserIntegration(user?.id, 'microsoft');
     const deleteIntegration = useDeleteIntegration(user.id, 'microsoft');
     const updateIntegrationConfig = useUpdateIntegrationConfig(user.id, 'microsoft');
-    const [status, setStatus] = useState('inactive');
     const [loading, setLoading] = useState(false);
     const [currentWorkspace] = useCurrentWorkspace();
     const queryClient = useQueryClient();
 
     // Configuration modal state
     const { isOpen, onOpen, onClose } = useDisclosure();
+
+    const isTasksConnected = useMemo(() => {
+        if (!integration || !integration.scopes) return false;
+        return integration.scopes.some((s) => s.endsWith('Tasks.ReadWrite'));
+    }, [integration]);
+
+    const status = isTasksConnected ? 'active' : 'inactive';
 
     // Form setup with react-hook-form
     const {
@@ -84,8 +90,10 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
             },
             {
                 onSuccess: () => {
-                    setStatus('inactive');
                     toast.success('Microsoft To Do Integration disconnected');
+                    queryClient.invalidateQueries({
+                        queryKey: ['user_integration', user?.id, 'microsoft'],
+                    });
                     // Invalidate all task-related queries for the workspace
                     queryClient.invalidateQueries({
                         queryKey: ['tasks', currentWorkspace?.workspace_id],
@@ -162,8 +170,6 @@ const MicrosoftToDoIntegrationCard = ({ isCompact }) => {
     useEffect(() => {
         setLoading(isLoading);
         if (integration) {
-            setStatus(integration.status);
-
             // Set form values if integration config exists
             if (integration.config && integration.config.syncStatus) {
                 setValue('syncStatus', integration.config.syncStatus);
