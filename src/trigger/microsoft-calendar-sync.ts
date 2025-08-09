@@ -75,10 +75,9 @@ export const microsoftCalendarSync = task({
             const headers = { Authorization: `Bearer ${currentToken}`, Accept: 'application/json' };
 
             // Fetch calendars
-            const calendarsPage = await ky
-                .get(`${GRAPH_BASE}/me/calendars`, { headers })
-                .json<any>();
-            const calendars = calendarsPage.value || [];
+            const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json<any>();
+
+            const calendars = cals.value?.filter((cal) => cal.canShare) || [];
 
             // Upsert calendars in batches
             const DB_BATCH_SIZE = 50;
