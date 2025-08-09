@@ -57,11 +57,14 @@ export async function onRequestPost(context) {
             .select('id')
             .single();
 
-        if (upsertError) console.error('Error saving integration data:', upsertError);
-        return Response.json(
-            { success: false, error: 'Failed to save integration data' },
-            { status: 500 },
-        );
+        if (upsertError) {
+            console.error('Error saving integration data:', upsertError);
+            return Response.json(
+                { success: false, error: 'Failed to save integration data' },
+                { status: 500 },
+            );
+        }
+
         const integration_id = upsertData.id;
 
         // Fetch user data and update record
