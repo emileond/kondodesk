@@ -1,5 +1,5 @@
 import IntegrationCard from '../../IntegrationCard.jsx';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import {
     useUserIntegration,
@@ -27,12 +27,18 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
     const { data: integration, isLoading, isPending } = useUserIntegration(user?.id, 'microsoft');
     const deleteIntegration = useDeleteIntegration(user?.id, 'microsoft');
     const updateIntegrationConfig = useUpdateIntegrationConfig(user?.id, 'microsoft');
-    const [status, setStatus] = useState('inactive');
     const [loading, setLoading] = useState(false);
     const [currentWorkspace] = useCurrentWorkspace();
     const queryClient = useQueryClient();
 
     const { isOpen, onOpen, onClose } = useDisclosure();
+
+    const isCalConnected = useMemo(() => {
+        if (!integration || !integration.scopes) return false;
+        return integration.scopes.some((s) => s.endsWith('Calendars.ReadWrite'));
+    }, [integration]);
+
+    const status = isCalConnected ? 'active' : 'inactive';
 
     const { handleSubmit, setValue, control } = useForm();
 
@@ -78,10 +84,9 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
             },
             {
                 onSuccess: async () => {
-                    setStatus('inactive');
                     toast.success('Microsoft Calendar Integration disconnected');
-                    await queryClient.invalidateQueries({
-                        queryKey: ['user_integration', user?.id, 'microsoft_calendar'],
+                    queryClient.invalidateQueries({
+                        queryKey: ['user_integration', user?.id, 'microsoft'],
                     });
                 },
                 onError: (error) => {
@@ -131,7 +136,6 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
     useEffect(() => {
         setLoading(isLoading);
         if (integration) {
-            setStatus(integration.status);
             if (integration.config && integration.config.syncStatus) {
                 setValue('syncStatus', integration.config.syncStatus);
             }
