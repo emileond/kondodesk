@@ -5,7 +5,16 @@ import timezone from 'dayjs/plugin/timezone';
 import isToday from 'dayjs/plugin/isToday';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/react';
+import {
+    Button,
+    Card,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownTrigger,
+    Tooltip,
+    useDisclosure,
+} from '@heroui/react';
 import {
     RiAddLine,
     RiArrowDownSLine,
@@ -17,6 +26,9 @@ import {
     RiLayoutRowLine,
     RiMenuLine,
 } from 'react-icons/ri';
+import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCalendars.js';
+import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.jsx';
+import EventDetailsPopover from './EventDetailsPopover.jsx';
 
 // FIX: These plugins must be extended for dayjs to have the required functionality.
 dayjs.extend(utc);
@@ -26,81 +38,6 @@ dayjs.extend(localizedFormat);
 dayjs.extend(isSameOrBefore);
 dayjs.tz.setDefault(dayjs.tz.guess()); // Auto-detect user's timezone
 
-// --- MOCK DATA (Source dates are in UTC) ---
-const mockEvents = [
-    {
-        id: 1,
-        title: 'Team Standup',
-        calendar: 'Work',
-        start: '2025-08-06T14:00:00Z',
-        end: '2025-08-06T14:30:00Z',
-        color: 'blue',
-    },
-    {
-        id: 2,
-        title: 'Design Review',
-        calendar: 'Work',
-        start: '2025-08-06T19:00:00Z',
-        end: '2025-08-06T20:00:00Z',
-        color: 'blue',
-    },
-    {
-        id: 3,
-        title: 'Lunch with Sarah',
-        calendar: 'Personal',
-        start: '2025-08-06T17:30:00Z',
-        end: '2025-08-06T18:30:00Z',
-        color: 'green',
-    },
-    {
-        id: 4,
-        title: 'Frontend Sync',
-        calendar: 'Work',
-        start: '2025-08-08T16:00:00Z',
-        end: '2025-08-08T17:00:00Z',
-        color: 'blue',
-    },
-    {
-        id: 5,
-        title: 'Project Kickoff',
-        calendar: 'Project X',
-        start: '2025-08-11T15:00:00Z',
-        end: '2025-08-11T16:30:00Z',
-        color: 'violet',
-    },
-    {
-        id: 6,
-        title: 'Doctor Appointment',
-        calendar: 'Personal',
-        start: '2025-08-11T21:00:00Z',
-        end: '2025-08-11T21:30:00Z',
-        color: 'green',
-    },
-    {
-        id: 7,
-        title: 'All-day Offsite',
-        calendar: 'Work',
-        start: '2025-08-20T14:00:00Z',
-        end: '2025-08-20T22:00:00Z',
-        allDay: true,
-        color: 'blue',
-    },
-    {
-        id: 8,
-        title: 'Dentist',
-        calendar: 'Personal',
-        start: '2025-09-02T15:00:00Z',
-        end: '2025-09-02T16:00:00Z',
-        color: 'green',
-    },
-];
-
-const mockCalendars = [
-    { id: 'Work', name: 'Work', color: 'blue', isVisible: true },
-    { id: 'Personal', name: 'Personal', color: 'green', isVisible: true },
-    { id: 'Project X', name: 'Project X', color: 'purple', isVisible: false },
-];
-
 // Helper to parse UTC and convert to local time
 const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();
 
@@ -108,15 +45,25 @@ const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();
 const EventItem = ({ event }) => {
     const formatTime = (date) => parseToLocal(date).format('h:mm A');
 
+    const hexColor = event.color.startsWith('#') ? event.color : null;
+    const bgColor = hexColor ? `bg-[${hexColor}]` : 'bg-primary-500';
+
+    const { isOpen, onOpenChange } = useDisclosure();
+
     return (
-        <div
-            className={`w-full text-left p-1 rounded-md text-white bg-${event.color}-500 border border-${event.color}-600 hover:bg-${event.color}-600 transition-colors duration-150 cursor-pointer`}
-        >
-            <p className="text-xs font-semibold truncate">
-                {event.allDay ? 'All-day' : `${formatTime(event.start)} - ${formatTime(event.end)}`}
-            </p>
-            <p className="text-sm truncate">{event.title}</p>
-        </div>
+        <EventDetailsPopover event={event} isOpen={isOpen} onOpenChange={onOpenChange}>
+            <Card
+                isPressable
+                className={`w-full text-left p-1 rounded-md text-white ${bgColor} border  transition-colors duration-150 cursor-pointer`}
+            >
+                <p className="text-xs font-semibold truncate">
+                    {event.is_all_day
+                        ? 'All-day'
+                        : `${formatTime(event.start)} - ${formatTime(event.end)}`}
+                </p>
+                <p className="text-sm truncate">{event.title}</p>
+            </Card>
+        </EventDetailsPopover>
     );
 };
 
@@ -301,7 +248,7 @@ const DayView = ({ currentDate, events }) => {
                     {hours.map((hour) => (
                         <div
                             key={hour}
-                            className="h-24 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700"
+                            className="h-24 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 border-r border-content4"
                         >
                             {dayjs().hour(hour).format('hA')}
                         </div>
@@ -310,10 +257,7 @@ const DayView = ({ currentDate, events }) => {
                 <div className="relative flex-grow">
                     {/* Background Hour Slots */}
                     {hours.map((hour) => (
-                        <div
-                            key={hour}
-                            className="h-24 border-b border-gray-200 dark:border-gray-700"
-                        ></div>
+                        <div key={hour} className="h-24 border-b border-content4"></div>
                     ))}
 
                     {/* -> 5. Render the Current Time Indicator */}
@@ -408,28 +352,83 @@ const AgendaView = ({ currentDate, events }) => {
 const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month', 'agenda'] }) => {
     const [currentDate, setCurrentDate] = useState(dayjs());
     const [view, setView] = useState(initialView);
-    const [calendars, setCalendars] = useState(mockCalendars);
 
-    const visibleCalendars = useMemo(
-        () => calendars.filter((c) => c.isVisible).map((c) => c.id),
-        [calendars],
+    const [dateRange, setDateRange] = useState({});
+
+    // Fetch calendars and events using React Query hooks
+    const { data: fetchedCalendars, isLoading: isLoadingCalendars } = useCalendars();
+    const { data: events, isLoading: isLoadingEvents } = useEvents(dateRange);
+
+    const [uiCalendars, setUiCalendars] = useState([]);
+
+    // Initialize UI calendars when fetchedCalendars data arrives
+    useEffect(() => {
+        if (fetchedCalendars) {
+            setUiCalendars(fetchedCalendars.map((cal) => ({ ...cal, isVisible: true })));
+        }
+    }, [fetchedCalendars]);
+
+    // Update the date range whenever the view or current date changes
+    useEffect(() => {
+        let start, end;
+        if (view === 'month') {
+            const monthStart = currentDate.startOf('month');
+            start = monthStart.startOf('week').toISOString();
+            end = monthStart.endOf('month').endOf('week').toISOString();
+        } else if (view === 'week' || view === 'agenda') {
+            start = currentDate.startOf('week').toISOString();
+            end = currentDate.endOf('week').toISOString();
+        } else if (view === 'day') {
+            start = currentDate.startOf('day').toISOString();
+            end = currentDate.endOf('day').toISOString();
+        }
+        setDateRange({ start, end });
+    }, [currentDate, view]);
+
+    // Memoize a map of calendar IDs to calendar objects for efficient lookup
+    const calendarMap = useMemo(() => {
+        if (!uiCalendars) return new Map();
+        return new Map(uiCalendars.map((cal) => [cal.id, cal]));
+    }, [uiCalendars]);
+
+    // Get a list of visible calendar IDs for filtering
+    const visibleCalendarIds = useMemo(
+        () => uiCalendars.filter((c) => c.isVisible).map((c) => c.id),
+        [uiCalendars],
     );
-    const filteredEvents = useMemo(
-        () => mockEvents.filter((event) => visibleCalendars.includes(event.calendar)),
-        [visibleCalendars],
-    );
+
+    // Filter events based on visible calendars and enrich them with calendar data (color, name)
+    const filteredEvents = useMemo(() => {
+        if (!events || !visibleCalendarIds || !calendarMap) return [];
+        return events
+            .filter((event) => visibleCalendarIds.includes(event.calendar_id))
+            .map((event) => ({
+                ...event,
+                start: event.start_time,
+                end: event.end_time,
+                color: calendarMap.get(event.calendar_id)?.color || 'gray',
+                calendarName: calendarMap.get(event.calendar_id)?.name || 'Unknown',
+            }));
+    }, [events, visibleCalendarIds, calendarMap]);
 
     const handlePrev = () => {
-        if (view === 'month') setCurrentDate(currentDate.subtract(1, 'month'));
-        else if (view === 'week' || view === 'agenda')
-            setCurrentDate(currentDate.subtract(1, 'week'));
-        else if (view === 'day') setCurrentDate(currentDate.subtract(1, 'day'));
+        const newDate =
+            view === 'month'
+                ? currentDate.subtract(1, 'month')
+                : view === 'day'
+                  ? currentDate.subtract(1, 'day')
+                  : currentDate.subtract(1, 'week');
+        setCurrentDate(newDate);
     };
 
     const handleNext = () => {
-        if (view === 'month') setCurrentDate(currentDate.add(1, 'month'));
-        else if (view === 'week' || view === 'agenda') setCurrentDate(currentDate.add(1, 'week'));
-        else if (view === 'day') setCurrentDate(currentDate.add(1, 'day'));
+        const newDate =
+            view === 'month'
+                ? currentDate.add(1, 'month')
+                : view === 'day'
+                  ? currentDate.add(1, 'day')
+                  : currentDate.add(1, 'week');
+        setCurrentDate(newDate);
     };
 
     const handleToday = () => setCurrentDate(dayjs());
@@ -440,7 +439,9 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
     };
 
     const toggleCalendarVisibility = (id) => {
-        setCalendars(calendars.map((c) => (c.id === id ? { ...c, isVisible: !c.isVisible } : c)));
+        setUiCalendars(
+            uiCalendars.map((c) => (c.id === id ? { ...c, isVisible: !c.isVisible } : c)),
+        );
     };
 
     const titleFormat = () => {
@@ -451,7 +452,11 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
             case 'agenda': {
                 const weekStart = currentDate.startOf('week');
                 const weekEnd = weekStart.add(6, 'day');
-                return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`;
+                return Intl.DateTimeFormat(navigator.language, {
+                    dateStyle: 'medium',
+                }).formatRange(weekStart.toDate(), weekEnd.toDate(), {
+                    dateStyle: 'medium',
+                });
             }
             case 'day':
                 return Intl.DateTimeFormat(navigator.language, {
@@ -469,16 +474,24 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
         { key: 'agenda', label: 'Agenda', icon: RiCalendar2Line },
     ].filter((option) => views.includes(option.key));
 
-    const currentViewLabel = useMemo(() => {
-        return viewOptions.find((option) => option.key === view)?.label || 'View';
-    }, [view, viewOptions]);
+    const currentViewLabel = useMemo(
+        () => viewOptions.find((option) => option.key === view)?.label || 'View',
+        [view, viewOptions],
+    );
+
+    // Display a loading indicator while fetching initial data
+    if (isLoadingCalendars) {
+        return (
+            <div className="flex items-center justify-center h-[88vh]">Loading Calendars...</div>
+        );
+    }
 
     return (
-        <div className="bg-content2 text-foreground h-[88vh] flex flex-col rounded-lg border  dark:border-content3">
+        <div className="bg-content2 text-foreground h-[88vh] flex flex-col rounded-lg border border-content4 shadow-2xl">
             {/* Header */}
-            <header className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-4">
+            <header className="flex-shrink-0 p-4 border-b border-content4 flex flex-wrap items-center justify-between gap-4">
                 <div className="w-full flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                         <Button size="sm" variant="faded" onPress={handleToday}>
                             Today
                         </Button>
@@ -491,29 +504,37 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                             </Button>
                         </div>
                     </div>
-                    <h4 className="font-semibold text-center text-md truncate">{titleFormat()}</h4>
-                    <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-center text-sm truncate">{titleFormat()}</h4>
+                    <div className="flex items-center gap-1">
                         <Dropdown>
-                            <DropdownTrigger>
-                                <Button
-                                    size="sm"
-                                    variant="light"
-                                    isIconOnly
-                                    startContent={<RiCalendar2Line fontSize="1.1rem" />}
-                                ></Button>
-                            </DropdownTrigger>
+                            <Tooltip content="Calendars" placement="bottom">
+                                <div>
+                                    <DropdownTrigger>
+                                        <Button
+                                            size="sm"
+                                            variant="light"
+                                            isIconOnly
+                                            startContent={<RiCalendar2Line fontSize="1.1rem" />}
+                                        ></Button>
+                                    </DropdownTrigger>
+                                </div>
+                            </Tooltip>
                             <DropdownMenu>
-                                {calendars.map((cal) => (
-                                    <DropdownItem key={cal.id} onSelect={(e) => e.preventDefault()}>
-                                        <label className="flex items-center gap-3 cursor-pointer w-full">
-                                            <input
-                                                type="checkbox"
-                                                checked={cal.isVisible}
-                                                onChange={() => toggleCalendarVisibility(cal.id)}
-                                                className={`h-4 w-4 rounded text-${cal.color}-600 focus:ring-${cal.color}-500 border-gray-300`}
-                                            />
-                                            <span className="text-sm">{cal.name}</span>
-                                        </label>
+                                {uiCalendars.map((cal) => (
+                                    <DropdownItem
+                                        key={cal.id}
+                                        onSelect={(e) => e.preventDefault()}
+                                        startContent={<IntegrationSourceIcon type={cal.source} />}
+                                        endContent={
+                                            cal.isVisible && (
+                                                <RiCheckLine
+                                                    className={`h-4 w-4 text-${cal.color}-600`}
+                                                />
+                                            )
+                                        }
+                                        onPress={() => toggleCalendarVisibility(cal.id)}
+                                    >
+                                        {cal.name}
                                     </DropdownItem>
                                 ))}
                             </DropdownMenu>
@@ -541,19 +562,20 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                                 </DropdownMenu>
                             </Dropdown>
                         )}
-                        <Button
-                            size="sm"
-                            variant="flat"
-                            color="primary"
-                            isIconOnly
-                            startContent={<RiAddLine fontSize="1.1rem" />}
-                        ></Button>
+                        {/*<Button*/}
+                        {/*    size="sm"*/}
+                        {/*    variant="flat"*/}
+                        {/*    color="primary"*/}
+                        {/*    isIconOnly*/}
+                        {/*    startContent={<RiAddLine fontSize="1.1rem" />}*/}
+                        {/*></Button>*/}
                     </div>
                 </div>
             </header>
 
             {/* Calendar Body */}
-            <main className="flex-grow flex flex-col overflow-hidden">
+            <div className="flex-grow flex flex-col overflow-hidden">
+                {/* Conditionally render views based on the current view state */}
                 {view === 'month' && (
                     <MonthView
                         currentDate={currentDate}
@@ -566,7 +588,7 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                 {view === 'agenda' && (
                     <AgendaView currentDate={currentDate} events={filteredEvents} />
                 )}
-            </main>
+            </div>
         </div>
     );
 };

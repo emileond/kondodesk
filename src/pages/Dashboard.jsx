@@ -261,14 +261,14 @@ function DashboardPage() {
                         onFiltersChange={handleFiltersChange}
                         initialFilters={filters}
                     />
-                    {/*<Button*/}
-                    {/*    variant="flat"*/}
-                    {/*    size="sm"*/}
-                    {/*    startContent={<RiCalendarScheduleLine fontSize="1rem" />}*/}
-                    {/*    onPress={() => setViewCalendar(!viewCalendar)}*/}
-                    {/*>*/}
-                    {/*    Calendar*/}
-                    {/*</Button>*/}
+                    <Button
+                        variant="flat"
+                        size="sm"
+                        startContent={<RiCalendarScheduleLine fontSize="1rem" />}
+                        onPress={() => setViewCalendar(!viewCalendar)}
+                    >
+                        Calendar
+                    </Button>
                 </div>
                 <div className="flex gap-3">
                     <div className="flex flex-col gap-3 mb-9 basis-3/4 grow">
@@ -371,11 +371,11 @@ function DashboardPage() {
                             )}
                         </div>
                     </div>
-                    {/*{viewCalendar && (*/}
-                    {/*    <div className="basis-1/4 shrink min-w-[360px]">*/}
-                    {/*        <EventCalendar initialView="day" views={['day']} />*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
+                    {viewCalendar && (
+                        <div className="basis-1/4 shrink min-w-[360px]">
+                            <EventCalendar initialView="day" views={['day']} />
+                        </div>
+                    )}
                 </div>
             </PageLayout>
         </AppLayout>
