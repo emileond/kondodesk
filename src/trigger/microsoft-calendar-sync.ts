@@ -124,6 +124,8 @@ export const microsoftCalendarSync = task({
                         const page = await ky.get(nextLink, { headers }).json<any>();
                         const events = page.value || [];
 
+                        console.log(events);
+
                         for (let i = 0; i < events.length; i += DB_BATCH_SIZE) {
                             const batch = events.slice(i, i + DB_BATCH_SIZE);
                             await Promise.all(
@@ -138,7 +140,15 @@ export const microsoftCalendarSync = task({
                                             end_time: ev.end?.dateTime || null,
                                             is_all_day: !!ev.isAllDay,
                                             source: 'microsoft_calendar',
-                                            web_link: ev.webLink || null,
+                                            web_link: ev?.webLink || null,
+                                            meeting_url:
+                                                ev?.onlineMeetingUrl ||
+                                                ev?.onlineMeeting?.joinUrl ||
+                                                null,
+                                            location_label: ev.location?.displayName || null,
+                                            location_address: ev.location?.address?.street || null,
+                                            location_uri: ev.location?.locationUri || null,
+                                            location_coordinates: ev.location?.coordinates || null,
                                             workspace_id,
                                             user_id,
                                         },

@@ -3,8 +3,15 @@ import {
     RiAlignItemLeftLine,
     RiAlignLeft,
     RiCalendarLine,
+    RiCamera2Line,
+    RiCamera3Line,
+    RiCameraLine,
     RiExternalLinkLine,
+    RiMapPinLine,
     RiText,
+    RiVideoChatLine,
+    RiVideoOnLine,
+    RiWebcamLine,
 } from 'react-icons/ri';
 import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.jsx';
 
@@ -15,8 +22,19 @@ import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.j
 const EventDetailsPopover = ({ event, isOpen, onOpenChange, children }) => {
     if (!event) return null;
 
-    const { title, description, start_time, end_time, is_all_day, web_link, calendarName, source } =
-        event;
+    const {
+        title,
+        description,
+        start_time,
+        end_time,
+        is_all_day,
+        web_link,
+        calendarName,
+        source,
+        location_label,
+        location_uri,
+        meeting_url,
+    } = event;
 
     return (
         <Popover
@@ -27,9 +45,9 @@ const EventDetailsPopover = ({ event, isOpen, onOpenChange, children }) => {
             className="z-50"
         >
             <PopoverTrigger>{children}</PopoverTrigger>
-            <PopoverContent className="max-w-md p-3">
-                <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-4">
+            <PopoverContent className="max-w-md p-5 overflow-x-hidden">
+                <div className="w-full flex flex-col gap-6 items-start ">
+                    <div className="w-full flex items-start justify-between gap-2">
                         <div>
                             <div className="space-y-2">
                                 <IntegrationSourceIcon type={source} />
@@ -76,21 +94,54 @@ const EventDetailsPopover = ({ event, isOpen, onOpenChange, children }) => {
                             </div>
                         )}
                     </div>
-                    <div className="flex flex-col gap-3 py-3">
-                        {calendarName && (
-                            <div className="flex items-center gap-2">
-                                <RiCalendarLine className="text-default-500 text-lg" />
-                                <p className="text-sm text-default-foreground font-medium">
-                                    {calendarName}
-                                </p>
-                            </div>
-                        )}
-                    </div>
+
+                    {calendarName && (
+                        <div className="flex items-start gap-2">
+                            <RiCalendarLine className="w-8 text-default-500 text-lg" />
+                            <p className="text-sm text-default-foreground font-medium">
+                                {calendarName}
+                            </p>
+                        </div>
+                    )}
+
+                    {meeting_url && (
+                        <div className="flex items-start gap-2">
+                            <RiVideoOnLine className="w-8 text-default-500 text-lg" />
+                            <Link
+                                className="text-sm text-blue-600 font-medium"
+                                isExternal
+                                href={meeting_url}
+                            >
+                                Join Online Meeting
+                            </Link>
+                        </div>
+                    )}
+
+                    {location_label && (
+                        <div className="flex items-start gap-2">
+                            <RiMapPinLine className="w-8 text-default-500 text-lg" />
+                            <Link
+                                className="text-sm text-blue-600 font-medium"
+                                isExternal
+                                showAnchorIcon
+                                href={
+                                    location_uri
+                                        ? location_uri
+                                        : location_label.includes('https')
+                                          ? location_label
+                                          : 'https://maps.google.com/?q=' + location_label
+                                }
+                            >
+                                {location_label}
+                            </Link>
+                        </div>
+                    )}
+
                     {description && (
-                        <div className="flex items-center gap-2">
-                            <RiAlignLeft className="text-default-500 text-lg" />
+                        <div className="flex items-start gap-2">
+                            <RiAlignLeft className="w-8 text-default-500 text-lg" />
                             <div
-                                className="text-sm prose prose-sm dark:prose-invert max-h-48 overflow-auto"
+                                className="text-sm prose prose-a:prose-blue dark:prose-invert overflow-auto max-h-64"
                                 dangerouslySetInnerHTML={{ __html: description }}
                             />
                         </div>
