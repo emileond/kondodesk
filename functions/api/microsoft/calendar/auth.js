@@ -159,6 +159,12 @@ export async function onRequestPost(context) {
                                     is_all_day: isAllDay,
                                     source: 'microsoft_calendar',
                                     web_link: ev.webLink || null,
+                                    meeting_url:
+                                        ev?.onlineMeetingUrl || ev?.onlineMeeting?.joinUrl || null,
+                                    location_label: ev.location?.displayName || null,
+                                    location_address: ev.location?.address?.street || null,
+                                    location_uri: ev.location?.locationUri || null,
+                                    location_coordinates: ev.location?.coordinates || null,
                                     workspace_id,
                                     user_id,
                                 },

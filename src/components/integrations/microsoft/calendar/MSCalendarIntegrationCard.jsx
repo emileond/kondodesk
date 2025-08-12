@@ -149,7 +149,7 @@ const MSCalendarIntegrationCard = ({ isCompact }) => {
                 onDisconnect={handleDisconnect}
                 onReset={handleDisconnect}
                 onConfigure={handleConfigure}
-                hasConfigOptions={true}
+                hasConfigOptions={false}
             />
 
             <Modal isOpen={isOpen} onClose={onClose}>

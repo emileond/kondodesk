@@ -19,3 +19,5 @@ export const formatDate = (date, options = { dateStyle: 'long' }, locale = navig
     if (!date) return '';
     return new Intl.DateTimeFormat(locale, options).format(new Date(date));
 };
+
+export const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();

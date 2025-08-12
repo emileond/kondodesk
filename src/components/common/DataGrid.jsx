@@ -7,7 +7,7 @@ import {
     getFilteredRowModel,
     getPaginationRowModel,
 } from '@tanstack/react-table';
-import { Pagination, PaginationItem, PaginationCursor } from '@heroui/pagination';
+import { Pagination, PaginationItem, PaginationCursor } from '@heroui/react';
 import { RiArrowDownLine, RiArrowUpLine } from 'react-icons/ri';
 
 // Memoized DataGrid component for better performance

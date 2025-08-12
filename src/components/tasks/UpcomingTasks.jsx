@@ -11,8 +11,14 @@ import {
     ModalBody,
     ModalFooter,
     Spinner,
+    Popover,
+    PopoverTrigger,
+    PopoverContent,
+    Divider,
+    Switch,
+    Checkbox,
 } from '@heroui/react';
-import { RiExpandLeftLine, RiContractRightLine } from 'react-icons/ri';
+import { RiExpandLeftLine, RiContractRightLine, RiCalendarEventLine } from 'react-icons/ri';
 import BacklogPanel from './BacklogPanel.jsx';
 import { useUpdateMultipleTasks } from '../../hooks/react-query/tasks/useTasks.js';
 import utc from 'dayjs/plugin/utc';
@@ -22,8 +28,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import TasksFilters from './TasksFilters.jsx';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCalendars.js';
+import IntegrationSourceIcon from './integrations/IntegrationSourceIcon.jsx';
+import EmptyState from '../EmptyState.jsx';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../../hooks/react-query/user/useUser.js';
+import MarkdownIt from 'markdown-it';
 
 dayjs.extend(utc);
+const md = new MarkdownIt();
 
 const UpcomingTasks = ({
     onAutoPlan,
@@ -32,6 +45,7 @@ const UpcomingTasks = ({
     setLastPlanResponse,
     dateRange,
 }) => {
+    const navigate = useNavigate();
     const [filters, setFilters] = useState({
         project_id: null,
         milestone_id: null,
@@ -42,12 +56,87 @@ const UpcomingTasks = ({
     });
     const queryClient = useQueryClient();
     const [currentWorkspace] = useCurrentWorkspace();
+    const { data: user } = useUser();
     const {
         isOpen: isLoadingOpen,
         onOpen: onLoadingOpen,
         onClose: onLoadingClose,
     } = useDisclosure();
     const [loadingMessage, setLoadingMessage] = useState('Optimizing plan...');
+
+    // calendar data
+    const [showEvents, setShowEvents] = useState(() => {
+        return typeof window !== 'undefined'
+            ? localStorage.getItem('showPlannerEvents') === 'true'
+            : false;
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('showPlannerEvents', String(showEvents));
+        }
+    }, [showEvents]);
+
+    const eventDateRange = useMemo(() => {
+        if (!dateRange || !dateRange.from || !dateRange.to) return {};
+        return {
+            start: dayjs(dateRange.from).toISOString(),
+            end: dayjs(dateRange.to).toISOString(),
+        };
+    }, [dateRange]);
+
+    const { data: fetchedCalendars, isLoading: isLoadingCalendars } = useCalendars();
+    const { data: events, isLoading: isLoadingEvents } = useEvents(eventDateRange);
+
+    const [uiCalendars, setUiCalendars] = useState([]);
+
+    useEffect(() => {
+        if (fetchedCalendars) {
+            setUiCalendars(fetchedCalendars.map((cal) => ({ ...cal, isVisible: true })));
+        }
+    }, [fetchedCalendars]);
+
+    const handleCalendarToggle = (calendarId) => {
+        setUiCalendars((currentCalendars) =>
+            currentCalendars.map((cal) =>
+                cal.id === calendarId ? { ...cal, isVisible: !cal.isVisible } : cal,
+            ),
+        );
+    };
+
+    const visibleCalendarIds = useMemo(() => {
+        return uiCalendars.filter((cal) => cal.isVisible).map((cal) => cal.id);
+    }, [uiCalendars]);
+
+    const calendarMap = useMemo(() => {
+        if (!fetchedCalendars) return new Map();
+        return new Map(fetchedCalendars.map((cal) => [cal.id, cal]));
+    }, [fetchedCalendars]);
+
+    const enrichedEvents = useMemo(() => {
+        if (!events) return [];
+        return events
+            .filter((event) => visibleCalendarIds.includes(event.calendar_id))
+            .map((event) => ({
+                ...event,
+                start: event.start_time,
+                end: event.end_time,
+                color: calendarMap.get(event.calendar_id)?.color || 'gray',
+                calendarName: calendarMap.get(event.calendar_id)?.name || 'Unknown',
+            }));
+    }, [events, calendarMap, visibleCalendarIds]);
+
+    const eventsByDay = useMemo(() => {
+        const grouped = {};
+        enrichedEvents.forEach((event) => {
+            const dayStr = dayjs(event.start_time).format('YYYY-MM-DD');
+            if (!grouped[dayStr]) {
+                grouped[dayStr] = [];
+            }
+            grouped[dayStr].push(event);
+        });
+        return grouped;
+    }, [enrichedEvents]);
 
     // State and controls for the new summary modal
     const [planSummary, setPlanSummary] = useState('');
@@ -201,6 +290,7 @@ const UpcomingTasks = ({
                         endDate,
                         availableDates,
                         workspace_id: currentWorkspace?.workspace_id,
+                        user_id: user?.id,
                     },
                     timeout: false,
                 })
@@ -208,7 +298,7 @@ const UpcomingTasks = ({
 
             // Handle the new response structure
             setLastPlanResponse(response.plan);
-            setPlanSummary(response.reasoning);
+            setPlanSummary(md.render(response.reasoning));
             onSummaryOpen(); // Open the summary modal
 
             if (response.plan && response.plan.length > 0) {
@@ -242,6 +332,10 @@ const UpcomingTasks = ({
         if (onRollback && currentWorkspace) onRollback.current = handleRollback;
     }, [onAutoPlan, onRollback, currentWorkspace, autoPlan, handleRollback]);
 
+    const handleEmptyStateClick = () => {
+        navigate('/integrations');
+    };
+
     return (
         <>
             {/* Loading Modal */}
@@ -266,7 +360,10 @@ const UpcomingTasks = ({
                         <div className="h-52">
                             <DotLottieReact src="/lottie/calendar.lottie" autoplay loop />
                         </div>
-                        <p className="text-default-700">{planSummary}</p>
+                        <div
+                            className="prose prose-sm text-default-700"
+                            dangerouslySetInnerHTML={{ __html: planSummary }}
+                        />
                         <p className="mt-4 text-sm text-default-500">
                             If you're not happy with this plan, you can undo it by clicking the
                             "Rollback" button.
@@ -286,27 +383,103 @@ const UpcomingTasks = ({
                     onFiltersChange={handleFiltersChange}
                     initialFilters={filters}
                 />
-                <Button
-                    size="sm"
-                    variant="light"
-                    onPress={handleToggleCollapse}
-                    startContent={
-                        isBacklogCollapsed ? (
-                            <RiExpandLeftLine fontSize="1.1rem" />
-                        ) : (
-                            <RiContractRightLine fontSize="1.1rem" />
-                        )
-                    }
-                    className="text-default-600 hover:text-default-700"
-                >
-                    {isBacklogCollapsed ? 'Show backlog' : 'Hide backlog'}
-                </Button>
+                <div className="flex gap-2 items-center">
+                    <Popover placement="bottom-end">
+                        <PopoverTrigger>
+                            <Button
+                                size="sm"
+                                variant={showEvents ? 'flat' : 'light'}
+                                color={showEvents ? 'primary' : 'default'}
+                                startContent={<RiCalendarEventLine fontSize="1.1rem" />}
+                                className="text-default-600 hover:text-default-700"
+                            >
+                                Events
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-4 w-64">
+                            <div className="flex flex-col gap-4 w-full">
+                                {isLoadingCalendars ? (
+                                    <Spinner size="sm" />
+                                ) : !uiCalendars ? (
+                                    <EmptyState
+                                        title="No calendars found"
+                                        description="Connect a calendar to get started."
+                                        primaryAction="Connect a calendar"
+                                        img="calendar"
+                                        onClick={handleEmptyStateClick}
+                                    />
+                                ) : (
+                                    <>
+                                        <Switch
+                                            size="sm"
+                                            isSelected={showEvents}
+                                            onValueChange={setShowEvents}
+                                            className="font-medium"
+                                        >
+                                            Events on planner
+                                        </Switch>
+                                        <Divider />
+                                        <h4 className="text-sm font-medium text-default-500">
+                                            Calendars
+                                        </h4>
+                                        <div className="flex flex-col gap-2">
+                                            {
+                                                <div className="flex flex-col gap-1">
+                                                    {uiCalendars.map((cal) => (
+                                                        <Checkbox
+                                                            key={cal.id}
+                                                            isSelected={cal.isVisible}
+                                                            onValueChange={() =>
+                                                                handleCalendarToggle(cal.id)
+                                                            }
+                                                        >
+                                                            <span className="flex gap-2">
+                                                                <IntegrationSourceIcon
+                                                                    type={cal.source}
+                                                                />
+                                                                {cal.name}
+                                                            </span>
+                                                        </Checkbox>
+                                                    ))}
+                                                </div>
+                                            }
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                    <Button
+                        size="sm"
+                        variant="light"
+                        onPress={handleToggleCollapse}
+                        startContent={
+                            isBacklogCollapsed ? (
+                                <RiExpandLeftLine fontSize="1.1rem" />
+                            ) : (
+                                <RiContractRightLine fontSize="1.1rem" />
+                            )
+                        }
+                        className="text-default-600 hover:text-default-700"
+                    >
+                        {isBacklogCollapsed ? 'Show backlog' : 'Hide backlog'}
+                    </Button>
+                </div>
             </div>
             <div className="flex gap-3 h-[calc(100vh-140px)]">
                 <div className="basis-2/3 grow flex gap-4 overflow-x-auto snap-x">
                     {days.map((day) => {
                         const dateStr = day.format('YYYY-MM-DD');
-                        return <DayColumn key={dateStr} day={day} filters={filters} />;
+                        return (
+                            <DayColumn
+                                key={dateStr}
+                                day={day}
+                                filters={filters}
+                                events={eventsByDay[dateStr] || []}
+                                showEvents={showEvents}
+                                isLoadingEvents={isLoadingEvents || isLoadingCalendars}
+                            />
+                        );
                     })}
                 </div>
                 <BacklogPanel isBacklogCollapsed={isBacklogCollapsed} />
