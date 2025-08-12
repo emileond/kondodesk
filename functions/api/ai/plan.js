@@ -137,8 +137,8 @@ Return only the valid JSON object as your response.`;
         // Update the dates of tasks in the database based on the AI's response
         if (Array.isArray(parsedResponse.plan)) {
             const updatePromises = parsedResponse.plan.map((task) => {
-                const dateToUse = typeof task.date === 'string' ? task.date : task.date.date;
-                return supabase.from('tasks').update({ date: dateToUse }).eq('id', task.id);
+                const timestampToSave = dayjs.utc(task.date).hour(12).toISOString();
+                return supabase.from('tasks').update({ date: timestampToSave }).eq('id', task.id);
             });
 
             const results = await Promise.all(updatePromises);

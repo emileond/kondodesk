@@ -468,7 +468,7 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
         );
     }
 
-    if (!uiCalendars && !events) {
+    if (uiCalendars?.length === 0 && events?.length === 0) {
         return (
             <div className="bg-content2 text-foreground h-[88vh] flex flex-col rounded-lg border border-content4 shadow-2xl">
                 <EmptyState
