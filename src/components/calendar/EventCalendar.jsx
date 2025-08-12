@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -27,6 +28,7 @@ import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCa
 import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.jsx';
 import EventItem from './EventItem.jsx';
 import { parseToLocal } from '../../utils/dateUtils.js';
+import EmptyState from '../EmptyState.jsx';
 
 // FIX: These plugins must be extended for dayjs to have the required functionality.
 dayjs.extend(utc);
@@ -325,6 +327,7 @@ const AgendaView = ({ currentDate, events }) => {
 
 // --- Main Calendar Component ---
 const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month', 'agenda'] }) => {
+    const navigate = useNavigate();
     const [currentDate, setCurrentDate] = useState(dayjs());
     const [view, setView] = useState(initialView);
 
@@ -454,10 +457,28 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
         [view, viewOptions],
     );
 
+    const handleEmptyStateClick = () => {
+        navigate('/integrations');
+    };
+
     // Display a loading indicator while fetching initial data
     if (isLoadingCalendars) {
         return (
             <div className="flex items-center justify-center h-[88vh]">Loading Calendars...</div>
+        );
+    }
+
+    if (!uiCalendars && !events) {
+        return (
+            <div className="bg-content2 text-foreground h-[88vh] flex flex-col rounded-lg border border-content4 shadow-2xl">
+                <EmptyState
+                    title="No calendars found"
+                    description="Connect a calendar to get started."
+                    primaryAction="Connect a calendar"
+                    img="calendar"
+                    onClick={handleEmptyStateClick}
+                />
+            </div>
         );
     }
 

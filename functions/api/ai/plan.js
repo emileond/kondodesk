@@ -8,42 +8,91 @@ dayjs.extend(utc);
 
 export async function onRequestPost(context) {
     const body = await context.request.json();
-    const { startDate, endDate, availableDates, workspace_id } = body;
+    const { startDate, endDate, availableDates, workspace_id, user_id } = body;
     const ai = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
 
     // fetch backlog from supabase
     const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-    const { data: backlog } = await supabase
-        .from('tasks')
-        .select('id, name, description, priority, project_id, milestone_id')
-        .eq('workspace_id', workspace_id)
-        .is('date', null)
-        .eq('status', 'pending')
-        .order('order')
-        .limit(50);
+    const [backlogResult, eventsResult] = await Promise.all([
+        supabase
+            .from('tasks')
+            .select('id, name, description, priority, project_id, milestone_id')
+            .eq('workspace_id', workspace_id)
+            .eq('assignee', user_id)
+            .is('date', null)
+            .eq('status', 'pending')
+            .order('order')
+            .limit(50),
+        supabase
+            .from('events')
+            .select('title, start_time, end_time')
+            .eq('workspace_id', workspace_id)
+            .eq('user_id', user_id)
+            .gte('start_time', startDate)
+            .lte('start_time', endDate),
+    ]);
 
-    const prompt = `You are a friendly and intelligent planning assistant. Your goal is to schedule tasks from a backlog onto a calendar, respecting user workload and constraints. Generate a balanced schedule for the user between ${startDate} and ${endDate}.
+    if (backlogResult.error || eventsResult.error) {
+        console.error(
+            'Error fetching data from Supabase:',
+            backlogResult.error || eventsResult.error,
+        );
+        return new Response(JSON.stringify({ error: 'Failed to fetch necessary data.' }), {
+            status: 500,
+        });
+    }
 
-Inputs:
-- availableDates: an array of objects containing UTC ISO-8601 datetimes (start-of-day) and weekday names on which you MAY place new tasks. Do NOT schedule tasks on any dates _not_ in this list: ${JSON.stringify(availableDates)} 
-- backlog: An array of unscheduled tasks, ordered by priority (earlier items should be scheduled first): ${JSON.stringify(backlog)}
-- dateRange: Schedule tasks from ${startDate} (inclusive) to ${endDate} (inclusive) in UTC.
+    const backlog = backlogResult.data;
+    const userEvents = eventsResult.data;
 
-Requirements:
-1.  **Strict Whitelist**: You may only assign tasks to dates in \`availableDates\`. If a backlog item cannot fit on any of those dates, leave it unscheduled.
-2.  **Max 3 Tasks per Day**: None of the provided availableDates have ≥3 existing tasks, so you only need to worry about distributing the backlog intelligently.
-3.  **Context-Aware Distribution**: Instead of evenly distributing tasks, consider both the task context (name and description) and the day of the week. For example:
-   - Schedule collaborative tasks on Mondays and Tuesdays.
-   - Schedule deep work, coding, and creative tasks on Wednesdays and Thursdays.
-   - Schedule planning, reviews, and lighter tasks on Fridays.
-   - Match task content with appropriate days (e.g., "weekly review" tasks on Fridays).
+    function summarizeDailyWorkload(events) {
+        const dailyWorkload = {};
 
-Output Format:
+        for (const event of events) {
+            const eventDate = dayjs(event.start_time).utc().format('YYYY-MM-DD');
+            if (!dailyWorkload[eventDate]) {
+                dailyWorkload[eventDate] = { eventCount: 0, titles: [] };
+            }
+            dailyWorkload[eventDate].eventCount++;
+            dailyWorkload[eventDate].titles.push(event.title);
+        }
+        return dailyWorkload;
+    }
+
+    // In your main function:
+    const currentDateUTC = dayjs().utc().toISOString();
+    const dailySummary = summarizeDailyWorkload(userEvents || []);
+
+    const prompt = `You are an expert planning assistant. Your goal is to intelligently schedule tasks from a backlog onto a calendar.
+
+**Context:**
+- Current Datetime (UTC): ${currentDateUTC}
+- Planning Range (UTC): ${startDate} to ${endDate}
+
+**Inputs:**
+- availableDates: An array of objects with UTC dates (start-of-day) and weekdays where you can schedule tasks. You must only use dates from this list: ${JSON.stringify(availableDates)} 
+- backlog: An array of unscheduled tasks, ordered by priority: ${JSON.stringify(backlog)}
+- existingWorkload: A JSON object summarizing the user's existing commitments. Keys are dates ('YYYY-MM-DD'), and values show the number of events: ${JSON.stringify(dailySummary)}
+
+**Requirements:**
+1.  **Dynamic Workload Balancing**: Use the \`existingWorkload\` summary to balance the schedule.
+    - **On Busy Days**: If a day shows a high \`eventCount\`, schedule only 1-2 new, low-effort tasks.
+    - **On Open Days**: If a day has an \`eventCount\` of 0 or 1, use it for more substantial, high-effort tasks.
+    - **Hard Limit**: Never schedule more than 3 new tasks on any single day.
+2.  **Strict Whitelist**: Only assign tasks to dates present in the \`availableDates\` array.
+3.  **Context-Aware Distribution**: Consider the task's name/description and the day of the week for thematic scheduling (e.g., deep work mid-week, reviews on Fridays).
+
+**Output Format:**
 - Return ONLY a single JSON object.
 - The object must have two keys: "plan" and "reasoning".
-- "plan": An array of objects representing *only the tasks from the backlog that you were able to schedule*. Each object must have "id" and "date".
-- "reasoning": A brief, user-friendly summary (2-3 sentences) explaining the logic behind the schedule. The tone should be neutral, calm, and encouraging, like a helpful assistant (think Sunsama or Headspace). **Crucially, do not use first-person pronouns like "I" or "we".** Frame the explanation from the app's perspective. For example, instead of "I scheduled creative tasks...", say "This plan prioritizes creative tasks mid-week, with lighter reviews scheduled for Friday to ensure a balanced and productive week."
+- "plan": An array of scheduled tasks. Each object must have "id" (string) and "date" (string in "YYYY-MM-DD" format).
+- "reasoning": A **narrative summary** written in the voice of a calm, encouraging, and strategic project manager (think of the tone used by apps like Asana, Sunsama, or Notion). It must sound natural and human, not like a computer listing its steps. Use simple Markdown for clarity (bolding for emphasis and new paragraphs for structure).
+
+  The narrative must have three parts:
+  1.  **A Clear Headline:** Start with a single, confident sentence that frames the outcome.
+  2.  **The Strategic Narrative:** In a short paragraph (2-3 sentences), explain the "story" of the plan, using one or two specific examples to illustrate the strategy. For instance, mention a key project or a specific day that exemplifies the plan. Describe the core strategy and how it helps the user. **Do not** simply list the rules you followed.
+  3.  **A Forward-Looking Close:** End with a single, positive sentence that encourages the user.
 
 Return only the valid JSON object as your response.`;
 

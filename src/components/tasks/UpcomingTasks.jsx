@@ -30,8 +30,13 @@ import TasksFilters from './TasksFilters.jsx';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCalendars.js';
 import IntegrationSourceIcon from './integrations/IntegrationSourceIcon.jsx';
+import EmptyState from '../EmptyState.jsx';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../../hooks/react-query/user/useUser.js';
+import MarkdownIt from 'markdown-it';
 
 dayjs.extend(utc);
+const md = new MarkdownIt();
 
 const UpcomingTasks = ({
     onAutoPlan,
@@ -40,6 +45,7 @@ const UpcomingTasks = ({
     setLastPlanResponse,
     dateRange,
 }) => {
+    const navigate = useNavigate();
     const [filters, setFilters] = useState({
         project_id: null,
         milestone_id: null,
@@ -50,6 +56,7 @@ const UpcomingTasks = ({
     });
     const queryClient = useQueryClient();
     const [currentWorkspace] = useCurrentWorkspace();
+    const { data: user } = useUser();
     const {
         isOpen: isLoadingOpen,
         onOpen: onLoadingOpen,
@@ -283,6 +290,7 @@ const UpcomingTasks = ({
                         endDate,
                         availableDates,
                         workspace_id: currentWorkspace?.workspace_id,
+                        user_id: user?.id,
                     },
                     timeout: false,
                 })
@@ -290,7 +298,7 @@ const UpcomingTasks = ({
 
             // Handle the new response structure
             setLastPlanResponse(response.plan);
-            setPlanSummary(response.reasoning);
+            setPlanSummary(md.render(response.reasoning));
             onSummaryOpen(); // Open the summary modal
 
             if (response.plan && response.plan.length > 0) {
@@ -324,6 +332,10 @@ const UpcomingTasks = ({
         if (onRollback && currentWorkspace) onRollback.current = handleRollback;
     }, [onAutoPlan, onRollback, currentWorkspace, autoPlan, handleRollback]);
 
+    const handleEmptyStateClick = () => {
+        navigate('/integrations');
+    };
+
     return (
         <>
             {/* Loading Modal */}
@@ -348,7 +360,10 @@ const UpcomingTasks = ({
                         <div className="h-52">
                             <DotLottieReact src="/lottie/calendar.lottie" autoplay loop />
                         </div>
-                        <p className="text-default-700">{planSummary}</p>
+                        <div
+                            className="prose prose-sm text-default-700"
+                            dangerouslySetInnerHTML={{ __html: planSummary }}
+                        />
                         <p className="mt-4 text-sm text-default-500">
                             If you're not happy with this plan, you can undo it by clicking the
                             "Rollback" button.
@@ -383,39 +398,54 @@ const UpcomingTasks = ({
                         </PopoverTrigger>
                         <PopoverContent className="p-4 w-64">
                             <div className="flex flex-col gap-4 w-full">
-                                {/*<h4 className="text-sm font-semibold">Events</h4>*/}
-                                <Switch
-                                    size="sm"
-                                    isSelected={showEvents}
-                                    onValueChange={setShowEvents}
-                                    className="font-medium"
-                                >
-                                    Events on planner
-                                </Switch>
-                                <Divider />
-                                <h4 className="text-sm font-medium text-default-500">Calendars</h4>
-                                <div className="flex flex-col gap-2">
-                                    {isLoadingCalendars ? (
-                                        <Spinner size="sm" />
-                                    ) : (
-                                        <div className="flex flex-col gap-1">
-                                            {uiCalendars.map((cal) => (
-                                                <Checkbox
-                                                    key={cal.id}
-                                                    isSelected={cal.isVisible}
-                                                    onValueChange={() =>
-                                                        handleCalendarToggle(cal.id)
-                                                    }
-                                                >
-                                                    <span className="flex gap-2">
-                                                        <IntegrationSourceIcon type={cal.source} />
-                                                        {cal.name}
-                                                    </span>
-                                                </Checkbox>
-                                            ))}
+                                {isLoadingCalendars ? (
+                                    <Spinner size="sm" />
+                                ) : !uiCalendars ? (
+                                    <EmptyState
+                                        title="No calendars found"
+                                        description="Connect a calendar to get started."
+                                        primaryAction="Connect a calendar"
+                                        img="calendar"
+                                        onClick={handleEmptyStateClick}
+                                    />
+                                ) : (
+                                    <>
+                                        <Switch
+                                            size="sm"
+                                            isSelected={showEvents}
+                                            onValueChange={setShowEvents}
+                                            className="font-medium"
+                                        >
+                                            Events on planner
+                                        </Switch>
+                                        <Divider />
+                                        <h4 className="text-sm font-medium text-default-500">
+                                            Calendars
+                                        </h4>
+                                        <div className="flex flex-col gap-2">
+                                            {
+                                                <div className="flex flex-col gap-1">
+                                                    {uiCalendars.map((cal) => (
+                                                        <Checkbox
+                                                            key={cal.id}
+                                                            isSelected={cal.isVisible}
+                                                            onValueChange={() =>
+                                                                handleCalendarToggle(cal.id)
+                                                            }
+                                                        >
+                                                            <span className="flex gap-2">
+                                                                <IntegrationSourceIcon
+                                                                    type={cal.source}
+                                                                />
+                                                                {cal.name}
+                                                            </span>
+                                                        </Checkbox>
+                                                    ))}
+                                                </div>
+                                            }
                                         </div>
-                                    )}
-                                </div>
+                                    </>
+                                )}
                             </div>
                         </PopoverContent>
                     </Popover>
