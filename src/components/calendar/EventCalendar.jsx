@@ -7,16 +7,13 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import {
     Button,
-    Card,
     Dropdown,
     DropdownItem,
     DropdownMenu,
     DropdownTrigger,
     Tooltip,
-    useDisclosure,
 } from '@heroui/react';
 import {
-    RiAddLine,
     RiArrowDownSLine,
     RiArrowLeftSLine,
     RiArrowRightSLine,
@@ -28,7 +25,8 @@ import {
 } from 'react-icons/ri';
 import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCalendars.js';
 import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.jsx';
-import EventDetailsPopover from './EventDetailsPopover.jsx';
+import EventItem from './EventItem.jsx';
+import { parseToLocal } from '../../utils/dateUtils.js';
 
 // FIX: These plugins must be extended for dayjs to have the required functionality.
 dayjs.extend(utc);
@@ -37,35 +35,6 @@ dayjs.extend(isToday);
 dayjs.extend(localizedFormat);
 dayjs.extend(isSameOrBefore);
 dayjs.tz.setDefault(dayjs.tz.guess()); // Auto-detect user's timezone
-
-// Helper to parse UTC and convert to local time
-const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();
-
-// --- EventItem Component ---
-const EventItem = ({ event }) => {
-    const formatTime = (date) => parseToLocal(date).format('h:mm A');
-
-    const hexColor = event.color.startsWith('#') ? event.color : null;
-    const bgColor = hexColor ? `bg-[${hexColor}]` : 'bg-primary-500';
-
-    const { isOpen, onOpenChange } = useDisclosure();
-
-    return (
-        <EventDetailsPopover event={event} isOpen={isOpen} onOpenChange={onOpenChange}>
-            <Card
-                isPressable
-                className={`w-full text-left p-1 rounded-md text-white ${bgColor} border  transition-colors duration-150 cursor-pointer`}
-            >
-                <p className="text-xs font-semibold truncate">
-                    {event.is_all_day
-                        ? 'All-day'
-                        : `${formatTime(event.start)} - ${formatTime(event.end)}`}
-                </p>
-                <p className="text-sm truncate">{event.title}</p>
-            </Card>
-        </EventDetailsPopover>
-    );
-};
 
 // --- Calendar Views ---
 const MonthView = ({ currentDate, events, onDayClick }) => {
@@ -256,9 +225,15 @@ const DayView = ({ currentDate, events }) => {
                 </div>
                 <div className="relative flex-grow">
                     {/* Background Hour Slots */}
-                    {hours.map((hour) => (
-                        <div key={hour} className="h-24 border-b border-content4"></div>
-                    ))}
+                    {hours.map((hour) => {
+                        const hasPassed = isToday && hour < currentTime.hour();
+                        return (
+                            <div
+                                key={hour}
+                                className={`h-24 border-b border-content4 ${hasPassed ? 'bg-content3/40' : ''}`}
+                            ></div>
+                        );
+                    })}
 
                     {/* -> 5. Render the Current Time Indicator */}
                     {isToday && (

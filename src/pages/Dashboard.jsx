@@ -3,6 +3,7 @@ import AppLayout from '../components/layout/AppLayout';
 import PageLayout from '../components/layout/PageLayout';
 import {
     RiAddLine,
+    RiCalendarEventLine,
     RiCalendarScheduleLine,
     RiCollapseVerticalLine,
     RiExpandVerticalSLine,
@@ -262,12 +263,14 @@ function DashboardPage() {
                         initialFilters={filters}
                     />
                     <Button
-                        variant="flat"
                         size="sm"
-                        startContent={<RiCalendarScheduleLine fontSize="1rem" />}
+                        variant={viewCalendar ? 'flat' : 'light'}
+                        color={viewCalendar ? 'primary' : 'default'}
+                        startContent={<RiCalendarEventLine fontSize="1.1rem" />}
+                        className="text-default-600 hover:text-default-700"
                         onPress={() => setViewCalendar(!viewCalendar)}
                     >
-                        Calendar
+                        Events
                     </Button>
                 </div>
                 <div className="flex gap-3">

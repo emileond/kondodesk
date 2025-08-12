@@ -1,4 +1,4 @@
-import { Button, useDisclosure } from '@heroui/react';
+import { Button, Spinner, Tooltip, useDisclosure } from '@heroui/react';
 import { RiAddLine } from 'react-icons/ri';
 import DraggableList from './DraggableList.jsx';
 import dayjs from 'dayjs';
@@ -8,12 +8,15 @@ import { useTasks, useUpdateMultipleTasks } from '../../hooks/react-query/tasks/
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace.js';
 import timezone from 'dayjs/plugin/timezone'; // For handling time zones
 import utc from 'dayjs/plugin/utc';
+import EventItem from '../calendar/EventItem.jsx';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 // Extend dayjs with plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const DayColumn = ({ day, filters }) => {
+const DayColumn = ({ day, filters, events, showEvents, isLoadingEvents }) => {
+    const [parent] = useAutoAnimate();
     const [currentWorkspace] = useCurrentWorkspace();
     const { mutateAsync: updateMultipleTasks } = useUpdateMultipleTasks(currentWorkspace);
 
@@ -102,24 +105,43 @@ const DayColumn = ({ day, filters }) => {
             <NewTaskModal isOpen={isOpen} onOpenChange={onOpenChange} defaultDate={newTaskDate} />
             <div
                 key={dateStr}
-                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3' : 'bg-content2'} border-1 border-default-200 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md flex-shrink-0 snap-center overflow-y-hidden ${isPast ? 'opacity-60' : ''}`}
+                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3' : 'bg-content2'} border-1 border-default-300 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md flex-shrink-0 snap-center overflow-y-hidden ${isPast ? 'opacity-60' : ''}`}
+                ref={parent}
             >
                 <div
-                    className={`p-2 border-b-2 ${isToday ? 'border-secondary' : 'border-default'}`}
+                    className={`flex items-center justify-between border-b-2 ${isToday ? 'border-secondary' : 'border-default'}`}
                 >
-                    <div className="font-semibold">{day.format('dddd')}</div>
-                    <div className="text-sm text-default-500">{day.format('MMM D')}</div>
+                    <div className={`p-2 `}>
+                        <div className="font-semibold">{day.format('dddd')}</div>
+                        <div className="text-sm text-default-500">{day.format('MMM D')}</div>
+                    </div>
+                    <Tooltip content="Add task" placement="bottom">
+                        <Button
+                            size="sm"
+                            color="primary"
+                            variant="light"
+                            isIconOnly
+                            startContent={<RiAddLine fontSize="1.1rem" />}
+                            onPress={() => handleNewTask(dateStr)}
+                        ></Button>
+                    </Tooltip>
                 </div>
-                <Button
-                    size="sm"
-                    color="primary"
-                    variant="light"
-                    startContent={<RiAddLine />}
-                    className="justify-start"
-                    onPress={() => handleNewTask(dateStr)}
-                >
-                    Add task
-                </Button>
+                {showEvents && (
+                    <div className="flex flex-col gap-1 border-b border-content4 pb-3 h-44 overflow-y-auto">
+                        <h5 className="text-xs font-bold text-default-500">
+                            Events {events?.length > 0 && `(${events?.length})`}
+                        </h5>
+                        {isLoadingEvents ? (
+                            <Spinner size="sm" />
+                        ) : events && events.length > 0 ? (
+                            events.map((event) => (
+                                <EventItem key={event.id} event={event} isCompact />
+                            ))
+                        ) : (
+                            <p className="text-xs text-default-400">No events scheduled.</p>
+                        )}
+                    </div>
+                )}
                 {tasks && (
                     <DraggableList
                         id={dateStr}
