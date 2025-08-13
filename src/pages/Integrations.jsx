@@ -83,9 +83,9 @@ function IntegrationsPage() {
 
                     <Tab key="calendar" title="Calendar">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                            <CalendlyIntegrationCard />
                             <MSCalendarIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && <CalcomIntegrationCard />}
-                            {user?.email === 'sonarart@gmail.com' && <CalendlyIntegrationCard />}
                         </div>
                     </Tab>
 
