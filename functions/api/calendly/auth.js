@@ -97,7 +97,6 @@ export async function onRequestPost(context) {
             .upsert(
                 {
                     integration_id,
-                    external_id: cal.id,
                     name: userData.resource.slug,
                     color: null,
                     source: 'calendly',
