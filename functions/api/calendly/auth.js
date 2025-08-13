@@ -136,7 +136,7 @@ export async function onRequestPost(context) {
                                 start_time: ev?.start_time,
                                 end_time: ev?.end_time,
                                 source: 'calendly',
-                                web_link: ev.uri,
+                                web_link: 'https://calendly.com/app/scheduled_events/user/me',
                                 location_label: ev.location?.location || ev.location?.join_url,
                                 workspace_id,
                                 user_id,
