@@ -19,6 +19,8 @@ import ZohoProjectsIntegrationCard from '../components/integrations/zoho/project
 import NiftyIntegrationCard from '../components/integrations/nifty/NiftyIntegrationCard.jsx';
 import AworkIntegrationCard from '../components/integrations/awork/AworkIntegrationCard.jsx';
 import MSCalendarIntegrationCard from '../components/integrations/microsoft/calendar/MSCalendarIntegrationCard.jsx';
+import CalcomIntegrationCard from '../components/integrations/calcom/CalcomIntegrationCard.jsx';
+import CalendlyIntegrationCard from '../components/integrations/calendly/CalendlyIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -82,6 +84,8 @@ function IntegrationsPage() {
                     <Tab key="calendar" title="Calendar">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
                             <MSCalendarIntegrationCard />
+                            {user?.email === 'sonarart@gmail.com' && <CalcomIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && <CalendlyIntegrationCard />}
                         </div>
                     </Tab>
 

@@ -306,7 +306,8 @@ const OAuthCallback = () => {
         }
     };
 
-    const handleMicrosoftToDoCallback = async ({ code }) => { // ms todo
+    const handleMicrosoftToDoCallback = async ({ code }) => {
+        // ms todo
         setLoading(true);
         try {
             await ky.post('/api/microsoft/todo/auth', {
@@ -516,6 +517,38 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleCalendlyCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            await ky.post('/api/calendly/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+
+            toast.success('Calendly integration connected');
+            await queryClient.cancelQueries({
+                queryKey: ['user_integration', user?.id, 'calendly'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['user_integration', user?.id, 'calendly'],
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Calendly';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Calendly:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -573,6 +606,9 @@ const OAuthCallback = () => {
                 break;
             case 'awork':
                 handleAworkCallback({ code });
+                break;
+            case 'calendly':
+                handleCalendlyCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');
