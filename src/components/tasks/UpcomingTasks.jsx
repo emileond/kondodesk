@@ -398,9 +398,18 @@ const UpcomingTasks = ({
                         </PopoverTrigger>
                         <PopoverContent className="p-4 w-64">
                             <div className="flex flex-col gap-4 w-full">
+                                <Switch
+                                    size="sm"
+                                    isSelected={showEvents}
+                                    onValueChange={setShowEvents}
+                                    className="font-medium"
+                                >
+                                    Show events
+                                </Switch>
+                                <Divider />
                                 {isLoadingCalendars ? (
                                     <Spinner size="sm" />
-                                ) : !uiCalendars ? (
+                                ) : uiCalendars?.length === 0 ? (
                                     <EmptyState
                                         title="No calendars found"
                                         description="Connect a calendar to get started."
@@ -410,15 +419,6 @@ const UpcomingTasks = ({
                                     />
                                 ) : (
                                     <>
-                                        <Switch
-                                            size="sm"
-                                            isSelected={showEvents}
-                                            onValueChange={setShowEvents}
-                                            className="font-medium"
-                                        >
-                                            Events on planner
-                                        </Switch>
-                                        <Divider />
                                         <h4 className="text-sm font-medium text-default-500">
                                             Calendars
                                         </h4>
