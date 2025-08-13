@@ -98,6 +98,7 @@ export async function onRequestPost(context) {
                 {
                     integration_id,
                     name: userData.resource.slug,
+                    external_id: userData.resource.uri,
                     color: null,
                     source: 'calendly',
                     is_enabled: true,
@@ -136,7 +137,7 @@ export async function onRequestPost(context) {
                                 start_time: ev?.start_time,
                                 end_time: ev?.end_time,
                                 source: 'calendly',
-                                web_link: ev.uri,
+                                web_link: 'https://calendly.com/app/scheduled_events/user/me',
                                 location_label: ev.location?.location || ev.location?.join_url,
                                 workspace_id,
                                 user_id,
