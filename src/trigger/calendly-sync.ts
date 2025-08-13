@@ -97,8 +97,8 @@ export const calendlySync = task({
                 .upsert(
                     {
                         integration_id,
-                        name: userData.resource.slug, // Using slug as a consistent name
-                        external_id: userData.resource.uri, // Using slug as a consistent name
+                        name: userData.resource.slug,
+                        external_id: userData.resource.uri,
                         source: 'calendly',
                         is_enabled: true,
                         workspace_id,

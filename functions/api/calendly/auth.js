@@ -98,6 +98,7 @@ export async function onRequestPost(context) {
                 {
                     integration_id,
                     name: userData.resource.slug,
+                    external_id: userData.resource.uri,
                     color: null,
                     source: 'calendly',
                     is_enabled: true,
