@@ -15,9 +15,16 @@ export const calculateExpiresAt = (expiresIn) => {
     return dayjs.utc().add(expiresIn, 'second').format();
 };
 
+export const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();
+
 export const formatDate = (date, options = { dateStyle: 'long' }, locale = navigator.language) => {
     if (!date) return '';
     return new Intl.DateTimeFormat(locale, options).format(new Date(date));
 };
 
-export const parseToLocal = (dateStr) => dayjs.utc(dateStr).local();
+export const formatTime = (date) =>
+    Intl.DateTimeFormat(navigator.language, {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+    }).format(parseToLocal(date));

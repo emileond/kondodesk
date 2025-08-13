@@ -27,7 +27,7 @@ import {
 import { useCalendars, useEvents } from '../../hooks/react-query/calendars/useCalendars.js';
 import IntegrationSourceIcon from '../tasks/integrations/IntegrationSourceIcon.jsx';
 import EventItem from './EventItem.jsx';
-import { parseToLocal } from '../../utils/dateUtils.js';
+import { formatTime, parseToLocal } from '../../utils/dateUtils.js';
 import EmptyState from '../EmptyState.jsx';
 
 // FIX: These plugins must be extended for dayjs to have the required functionality.
@@ -221,7 +221,7 @@ const DayView = ({ currentDate, events }) => {
                             key={hour}
                             className="h-24 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 border-r border-content4"
                         >
-                            {dayjs().hour(hour).format('hA')}
+                            {formatTime(dayjs().startOf('day').hour(hour))}
                         </div>
                     ))}
                 </div>

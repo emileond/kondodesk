@@ -1,10 +1,8 @@
-import { parseToLocal } from '../../utils/dateUtils.js';
+import { formatTime } from '../../utils/dateUtils.js';
 import { Card, useDisclosure } from '@heroui/react';
 import EventDetailsPopover from './EventDetailsPopover.jsx';
 
 const EventItem = ({ event, isCompact }) => {
-    const formatTime = (date) => parseToLocal(date).format('h:mm A');
-    const formatShortTime = (date) => parseToLocal(date).format('h:mm');
     const hexColor = event.color.startsWith('#') ? event.color : null;
     const bgColor = hexColor ? `bg-[${hexColor}]` : 'bg-primary-500';
 
@@ -17,7 +15,9 @@ const EventItem = ({ event, isCompact }) => {
                     className={`w-full text-left px-2 rounded-md text-white ${bgColor} border h-6 flex items-center gap-1.5 overflow-hidden shrink-0 cursor-pointer `}
                 >
                     <span className="text-xs font-semibold flex-shrink-0">
-                        {event.is_all_day ? 'All Day' : formatShortTime(event.start)}
+                        {event.is_all_day
+                            ? 'All Day'
+                            : `${formatTime(event.start)} - ${formatTime(event.end)}`}
                     </span>
                     <span className="text-xs truncate">{event.title}</span>
                 </div>
