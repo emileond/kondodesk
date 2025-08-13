@@ -84,6 +84,10 @@ const deleteIntegration = async ({ id, installation_id, type, serviceToDisconnec
             await ky.delete('/api/nifty/auth', {
                 json: { id },
             });
+        } else if (type === 'calendly' && id) {
+            await ky.delete('/api/calendly/auth', {
+                json: { id },
+            });
         } else {
             // Optional: Handle cases where type is not recognized or parameters are missing
             console.warn('Delete operation skipped: Invalid type or missing parameters.', {

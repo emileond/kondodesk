@@ -34,6 +34,7 @@ export async function onRequestPost(context) {
             .json();
 
         const { access_token, refresh_token, expires_in } = tokenResponse;
+
         if (!access_token)
             return Response.json(
                 { success: false, error: 'Failed to get access token' },
@@ -170,5 +171,87 @@ export async function onRequestPost(context) {
     } catch (error) {
         console.error('Error in Calendly auth flow:', error);
         return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    }
+}
+
+// Handle DELETE requests for disconnecting the integration
+export async function onRequestDelete(context) {
+    try {
+        const body = await context.request.json();
+        const { id } = body;
+
+        if (!id) {
+            return Response.json({ success: false, error: 'Missing id' }, { status: 400 });
+        }
+
+        // Initialize Supabase client
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+
+        const credentials = `${context.env.CALENDLY_CLIENT_ID}:${context.env.CALENDLY_CLIENT_SECRET}`;
+        const encodedCredentials = Buffer.from(credentials).toString('base64');
+
+        const { data, error } = await supabase
+            .from('user_integrations')
+            .select('access_token')
+            .eq('type', 'calendly')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Error fetching Calendly integration from database:', error);
+            return Response.json(
+                { success: false, error: 'Failed to delete integration data' },
+                { status: 500 },
+            );
+        }
+
+        const { access_token } = data;
+
+        try {
+            await ky.post('https://auth.calendly.com/oauth/revoke', {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    client_id: context.env.CALENDLY_CLIENT_ID,
+                    client_secret: context.env.CALENDLY_CLIENT_SECRET,
+                    token: access_token,
+                }),
+            });
+        } catch (revokeError) {
+            // Log the error, but don't block the user from deleting the integration
+            // from our system. The token might already be invalid, or Calendly's
+            // service might be down. The user's intent is to remove it from our app.
+            console.warn(
+                'Failed to revoke Calendly token, proceeding with deletion:',
+                revokeError.message,
+            );
+        }
+
+        // Delete the token from the database
+        const { error: deleteError } = await supabase
+            .from('user_integrations')
+            .delete()
+            .eq('type', 'calendly')
+            .eq('id', id);
+
+        if (deleteError) {
+            console.error('Error deleting Calendly integration from database:', deleteError);
+            return Response.json(
+                { success: false, error: 'Failed to delete integration data' },
+                { status: 500 },
+            );
+        }
+
+        return Response.json({ success: true });
+    } catch (error) {
+        console.error('Error disconnecting Calendly integration:', error);
+        return Response.json(
+            {
+                success: false,
+                error: 'Internal server error',
+            },
+            { status: 500 },
+        );
     }
 }
