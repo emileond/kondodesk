@@ -57,6 +57,7 @@ async function syncEventsInBackground(
                                 meetingUrl = videoEntryPoint.uri;
                             }
                         }
+                        // Note: We return the promise here, not awaiting it yet.
                         return supabase.from('events').upsert(
                             {
                                 calendar_id,
@@ -79,20 +80,37 @@ async function syncEventsInBackground(
                             },
                         );
                     });
-                    await Promise.all(upserts);
+
+                    // Process each upsert promise in the batch sequentially to avoid "Too many subrequests"
+                    for (const upsertPromise of upserts) {
+                        const { error } = await upsertPromise;
+                        if (error) {
+                            console.error('Error during sequential upsert:', error);
+                        }
+                    }
                 }
                 eventsPageToken = eventPage.nextPageToken || null;
             } while (eventsPageToken);
         } catch (err) {
-            console.error(
-                `Background sync failed for calendar ${cal.id}:`,
-                err?.response?.body || err,
-            );
+            let errorDetails = err;
+            if (err.response) {
+                try {
+                    errorDetails = await err.response.json();
+                } catch (e) {
+                    errorDetails = await err.response.text();
+                }
+            }
+            console.error(`Background sync failed for calendar ${cal.id}:`, errorDetails);
         }
     }
     console.log(`Finished background event sync for integration_id: ${integration_id}`);
 }
 
+/**
+ * Main Cloudflare Pages Function to handle the POST request for Google Calendar OAuth callback.
+ * It performs the initial, quick steps of the integration and then hands off the
+ * long-running event import to a background process using `waitUntil`.
+ */
 export async function onRequestPost(context) {
     try {
         const body = await context.request.json();
