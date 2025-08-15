@@ -5,6 +5,94 @@ import { toUTC, calculateExpiresAt } from '../../../../src/utils/dateUtils.js';
 const GOOGLE_API_BASE = 'https://www.googleapis.com/calendar/v3';
 const DB_BATCH_SIZE = 50;
 
+async function syncEventsInBackground(
+    context,
+    { headers, integration_id, allCalendars, calendarIdMap, user_id, workspace_id },
+) {
+    console.log(`Starting background event sync for integration_id: ${integration_id}`);
+    const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+
+    // Fetch events from one month in the past to one year in the future.
+    const timeMin = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
+    const timeMax = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+
+    for (const cal of allCalendars) {
+        const calendar_id = calendarIdMap.get(cal.id);
+        if (!calendar_id) continue;
+
+        try {
+            let eventsPageToken = null;
+            do {
+                const params = new URLSearchParams({
+                    maxResults: '2500',
+                    timeMin: timeMin,
+                    timeMax: timeMax,
+                    singleEvents: 'true',
+                    orderBy: 'startTime',
+                });
+
+                if (eventsPageToken) {
+                    params.set('pageToken', eventsPageToken);
+                }
+
+                const encodedCalendarId = encodeURIComponent(cal.id);
+                const eventPage = await ky
+                    .get(
+                        `${GOOGLE_API_BASE}/calendars/${encodedCalendarId}/events?${params.toString()}`,
+                        { headers },
+                    )
+                    .json();
+                const events = eventPage.items || [];
+
+                for (let i = 0; i < events.length; i += DB_BATCH_SIZE) {
+                    const batch = events.slice(i, i + DB_BATCH_SIZE);
+                    const upserts = batch.map((ev) => {
+                        const isAllDay = !!ev.start.date;
+                        let meetingUrl = ev.hangoutLink || null;
+                        if (ev.conferenceData && ev.conferenceData.entryPoints) {
+                            const videoEntryPoint = ev.conferenceData.entryPoints.find(
+                                (ep) => ep.entryPointType === 'video',
+                            );
+                            if (videoEntryPoint && videoEntryPoint.uri) {
+                                meetingUrl = videoEntryPoint.uri;
+                            }
+                        }
+                        return supabase.from('events').upsert(
+                            {
+                                calendar_id,
+                                external_id: ev.id,
+                                title: ev.summary || null,
+                                description: ev.description || null,
+                                start_time: isAllDay ? ev.start.date : ev.start.dateTime,
+                                end_time: isAllDay ? ev.end.date : ev.end.dateTime,
+                                is_all_day: isAllDay,
+                                source: 'google_calendar',
+                                web_link: ev.htmlLink || null,
+                                meeting_url: meetingUrl,
+                                location_label: ev.location || null,
+                                workspace_id,
+                                user_id,
+                            },
+                            {
+                                onConflict:
+                                    'calendar_id, external_id, source, workspace_id, user_id',
+                            },
+                        );
+                    });
+                    await Promise.all(upserts);
+                }
+                eventsPageToken = eventPage.nextPageToken || null;
+            } while (eventsPageToken);
+        } catch (err) {
+            console.error(
+                `Background sync failed for calendar ${cal.id}:`,
+                err?.response?.body || err,
+            );
+        }
+    }
+    console.log(`Finished background event sync for integration_id: ${integration_id}`);
+}
+
 export async function onRequestPost(context) {
     try {
         const body = await context.request.json();
@@ -12,18 +100,14 @@ export async function onRequestPost(context) {
 
         if (!code || !user_id || !workspace_id) {
             return new Response(
-                JSON.stringify({
-                    success: false,
-                    error: 'Missing required data: code, user_id, or workspace_id',
-                }),
+                JSON.stringify({ success: false, error: 'Missing required data' }),
                 { status: 400 },
             );
         }
 
-        // Initialize the Supabase client
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
 
-        // --- Step 1: Exchange authorization code for access and refresh tokens ---
+        // --- Step 1: Exchange code for tokens (Quick) ---
         const tokenResponse = await ky
             .post('https://oauth2.googleapis.com/token', {
                 json: {
@@ -38,18 +122,17 @@ export async function onRequestPost(context) {
             .json();
 
         const { access_token, refresh_token, expires_in } = tokenResponse;
-
         if (!access_token) {
             console.error('Google token exchange failed:', tokenResponse);
             return new Response(
-                JSON.stringify({ success: false, error: 'Failed to get Google access token' }),
+                JSON.stringify({ success: false, error: 'Token exchange failed' }),
                 { status: 500 },
             );
         }
 
         const headers = { Authorization: `Bearer ${access_token}`, Accept: 'application/json' };
 
-        // Save the new integration details to the database
+        // --- Step 2: Save integration details (Quick) ---
         const expires_at = expires_in ? calculateExpiresAt(expires_in) : null;
         const { data: upsertData, error: upsertError } = await supabase
             .from('user_integrations')
@@ -67,30 +150,19 @@ export async function onRequestPost(context) {
             .select('id')
             .single();
 
-        if (upsertError) {
-            console.error('Error saving integration data:', upsertError);
-            return new Response(
-                JSON.stringify({ success: false, error: 'Failed to save integration data' }),
-                { status: 500 },
-            );
-        }
-
+        if (upsertError) throw upsertError;
         const integration_id = upsertData.id;
 
-        // Fetch all calendars from the user's calendar list with pagination ---
+        // --- Step 3: Fetch and save calendars (Relatively Quick) ---
         let allCalendars = [];
         let pageToken = null;
         do {
             const params = new URLSearchParams({ maxResults: '250' });
-            if (pageToken) {
-                params.set('pageToken', pageToken);
-            }
+            if (pageToken) params.set('pageToken', pageToken);
             const calPage = await ky
                 .get(`${GOOGLE_API_BASE}/users/me/calendarList?${params.toString()}`, { headers })
                 .json();
-
-            if (calPage.items && Array.isArray(calPage.items)) {
-                // Filter for calendars the user can write to.
+            if (calPage.items) {
                 const writeableCals = calPage.items.filter(
                     (cal) => cal.accessRole === 'owner' || cal.accessRole === 'writer',
                 );
@@ -99,7 +171,6 @@ export async function onRequestPost(context) {
             pageToken = calPage.nextPageToken || null;
         } while (pageToken);
 
-        // --- Step 4: Batch upsert calendars into the database ---
         for (let i = 0; i < allCalendars.length; i += DB_BATCH_SIZE) {
             const batch = allCalendars.slice(i, i + DB_BATCH_SIZE);
             const upserts = batch.map((cal) =>
@@ -117,127 +188,35 @@ export async function onRequestPost(context) {
                     { onConflict: 'integration_id, external_id, source, workspace_id, user_id' },
                 ),
             );
-            const results = await Promise.all(upserts);
-            results.forEach((result, index) => {
-                if (result.error) {
-                    console.error(
-                        `Failed to upsert calendar (external_id: ${batch[index].id}):`,
-                        result.error,
-                    );
-                }
-            });
+            await Promise.all(upserts);
         }
 
-        // Create a map of external_id -> internal_id for efficient event linking
         const { data: dbCalendars } = await supabase
             .from('calendars')
             .select('id, external_id')
             .eq('integration_id', integration_id);
-
         const calendarIdMap = new Map((dbCalendars || []).map((c) => [c.external_id, c.id]));
 
-        const timeMin = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
-        const timeMax = new Date(
-            new Date().setFullYear(new Date().getFullYear() + 1),
-        ).toISOString();
+        // --- Step 4: Start background sync and return response immediately ---
+        const backgroundSyncPromise = syncEventsInBackground(context, {
+            headers,
+            integration_id,
+            allCalendars,
+            calendarIdMap,
+            user_id,
+            workspace_id,
+        });
 
-        // --- Step 5: For each calendar, fetch and save its events with pagination ---
-        for (const cal of allCalendars) {
-            const calendar_id = calendarIdMap.get(cal.id);
-            if (!calendar_id) continue; // Skip if calendar wasn't saved correctly
+        context.waitUntil(backgroundSyncPromise);
 
-            try {
-                let eventsPageToken = null;
-                do {
-                    const params = new URLSearchParams({
-                        maxResults: '2500',
-                        timeMin: timeMin,
-                        timeMax: timeMax,
-                        singleEvents: 'true',
-                        orderBy: 'startTime',
-                    });
-
-                    if (eventsPageToken) {
-                        params.set('pageToken', eventsPageToken);
-                    }
-
-                    if (eventsPageToken) {
-                        params.set('pageToken', eventsPageToken);
-                    }
-
-                    // Note: Google Calendar IDs can contain special characters, so they must be encoded.
-                    const encodedCalendarId = encodeURIComponent(cal.id);
-                    const eventPage = await ky
-                        .get(
-                            `${GOOGLE_API_BASE}/calendars/${encodedCalendarId}/events?${params.toString()}`,
-                            { headers },
-                        )
-                        .json();
-
-                    const events = eventPage.items || [];
-
-                    // Batch upsert events to the database
-                    for (let i = 0; i < events.length; i += DB_BATCH_SIZE) {
-                        const batch = events.slice(i, i + DB_BATCH_SIZE);
-                        const upserts = batch.map((ev) => {
-                            const isAllDay = !!ev.start.date;
-
-                            let meetingUrl = ev.hangoutLink || null;
-                            if (ev.conferenceData && ev.conferenceData.entryPoints) {
-                                const videoEntryPoint = ev.conferenceData.entryPoints.find(
-                                    (ep) => ep.entryPointType === 'video',
-                                );
-                                if (videoEntryPoint && videoEntryPoint.uri) {
-                                    meetingUrl = videoEntryPoint.uri;
-                                }
-                            }
-
-                            return supabase.from('events').upsert(
-                                {
-                                    calendar_id,
-                                    external_id: ev.id,
-                                    title: ev.summary || null,
-                                    description: ev.description || null,
-                                    start_time: isAllDay ? ev.start.date : ev.start.dateTime,
-                                    end_time: isAllDay ? ev.end.date : ev.end.dateTime,
-                                    is_all_day: isAllDay,
-                                    source: 'google_calendar',
-                                    web_link: ev.htmlLink || null,
-                                    meeting_url: meetingUrl,
-                                    location_label: ev.location || null,
-                                    workspace_id,
-                                    user_id,
-                                },
-                                {
-                                    onConflict:
-                                        'calendar_id, external_id, source, workspace_id, user_id',
-                                },
-                            );
-                        });
-                        const eventResults = await Promise.all(upserts);
-                        eventResults.forEach((result, index) => {
-                            if (result.error) {
-                                console.error(
-                                    `Failed to upsert event (external_id: ${batch[index].id}):`,
-                                    result.error,
-                                );
-                            }
-                        });
-                    }
-
-                    eventsPageToken = eventPage.nextPageToken || null;
-                } while (eventsPageToken);
-            } catch (err) {
-                console.error(
-                    `Failed to import events for calendar ${cal.id}:`,
-                    err?.response?.body || err,
-                );
-            }
-        }
-
-        return new Response(JSON.stringify({ success: true }), { status: 200 });
+        return new Response(
+            JSON.stringify({ success: true, message: 'Sync started in background.' }),
+            { status: 200 },
+        );
     } catch (error) {
-        console.error('Error in Google Tasks auth flow:', error);
-        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
+        console.error('Critical error in Google Calendar auth flow:', error);
+        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+            status: 500,
+        });
     }
 }
