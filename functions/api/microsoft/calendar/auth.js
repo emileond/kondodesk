@@ -70,15 +70,15 @@ export async function onRequestPost(context) {
         const integration_id = upsertData.id;
 
         // Save user profile data
-        try {
-            const userData = await ky.get(`${GRAPH_BASE}/me`, { headers }).json();
-            await supabase
-                .from('user_integrations')
-                .update({ external_data: userData })
-                .eq('id', integration_id);
-        } catch (e) {
-            console.error('Could not fetch Microsoft user data:', e);
-        }
+        // try {
+        //     const userData = await ky.get(`${GRAPH_BASE}/me`, { headers }).json();
+        //     await supabase
+        //         .from('user_integrations')
+        //         .update({ external_data: userData })
+        //         .eq('id', integration_id);
+        // } catch (e) {
+        //     console.error('Could not fetch Microsoft user data:', e);
+        // }
 
         // 3) Fetch calendars
         const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
@@ -195,33 +195,40 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true });
     } catch (error) {
-        let processedError = {
-            message: error.message,
-            stack: error.stack,
-            details: 'No response body or non-API error.',
-        };
+        // This block is designed to be more robust in logging errors from `ky`.
+        // It handles API errors (with a response body) and other exceptions separately.
+
+        console.error('--- START: Critical error in Google Calendar auth flow ---');
 
         if (error.response) {
+            // This is likely an HTTPError from an API call.
+            console.error(`API Error: Received status ${error.response.status}`);
             try {
-                // Attempt to parse the response body as JSON for detailed API errors.
-                const errorBody = await error.response.json();
-                processedError.details = errorBody;
-            } catch (e) {
+                // The most reliable way to get the body is to read it as text first,
+                // then try to parse it. This avoids issues with failed JSON parsing.
+                const errorText = await error.response.text();
+                console.error('API Response Body (Text):', errorText);
+                // Optionally try to log it as pretty-printed JSON if it's valid
                 try {
-                    // If JSON parsing fails, try to read it as plain text.
-                    const textBody = await error.response.text();
-                    processedError.details = textBody;
-                } catch (textErr) {
-                    processedError.details = 'Failed to read error response body.';
+                    console.error(
+                        'API Response Body (Parsed JSON):',
+                        JSON.stringify(JSON.parse(errorText), null, 2),
+                    );
+                } catch (e) {
+                    // It wasn't JSON, but we already logged the text version.
                 }
+            } catch (textErr) {
+                console.error('Failed to read API error response body as text.', textErr);
+            }
+        } else {
+            // This is likely a network error or a bug in the code, not an API error.
+            console.error('Non-API Error:', error.message);
+            if (error.stack) {
+                console.error('Stack Trace:', error.stack);
             }
         }
 
-        // Log the structured, readable error object as a string.
-        console.error(
-            'Critical error in Google Calendar auth flow:',
-            JSON.stringify(processedError, null, 2),
-        );
+        console.error('--- END: Critical error in Google Calendar auth flow ---');
 
         return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
             status: 500,
