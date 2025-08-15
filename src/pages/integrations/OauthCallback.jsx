@@ -5,7 +5,6 @@ import { useUser } from '../../hooks/react-query/user/useUser.js';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace.js';
 import toast from 'react-hot-toast';
 import { Spinner } from '@heroui/react';
-import AppLayout from '../../components/layout/AppLayout.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 
 const OAuthCallback = () => {
@@ -549,6 +548,30 @@ const OAuthCallback = () => {
         }
     };
 
+    const handleGoogleCalendarCallback = async ({ code }) => {
+        setLoading(true);
+        try {
+            await ky.post('/api/google/calendar/auth', {
+                json: {
+                    code,
+                    user_id: user.id,
+                    workspace_id: currentWorkspace.workspace_id,
+                },
+            });
+        } catch (error) {
+            let errorMessage = 'Failed to connect Google Calendar';
+            if (error.response) {
+                const errorData = await error.response.json();
+                errorMessage = errorData.message || errorMessage;
+            }
+            console.error('Error connecting to Google Calendar:', error);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+            handleNavigate();
+        }
+    };
+
     useEffect(() => {
         if (!user || !currentWorkspace) return;
 
@@ -609,6 +632,9 @@ const OAuthCallback = () => {
                 break;
             case 'calendly':
                 handleCalendlyCallback({ code });
+                break;
+            case 'google_calendar':
+                handleGoogleCalendarCallback({ code });
                 break;
             default:
                 toast.error('Unsupported OAuth provider');

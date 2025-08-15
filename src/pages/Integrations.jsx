@@ -21,6 +21,7 @@ import AworkIntegrationCard from '../components/integrations/awork/AworkIntegrat
 import MSCalendarIntegrationCard from '../components/integrations/microsoft/calendar/MSCalendarIntegrationCard.jsx';
 import CalcomIntegrationCard from '../components/integrations/calcom/CalcomIntegrationCard.jsx';
 import CalendlyIntegrationCard from '../components/integrations/calendly/CalendlyIntegrationCard.jsx';
+import GoogleCalendarIntegrationCard from '../components/integrations/google/calendar/GoogleCalendarIntegrationCard.jsx';
 
 function IntegrationsPage() {
     const { data: user } = useUser();
@@ -86,6 +87,9 @@ function IntegrationsPage() {
                             <CalendlyIntegrationCard />
                             <MSCalendarIntegrationCard />
                             {user?.email === 'sonarart@gmail.com' && <CalcomIntegrationCard />}
+                            {user?.email === 'sonarart@gmail.com' && (
+                                <GoogleCalendarIntegrationCard />
+                            )}
                         </div>
                     </Tab>
 
