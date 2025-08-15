@@ -36,7 +36,7 @@ const GoogleCalendarIntegrationCard = ({ isCompact }) => {
             client_id: import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID,
             redirect_uri: 'https://weekfuse.com/integrations/oauth/callback/google_calendar',
             response_type: 'code',
-            scope: 'https://www.googleapis.com/auth/calendar.events',
+            scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
             access_type: 'offline',
             prompt: 'consent',
             state: state,
