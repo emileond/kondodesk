@@ -195,7 +195,19 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true });
     } catch (error) {
-        console.error('Error in Microsoft Calendar auth flow:', error);
-        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
+        let errorDetails = error;
+        if (error.response && error.response.body) {
+            try {
+                // Attempt to parse the error response as JSON
+                errorDetails = await error.response.json();
+            } catch (parseError) {
+                // If it's not JSON, read it as plain text
+                errorDetails = await error.response.text();
+            }
+        }
+        console.error('Critical error in Google Calendar auth flow:', errorDetails);
+        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+            status: 500,
+        });
     }
 }
