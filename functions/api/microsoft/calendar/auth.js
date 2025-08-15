@@ -69,18 +69,7 @@ export async function onRequestPost(context) {
 
         const integration_id = upsertData.id;
 
-        // Save user profile data
-        // try {
-        //     const userData = await ky.get(`${GRAPH_BASE}/me`, { headers }).json();
-        //     await supabase
-        //         .from('user_integrations')
-        //         .update({ external_data: userData })
-        //         .eq('id', integration_id);
-        // } catch (e) {
-        //     console.error('Could not fetch Microsoft user data:', e);
-        // }
-
-        // 3) Fetch calendars
+        // Fetch calendars
         const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
 
         if (!cals || !Array.isArray(cals.value)) {
@@ -137,7 +126,23 @@ export async function onRequestPost(context) {
         // 4) Fetch events for each calendar with pagination and batch upserts
         for (const cal of calendars) {
             try {
-                let nextLink = `${GRAPH_BASE}/me/calendars/${cal.id}/events?$top=50`;
+                const timeMin = new Date(
+                    new Date().setMonth(new Date().getMonth() - 1),
+                ).toISOString();
+                const timeMax = new Date(
+                    new Date().setFullYear(new Date().getFullYear() + 1),
+                ).toISOString();
+
+                const params = new URLSearchParams({
+                    maxResults: '2500',
+                    timeMin: timeMin,
+                    timeMax: timeMax,
+                    singleEvents: 'true',
+                    orderBy: 'startTime',
+                });
+
+                let nextLink = `${GRAPH_BASE}/me/calendars/${cal.id}/events?${params.toString()}`;
+
                 while (nextLink) {
                     const page = await ky.get(nextLink, { headers }).json();
                     const events = page.value || [];
@@ -195,43 +200,7 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true });
     } catch (error) {
-        // This block is designed to be more robust in logging errors from `ky`.
-        // It handles API errors (with a response body) and other exceptions separately.
-
-        console.error('--- START: Critical error in Google Calendar auth flow ---');
-
-        if (error.response) {
-            // This is likely an HTTPError from an API call.
-            console.error(`API Error: Received status ${error.response.status}`);
-            try {
-                // The most reliable way to get the body is to read it as text first,
-                // then try to parse it. This avoids issues with failed JSON parsing.
-                const errorText = await error.response.text();
-                console.error('API Response Body (Text):', errorText);
-                // Optionally try to log it as pretty-printed JSON if it's valid
-                try {
-                    console.error(
-                        'API Response Body (Parsed JSON):',
-                        JSON.stringify(JSON.parse(errorText), null, 2),
-                    );
-                } catch (e) {
-                    // It wasn't JSON, but we already logged the text version.
-                }
-            } catch (textErr) {
-                console.error('Failed to read API error response body as text.', textErr);
-            }
-        } else {
-            // This is likely a network error or a bug in the code, not an API error.
-            console.error('Non-API Error:', error.message);
-            if (error.stack) {
-                console.error('Stack Trace:', error.stack);
-            }
-        }
-
-        console.error('--- END: Critical error in Google Calendar auth flow ---');
-
-        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
-            status: 500,
-        });
+        console.error('Error in Google Calendar auth flow:', error);
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
