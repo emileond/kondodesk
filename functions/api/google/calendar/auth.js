@@ -81,25 +81,16 @@ async function syncEventsInBackground(
                         );
                     });
 
-                    // Process each upsert promise in the batch sequentially to avoid "Too many subrequests"
-                    for (const upsertPromise of upserts) {
-                        const { error } = await upsertPromise;
-                        if (error) {
-                            console.error('Error during sequential upsert:', error);
-                        }
-                    }
+                    await Promise.all(upserts);
                 }
                 eventsPageToken = eventPage.nextPageToken || null;
             } while (eventsPageToken);
         } catch (err) {
-            let errorDetails = err;
-            if (err.response) {
-                try {
-                    errorDetails = await err.response.json();
-                } catch (e) {
-                    errorDetails = await err.response.text();
-                }
-            }
+            console.error(
+                `Background sync failed for calendar ${cal.id}:`,
+                err?.response?.body || err,
+            );
+
             console.error(`Background sync failed for calendar ${cal.id}:`, errorDetails);
         }
     }
