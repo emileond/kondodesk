@@ -77,20 +77,7 @@ export async function onRequestPost(context) {
 
         const integration_id = upsertData.id;
 
-        // Optionally, fetch and save user's Google profile info
-        // try {
-        //     const userData = await ky
-        //         .get('https://www.googleapis.com/oauth2/v2/userinfo', { headers })
-        //         .json();
-        //     await supabase
-        //         .from('user_integrations')
-        //         .update({ external_data: userData })
-        //         .eq('id', integration_id);
-        // } catch (e) {
-        //     console.error('Could not fetch Google user data:', e);
-        // }
-
-        // --- Step 3: Fetch all calendars from the user's calendar list with pagination ---
+        // Fetch all calendars from the user's calendar list with pagination ---
         let allCalendars = [];
         let pageToken = null;
         do {
@@ -149,6 +136,11 @@ export async function onRequestPost(context) {
 
         const calendarIdMap = new Map((dbCalendars || []).map((c) => [c.external_id, c.id]));
 
+        const timeMin = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
+        const timeMax = new Date(
+            new Date().setFullYear(new Date().getFullYear() + 1),
+        ).toISOString();
+
         // --- Step 5: For each calendar, fetch and save its events with pagination ---
         for (const cal of allCalendars) {
             const calendar_id = calendarIdMap.get(cal.id);
@@ -157,7 +149,17 @@ export async function onRequestPost(context) {
             try {
                 let eventsPageToken = null;
                 do {
-                    const params = new URLSearchParams({ maxResults: '2500' });
+                    const params = new URLSearchParams({
+                        maxResults: '2500',
+                        timeMin: timeMin,
+                        timeMax: timeMax,
+                        singleEvents: 'true',
+                        orderBy: 'startTime',
+                    });
+
+                    if (eventsPageToken) {
+                        params.set('pageToken', eventsPageToken);
+                    }
 
                     if (eventsPageToken) {
                         params.set('pageToken', eventsPageToken);
@@ -235,12 +237,7 @@ export async function onRequestPost(context) {
 
         return new Response(JSON.stringify({ success: true }), { status: 200 });
     } catch (error) {
-        console.error(
-            'Critical error in Google Calendar auth flow:',
-            error?.response?.body || error,
-        );
-        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
-            status: 500,
-        });
+        console.error('Error in Google Tasks auth flow:', error);
+        return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }

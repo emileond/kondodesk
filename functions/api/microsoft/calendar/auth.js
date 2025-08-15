@@ -69,7 +69,18 @@ export async function onRequestPost(context) {
 
         const integration_id = upsertData.id;
 
-        // Fetch calendars
+        // Save user profile data
+        try {
+            const userData = await ky.get(`${GRAPH_BASE}/me`, { headers }).json();
+            await supabase
+                .from('user_integrations')
+                .update({ external_data: userData })
+                .eq('id', integration_id);
+        } catch (e) {
+            console.error('Could not fetch Microsoft user data:', e);
+        }
+
+        // 3) Fetch calendars
         const cals = await ky.get(`${GRAPH_BASE}/me/calendars`, { headers }).json();
 
         if (!cals || !Array.isArray(cals.value)) {
@@ -126,23 +137,7 @@ export async function onRequestPost(context) {
         // 4) Fetch events for each calendar with pagination and batch upserts
         for (const cal of calendars) {
             try {
-                const timeMin = new Date(
-                    new Date().setMonth(new Date().getMonth() - 1),
-                ).toISOString();
-                const timeMax = new Date(
-                    new Date().setFullYear(new Date().getFullYear() + 1),
-                ).toISOString();
-
-                const params = new URLSearchParams({
-                    maxResults: '2500',
-                    timeMin: timeMin,
-                    timeMax: timeMax,
-                    singleEvents: 'true',
-                    orderBy: 'startTime',
-                });
-
-                let nextLink = `${GRAPH_BASE}/me/calendars/${cal.id}/events?${params.toString()}`;
-
+                let nextLink = `${GRAPH_BASE}/me/calendars/${cal.id}/events?$top=50`;
                 while (nextLink) {
                     const page = await ky.get(nextLink, { headers }).json();
                     const events = page.value || [];
@@ -200,7 +195,7 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true });
     } catch (error) {
-        console.error('Error in Google Calendar auth flow:', error);
+        console.error('Error in Microsoft Calendar auth flow:', error);
         return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
 }
