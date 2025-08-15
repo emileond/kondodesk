@@ -14,7 +14,7 @@ async function syncEventsInBackground(
 
     // Fetch events from one month in the past to one year in the future.
     const timeMin = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
-    const timeMax = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+    const timeMax = new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString();
 
     for (const cal of allCalendars) {
         const calendar_id = calendarIdMap.get(cal.id);
@@ -90,8 +90,6 @@ async function syncEventsInBackground(
                 `Background sync failed for calendar ${cal.id}:`,
                 err?.response?.body || err,
             );
-
-            console.error(`Background sync failed for calendar ${cal.id}:`, errorDetails);
         }
     }
     console.log(`Finished background event sync for integration_id: ${integration_id}`);
