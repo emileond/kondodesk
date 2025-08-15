@@ -195,17 +195,34 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true });
     } catch (error) {
-        let errorDetails = error;
-        if (error.response && error.response.body) {
+        let processedError = {
+            message: error.message,
+            stack: error.stack,
+            details: 'No response body or non-API error.',
+        };
+
+        if (error.response) {
             try {
-                // Attempt to parse the error response as JSON
-                errorDetails = await error.response.json();
-            } catch (parseError) {
-                // If it's not JSON, read it as plain text
-                errorDetails = await error.response.text();
+                // Attempt to parse the response body as JSON for detailed API errors.
+                const errorBody = await error.response.json();
+                processedError.details = errorBody;
+            } catch (e) {
+                try {
+                    // If JSON parsing fails, try to read it as plain text.
+                    const textBody = await error.response.text();
+                    processedError.details = textBody;
+                } catch (textErr) {
+                    processedError.details = 'Failed to read error response body.';
+                }
             }
         }
-        console.error('Critical error in Google Calendar auth flow:', errorDetails);
+
+        // Log the structured, readable error object as a string.
+        console.error(
+            'Critical error in Google Calendar auth flow:',
+            JSON.stringify(processedError, null, 2),
+        );
+
         return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
             status: 500,
         });
