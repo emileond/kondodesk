@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone';
 import isToday from 'dayjs/plugin/isToday';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import {
     Button,
     Dropdown,
@@ -30,13 +31,92 @@ import EventItem from './EventItem.jsx';
 import { formatTime, parseToLocal } from '../../utils/dateUtils.js';
 import EmptyState from '../EmptyState.jsx';
 
-// FIX: These plugins must be extended for dayjs to have the required functionality.
+// Extend dayjs with necessary plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isToday);
 dayjs.extend(localizedFormat);
+dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 dayjs.tz.setDefault(dayjs.tz.guess()); // Auto-detect user's timezone
+
+// --- Utility Function for Calculating Event Layout ---
+const getLayoutForEvents = (events) => {
+    if (!events || events.length === 0) return [];
+
+    // 1. Sort events by start time, then by end time for determinism
+    const sortedEvents = [...events].sort((a, b) => {
+        const startA = parseToLocal(a.start);
+        const startB = parseToLocal(b.start);
+        if (startA.isSame(startB)) {
+            return parseToLocal(b.end).diff(parseToLocal(a.end));
+        }
+        return startA.diff(startB);
+    });
+
+    const layoutEvents = [];
+    let collisionGroups = [];
+
+    // 2. Group events into collision groups
+    sortedEvents.forEach((event) => {
+        const eventStart = parseToLocal(event.start);
+        let placed = false;
+
+        for (const group of collisionGroups) {
+            const lastEventInGroup = group[group.length - 1];
+            if (eventStart.isBefore(parseToLocal(lastEventInGroup.end))) {
+                group.push(event);
+                placed = true;
+                break;
+            }
+        }
+
+        if (!placed) {
+            collisionGroups.push([event]);
+        }
+    });
+
+    // 3. Calculate layout for each collision group
+    collisionGroups.forEach((group) => {
+        const columns = [];
+        group.forEach((event) => {
+            const eventStart = parseToLocal(event.start);
+            let placedInColumn = false;
+
+            for (let i = 0; i < columns.length; i++) {
+                const lastEventInColumn = columns[i][columns[i].length - 1];
+                if (eventStart.isSameOrAfter(parseToLocal(lastEventInColumn.end))) {
+                    columns[i].push(event);
+                    event.column = i;
+                    placedInColumn = true;
+                    break;
+                }
+            }
+
+            if (!placedInColumn) {
+                const newColumnIndex = columns.length;
+                columns.push([event]);
+                event.column = newColumnIndex;
+            }
+        });
+
+        const totalColumns = columns.length;
+        group.forEach((event) => {
+            const start = parseToLocal(event.start);
+            const end = parseToLocal(event.end);
+
+            layoutEvents.push({
+                ...event,
+                top: (start.hour() + start.minute() / 60) * 6, // 6rem per hour
+                height: Math.max(1.5, end.diff(start, 'hour', true) * 6), // Min height of 1.5rem
+                width: 100 / totalColumns,
+                left: (event.column / totalColumns) * 100,
+            });
+        });
+    });
+
+    return layoutEvents;
+};
 
 // --- Calendar Views ---
 const MonthView = ({ currentDate, events, onDayClick }) => {
@@ -83,7 +163,7 @@ const MonthView = ({ currentDate, events, onDayClick }) => {
                         </time>
                         <div className="flex flex-col gap-1 overflow-y-auto">
                             {dayEvents.slice(0, 3).map((event) => (
-                                <EventItem key={event.id} event={event} />
+                                <EventItem key={event.id} event={event} isCompact={true} />
                             ))}
                             {dayEvents.length > 3 && (
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -102,6 +182,15 @@ const WeekView = ({ currentDate, events }) => {
     const weekStart = currentDate.startOf('week');
     const days = Array.from({ length: 7 }, (_, i) => weekStart.add(i, 'day'));
     const hours = Array.from({ length: 24 }, (_, i) => i);
+
+    const laidOutEventsByDay = useMemo(() => {
+        const map = new Map();
+        days.forEach((day) => {
+            const dayEvents = events.filter((e) => parseToLocal(e.start).isSame(day, 'day'));
+            map.set(day.format('YYYY-MM-DD'), getLayoutForEvents(dayEvents));
+        });
+        return map;
+    }, [events, currentDate]);
 
     return (
         <div className="flex-grow flex flex-col">
@@ -149,23 +238,22 @@ const WeekView = ({ currentDate, events }) => {
                                         className="h-24 border-b border-gray-200 dark:border-gray-700"
                                     ></div>
                                 ))}
-                                {events
-                                    .filter((e) => parseToLocal(e.start).isSame(day, 'day'))
-                                    .map((event) => {
-                                        const start = parseToLocal(event.start);
-                                        const end = parseToLocal(event.end);
-                                        const top = (start.hour() + start.minute() / 60) * 6;
-                                        const height = end.diff(start, 'hour', true) * 6;
-                                        return (
-                                            <div
-                                                key={event.id}
-                                                className="absolute w-full px-1"
-                                                style={{ top: `${top}rem`, height: `${height}rem` }}
-                                            >
-                                                <EventItem event={event} />
-                                            </div>
-                                        );
-                                    })}
+                                {(laidOutEventsByDay.get(day.format('YYYY-MM-DD')) || []).map(
+                                    (event) => (
+                                        <div
+                                            key={event.id}
+                                            className="absolute px-1 z-20"
+                                            style={{
+                                                top: `${event.top}rem`,
+                                                height: `${event.height}rem`,
+                                                left: `${event.left}%`,
+                                                width: `${event.width}%`,
+                                            }}
+                                        >
+                                            <EventItem event={event} />
+                                        </div>
+                                    ),
+                                )}
                             </div>
                         ))}
                     </div>
@@ -177,42 +265,30 @@ const WeekView = ({ currentDate, events }) => {
 
 const DayView = ({ currentDate, events }) => {
     const hours = Array.from({ length: 24 }, (_, i) => i);
-    const dayEvents = events.filter((e) => parseToLocal(e.start).isSame(currentDate, 'day'));
-
-    // -> 1. Ref for the scroll container
     const scrollContainerRef = useRef(null);
-
-    // -> 2. State for the live time, to re-render the indicator
     const [currentTime, setCurrentTime] = useState(dayjs());
     const isToday = currentDate.isToday();
 
-    // -> 3. Effect for scrolling and setting up the timer
+    // Calculate layout for the day's events
+    const laidOutEvents = useMemo(() => {
+        const dayEvents = events.filter((e) => parseToLocal(e.start).isSame(currentDate, 'day'));
+        return getLayoutForEvents(dayEvents);
+    }, [events, currentDate]);
+
     useEffect(() => {
-        // Only run this logic if the view is for today
         if (isToday) {
-            // Scroll to the current hour (minus one hour for better visibility)
             if (scrollContainerRef.current) {
                 const currentHour = dayjs().hour();
-                // Each hour slot is h-24 = 6rem = 96px high
-
                 scrollContainerRef.current.scrollTop = Math.max(0, (currentHour - 1) * 96);
             }
-
-            // Set up an interval to update the current time every minute
-            const intervalId = setInterval(() => {
-                setCurrentTime(dayjs());
-            }, 60000); // 60,000 ms = 1 minute
-
-            // Cleanup function to clear the interval when the component unmounts
+            const intervalId = setInterval(() => setCurrentTime(dayjs()), 60000);
             return () => clearInterval(intervalId);
         }
-    }, [isToday]); // Rerun effect if the date changes to/from today
+    }, [isToday]);
 
-    // -> 4. Calculate the top position for the time indicator
-    const timeIndicatorTop = (currentTime.hour() + currentTime.minute() / 60) * 6; // 6rem per hour
+    const timeIndicatorTop = (currentTime.hour() + currentTime.minute() / 60) * 6;
 
     return (
-        // Attach the ref to the main scrollable container
         <div ref={scrollContainerRef} className="flex-grow flex flex-col overflow-y-auto">
             <div className="grid grid-cols-[auto_1fr] h-full">
                 <div className="w-14 flex-shrink-0">
@@ -226,7 +302,6 @@ const DayView = ({ currentDate, events }) => {
                     ))}
                 </div>
                 <div className="relative flex-grow">
-                    {/* Background Hour Slots */}
                     {hours.map((hour) => {
                         const hasPassed = isToday && hour < currentTime.hour();
                         return (
@@ -237,7 +312,6 @@ const DayView = ({ currentDate, events }) => {
                         );
                     })}
 
-                    {/* -> 5. Render the Current Time Indicator */}
                     {isToday && (
                         <div
                             className="absolute left-0 right-0 flex items-center z-30"
@@ -248,22 +322,20 @@ const DayView = ({ currentDate, events }) => {
                         </div>
                     )}
 
-                    {/* Render Events */}
-                    {dayEvents.map((event) => {
-                        const start = parseToLocal(event.start);
-                        const end = parseToLocal(event.end);
-                        const top = (start.hour() + start.minute() / 60) * 6;
-                        const height = end.diff(start, 'hour', true) * 6;
-                        return (
-                            <div
-                                key={event.id}
-                                className="absolute w-full px-1 z-20" // Add z-20 to ensure events are above the time line
-                                style={{ top: `${top}rem`, height: `${height}rem` }}
-                            >
-                                <EventItem event={event} />
-                            </div>
-                        );
-                    })}
+                    {laidOutEvents.map((event) => (
+                        <div
+                            key={event.id}
+                            className="absolute px-1 z-20"
+                            style={{
+                                top: `${event.top}rem`,
+                                height: `${event.height}rem`,
+                                left: `${event.left}%`,
+                                width: `${event.width}%`,
+                            }}
+                        >
+                            <EventItem event={event} />
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -305,14 +377,19 @@ const AgendaView = ({ currentDate, events }) => {
                                         </p>
                                     </div>
                                     <div
-                                        className={`w-1 self-stretch bg-${event.color}-500 rounded-full`}
+                                        className={`w-1 self-stretch rounded-full`}
+                                        style={{
+                                            backgroundColor: event.color?.startsWith('#')
+                                                ? event.color
+                                                : '#6B7280',
+                                        }}
                                     ></div>
                                     <div className="flex-grow">
                                         <p className="font-bold text-gray-900 dark:text-gray-100">
                                             {event.title}
                                         </p>
                                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            {event.calendar}
+                                            {event.calendarName}
                                         </p>
                                     </div>
                                 </div>
@@ -384,7 +461,7 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                 ...event,
                 start: event.start_time,
                 end: event.end_time,
-                color: calendarMap.get(event.calendar_id)?.color || 'gray',
+                color: calendarMap.get(event.calendar_id)?.color || '#6B7280', // Default to gray
                 calendarName: calendarMap.get(event.calendar_id)?.name || 'Unknown',
             }));
     }, [events, visibleCalendarIds, calendarMap]);
@@ -430,16 +507,16 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
             case 'agenda': {
                 const weekStart = currentDate.startOf('week');
                 const weekEnd = weekStart.add(6, 'day');
-                return Intl.DateTimeFormat(navigator.language, {
-                    dateStyle: 'medium',
-                }).formatRange(weekStart.toDate(), weekEnd.toDate(), {
-                    dateStyle: 'medium',
-                });
+                if (typeof Intl.DateTimeFormat.prototype.formatRange === 'function') {
+                    return new Intl.DateTimeFormat(navigator.language, {
+                        month: 'short',
+                        day: 'numeric',
+                    }).formatRange(weekStart.toDate(), weekEnd.toDate());
+                }
+                return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`;
             }
             case 'day':
-                return Intl.DateTimeFormat(navigator.language, {
-                    dateStyle: 'medium',
-                }).format(currentDate.toDate());
+                return currentDate.format('dddd, MMMM D, YYYY');
             default:
                 return '';
         }
@@ -524,7 +601,8 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                                         endContent={
                                             cal.isVisible && (
                                                 <RiCheckLine
-                                                    className={`h-4 w-4 text-${cal.color}-600`}
+                                                    className={`h-4 w-4`}
+                                                    style={{ color: cal.color }}
                                                 />
                                             )
                                         }
@@ -558,13 +636,6 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
                                 </DropdownMenu>
                             </Dropdown>
                         )}
-                        {/*<Button*/}
-                        {/*    size="sm"*/}
-                        {/*    variant="flat"*/}
-                        {/*    color="primary"*/}
-                        {/*    isIconOnly*/}
-                        {/*    startContent={<RiAddLine fontSize="1.1rem" />}*/}
-                        {/*></Button>*/}
                     </div>
                 </div>
             </header>

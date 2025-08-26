@@ -1,5 +1,5 @@
 import { formatTime } from '../../utils/dateUtils.js';
-import { Card, useDisclosure } from '@heroui/react';
+import { useDisclosure } from '@heroui/react';
 import EventDetailsPopover from './EventDetailsPopover.jsx';
 import { colorContrast } from '../../utils/colorContrast.js';
 
@@ -11,44 +11,27 @@ const EventItem = ({ event, isCompact }) => {
 
     const { isOpen, onOpenChange } = useDisclosure();
 
-    if (isCompact) {
-        return (
-            <EventDetailsPopover event={event} isOpen={isOpen} onOpenChange={onOpenChange}>
-                <div
-                    className={`w-full text-left px-2 rounded-md ${bgColor} border h-6 flex items-center gap-1.5 overflow-hidden shrink-0 cursor-pointer `}
-                    style={{
-                        backgroundColor: hexColor,
-                        color: textColor,
-                    }}
-                >
-                    <span className="text-xs font-semibold flex-shrink-0">
-                        {event.is_all_day
-                            ? 'All Day'
-                            : `${formatTime(event.start)} - ${formatTime(event.end)}`}
-                    </span>
-                    <span className="text-xs truncate">{event.title}</span>
-                </div>
-            </EventDetailsPopover>
-        );
-    }
-
     return (
         <EventDetailsPopover event={event} isOpen={isOpen} onOpenChange={onOpenChange}>
-            <Card
-                isPressable
-                className={`w-full text-left p-1 rounded-md ${bgColor} border transition-colors duration-150 cursor-pointer ${isCompact && 'h-6'}`}
+            <div
+                className={`w-full text-left px-2 rounded-md ${bgColor} ${isCompact ? 'h-6 py-1' : 'h-full py-0'} border flex items-start shrink-0 overflow-hidden cursor-pointer transition-all duration-250`}
                 style={{
                     backgroundColor: hexColor,
                     color: textColor,
+                    opacity: isOpen ? 0.65 : 0.9,
                 }}
             >
-                <p className="text-xs font-semibold truncate">
-                    {event.is_all_day
-                        ? 'All-day'
-                        : `${formatTime(event.start)} - ${formatTime(event.end)}`}
-                </p>
-                <p className="text-sm truncate">{event.title}</p>
-            </Card>
+                <span className={`text-xs text-wrap truncate`}>
+                    <span className="text-xs truncate flex-shrink-0 mr-1">
+                        {event.is_all_day ? 'All-day' : `${formatTime(event.start)}`}
+                    </span>
+                    <span
+                        className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium truncate flex-shrink-0`}
+                    >
+                        {event.title}
+                    </span>
+                </span>
+            </div>
         </EventDetailsPopover>
     );
 };
