@@ -21,7 +21,7 @@ function Sidebar() {
                 <Divider className="my-5" />
                 <WorkspaceSwitcher />
                 {navItems.map((route, index) => {
-                    const isActive = route.path === location.pathname;
+                    const isActive = String(location.pathname).includes(route.path);
 
                     return (
                         <Button

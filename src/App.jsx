@@ -17,7 +17,7 @@ import BlogPost from './pages/BlogPost.jsx';
 import ApiPage from './pages/ApiKeys.jsx';
 import TeamPage from './pages/Team.jsx';
 import IntegrationsPage from './pages/Integrations.jsx';
-import SettingsPage from './pages/Settings.jsx';
+import SettingsPage from './components/settings/SettingsGeneralTab.jsx';
 import ProfilePage from './pages/Profile.jsx';
 import AppsumoPage from './pages/Appsumo.jsx';
 import TakuWidget from './components/marketing/TakuWidget.js';
@@ -118,7 +118,7 @@ function App() {
             ),
         },
         {
-            path: '/account/:tab',
+            path: '/settings/:tab?',
             element: (
                 <ProtectedRoute>
                     <ProfilePage />
@@ -174,14 +174,6 @@ function App() {
             element: (
                 <ProtectedRoute>
                     <OauthCallback />
-                </ProtectedRoute>
-            ),
-        },
-        {
-            path: '/settings',
-            element: (
-                <ProtectedRoute>
-                    <SettingsPage />
                 </ProtectedRoute>
             ),
         },

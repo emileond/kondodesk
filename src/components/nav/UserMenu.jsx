@@ -173,12 +173,12 @@ function UserMenu({ avatarOnly }) {
                         {[
                             {
                                 name: 'Profile',
-                                path: '/account/profile',
+                                path: '/settings/profile',
                                 startContent: <RiUserLine fontSize={USER_ICON_SIZE} />,
                             },
                             {
                                 name: 'Invitations',
-                                path: '/account/invitations',
+                                path: '/settings/invitations',
                                 startContent: <RiInbox2Line fontSize={USER_ICON_SIZE} />,
                             },
                             {
