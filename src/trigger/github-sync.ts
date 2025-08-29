@@ -75,15 +75,15 @@ export const githubSync = task({
 
         const tokenExpired =
             !payload.expires_at || dayjs().utc().isAfter(dayjs(payload.expires_at));
+
         if (tokenExpired && refresh_token) {
+            logger.log('Token expired, attempting to refresh.');
             const res = await refreshToken({
                 integration_id: payload.id,
                 refresh_token: refresh_token,
             });
             access_token = res.access_token;
         }
-
-        let octokit = new Octokit({ auth: access_token });
 
         const syncIssues = async (apiClient: Octokit) => {
             const DB_BATCH_SIZE = 50;
@@ -133,39 +133,37 @@ export const githubSync = task({
         };
 
         try {
-            try {
-                // First attempt to sync issues
-                await syncIssues(octokit);
-            } catch (error) {
-                // If it's a 401, refresh the token and retry
-                if (error.status === 401) {
-                    logger.log('GitHub API returned 401. Forcing token refresh and retrying.', {
-                        error,
-                    });
+            const octokit = new Octokit({ auth: access_token });
 
-                    if (!refresh_token) {
-                        throw new AbortTaskRunError(
-                            'Cannot refresh token: no refresh_token available.',
-                        );
-                    }
-
-                    const res = await refreshToken({
-                        integration_id: payload.id,
-                        refresh_token: refresh_token, // And pass it here
-                    });
-                    access_token = res.access_token;
-
-                    // Retry with a new Octokit instance
-                    const newOctokit = new Octokit({ auth: access_token });
-                    await syncIssues(newOctokit);
-                } else {
-                    // It's not a 401, so throw to the outer catch block
-                    throw error;
-                }
-            }
+            // First attempt to sync issues
+            await syncIssues(octokit);
 
             return { success: true };
         } catch (error) {
+            // If the first attempt fails, check if we have a refresh token
+            if (refresh_token) {
+                logger.log('API call failed. Attempting token refresh and retry.');
+                try {
+                    const res = await refreshToken({
+                        integration_id: payload.id,
+                        refresh_token: refresh_token,
+                    });
+
+                    const newOctokit = new Octokit({ auth: res.access_token });
+                    await syncIssues(newOctokit);
+
+                    return { success: true };
+                } catch (retryError) {
+                    // If the retry also fails, throw the error
+                    logger.error(
+                        `Token refresh and retry failed for ID ${payload.id}:`,
+                        retryError,
+                    );
+                    throw retryError;
+                }
+            }
+
+            // If there's no refresh token, or the first attempt fails and we've already tried a refresh
             if (error instanceof AbortTaskRunError) {
                 throw error;
             }
