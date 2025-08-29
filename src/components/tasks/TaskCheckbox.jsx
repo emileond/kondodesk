@@ -394,7 +394,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
             </Modal>
 
             {/* Jira Transitions Modal */}
-            <Modal isOpen={isJiraTransitionsModalOpen} onClose={onJiraTransitionsModalClose}>
+            <Modal isOpen={isJiraTransitionsModalOpen} onClose={handleSyncDecline}>
                 <ModalContent>
                     <ModalHeader>Update Jira Status</ModalHeader>
                     <ModalBody>
@@ -430,8 +430,8 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                         </div>
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onJiraTransitionsModalClose}>
-                            Close
+                        <Button variant="flat" onPress={handleSyncDecline}>
+                            Don&#39;t change status in Jira
                         </Button>
                     </ModalFooter>
                 </ModalContent>
@@ -440,7 +440,7 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
             {/* ClickUp Status Modal */}
             <Modal
                 isOpen={isClickUpStatusModalOpen}
-                onClose={onClickUpStatusModalClose}
+                onClose={handleSyncDecline}
                 onClick={(e) => e.stopPropagation()}
             >
                 <ModalContent>
@@ -482,8 +482,8 @@ const TaskCheckbox = ({ task, isCompleted, onChange, sm }) => {
                         </div>
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onClickUpStatusModalClose}>
-                            Close
+                        <Button variant="flat" onPress={handleSyncDecline}>
+                            Don&#39;t change status in ClickUp
                         </Button>
                     </ModalFooter>
                 </ModalContent>
