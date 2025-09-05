@@ -12,6 +12,7 @@ import { RiEqualizer2Line, RiInboxLine, RiNotificationLine, RiUserLine } from 'r
 import SettingsGeneralTab from '../components/settings/SettingsGeneralTab.jsx';
 import SettingsProfileTab from '../components/settings/SettingsProfileTab.jsx';
 import SettingsRemindersTab from '../components/settings/SettingsRemindersTab.jsx';
+import SettingsBillingTab from '../components/settings/SettingsBillingTab.jsx';
 
 function ProfilePage() {
     const [currentWorkspace] = useCurrentWorkspace();
@@ -20,7 +21,7 @@ function ProfilePage() {
 
     const navigate = useNavigate();
     const { tab } = useParams();
-    const [activeTab, setActiveTab] = useState('profile');
+    const [activeTab, setActiveTab] = useState('general');
 
     useEffect(() => {
         if (tab) {
@@ -78,6 +79,18 @@ function ProfilePage() {
                             className="grow"
                         >
                             <SettingsRemindersTab />
+                        </Tab>
+                        <Tab
+                            key="billing"
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <RiEqualizer2Line />
+                                    Billing
+                                </div>
+                            }
+                            className="grow"
+                        >
+                            <SettingsBillingTab />
                         </Tab>
                         <Tab
                             key="invitations"

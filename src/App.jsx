@@ -18,7 +18,7 @@ import ApiPage from './pages/ApiKeys.jsx';
 import TeamPage from './pages/Team.jsx';
 import IntegrationsPage from './pages/Integrations.jsx';
 import SettingsPage from './components/settings/SettingsGeneralTab.jsx';
-import ProfilePage from './pages/Profile.jsx';
+import ProfilePage from './pages/Settings.jsx';
 import AppsumoPage from './pages/Appsumo.jsx';
 import TakuWidget from './components/marketing/TakuWidget.js';
 import PrivacyPolicyPage from './pages/PrivacyPolicy.jsx';
