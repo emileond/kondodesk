@@ -28,7 +28,7 @@ function Paywall({
                 )}
             </div>
             <div className="flex flex-col gap-3">
-                {volumePricing ? <VolumePricingCard /> : <PricingPlans />}
+                {volumePricing ? <VolumePricingCard /> : <PricingPlans showLTD />}
             </div>
             <div>
                 {!volumePricing && (
@@ -61,7 +61,9 @@ function Paywall({
                         </div>
                     )}
                 </ModalHeader>
-                <ModalBody>{volumePricing ? <VolumePricingCard /> : <PricingPlans />}</ModalBody>
+                <ModalBody>
+                    {volumePricing ? <VolumePricingCard /> : <PricingPlans showLTD />}
+                </ModalBody>
                 <ModalFooter>
                     {!volumePricing && (
                         <div className="w-full text-center">

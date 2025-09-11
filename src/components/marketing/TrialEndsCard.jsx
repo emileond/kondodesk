@@ -48,7 +48,7 @@ function TrialEndsCard() {
                             variant="shadow"
                             endContent={<RiArrowRightLine fontSize="1rem" />}
                         >
-                            Choose a plan
+                            Get lifetime access
                         </Button>
                     </div>
                 </CardBody>

@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import Paywall from '../marketing/Paywall.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../../hooks/react-query/user/useUser.js';
-import SubscriptionInfo from '../billing/SubscriptionInfo.jsx';
 import TagsSettings from './TagsSettings.jsx'; // Import the new component
 
 function SettingsGeneralTab() {
@@ -109,14 +108,6 @@ function SettingsGeneralTab() {
                         </Button>
                     </div>
                 </CardFooter>
-            </Card>
-            <Card shadow="sm">
-                <CardHeader>
-                    <h4 className="font-medium">Billing</h4>
-                </CardHeader>
-                <CardBody>
-                    <SubscriptionInfo onUpgradeClick={() => setIsPaywallOpen(true)} />
-                </CardBody>
             </Card>
             <Card shadow="sm">
                 <CardBody>
