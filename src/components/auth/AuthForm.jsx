@@ -5,8 +5,8 @@ import { Link as RouterLink } from 'react-router-dom';
 import { PiWarningBold } from 'react-icons/pi';
 import { useLoginUser, useRegisterUser } from '../../hooks/react-query/user/useUser';
 import Logo from '../Logo';
-import ky from 'ky';
 import GoogleAuthButton from './GoogleAuthButton.jsx';
+import { validateEmail } from '../../utils/validateEmail.js';
 
 function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
     const { mutateAsync: registerUser } = useRegisterUser();
@@ -33,21 +33,13 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
 
         if (view === 'signup') {
             // Await the email validation before proceeding
-            // const res = await ky
-            //     .post('/api/signup-validation', {
-            //         json: {
-            //             email,
-            //         },
-            //     })
-            //     .json();
-            //
-            // const isValidEmail = res.status === 'deliverable';
-            //
-            // if (!isValidEmail) {
-            //     setError('Invalid email, please use a valid email address');
-            //     setIsLoading(false);
-            //     return;
-            // }
+            const validationResult = await validateEmail(email);
+
+            if (!validationResult || validationResult.syntax_error || validationResult.disposable) {
+                setError('Invalid email, please use a valid email address');
+                setIsLoading(false);
+                return;
+            }
             try {
                 const inviteToken = localStorage.getItem('pendingInvitationToken');
 
