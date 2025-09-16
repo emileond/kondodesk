@@ -1,5 +1,3 @@
-// src/pages/AuthPage.jsx
-
 import { useEffect, useState, useRef } from 'react'; // 👈 1. Import useRef
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,7 +10,7 @@ import AuthForm from '../components/auth/AuthForm';
 import { Spinner } from '@heroui/react';
 
 function AuthPage({ viewMode }) {
-    const { data: user, isLoading: isUserLoading } = useUser();
+    const { data: user } = useUser();
     const { data: workspaces, isPending: isWorkspacesLoading } = useWorkspaces(user, {
         enabled: !!user,
     });
