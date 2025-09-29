@@ -12,6 +12,7 @@ import TagSelect from '../form/TagSelect.jsx';
 import PrioritySelect from '../form/PrioritySelect.jsx';
 import UserSelect from '../form/UserSelect.jsx';
 import { useUser } from '../../hooks/react-query/user/useUser.js';
+import TaskDetailModal from './TaskDetailModal.jsx';
 
 const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defaultMilestone }) => {
     const { data: user } = useUser();
@@ -27,6 +28,8 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
     const [selectedTags, setSelectedTags] = useState([]); // State to track selected tags
     const [selectedPriority, setSelectedPriority] = useState(null); // State to track selected priority
     const [selectedUser, setSelectedUser] = useState(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [createdTask, setCreatedTask] = useState(null);
 
     const {
         register,
@@ -37,7 +40,7 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
 
     const onSubmit = async (data) => {
         try {
-            await createTask({
+            const result = await createTask({
                 task: {
                     name: data.name,
                     description: data.description,
@@ -55,7 +58,28 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
                     creator: user?.id,
                 },
             });
-            toast.success('Task created successfully');
+
+            const newTask = result?.task || result;
+            setCreatedTask(newTask || null);
+
+            toast.custom((t) => (
+                <div className="flex items-center gap-3 px-4 py-3 bg-content1 text-foreground rounded-medium shadow-medium border border-divider">
+                    <span className="text-sm">Task created successfully</span>
+                    <Button
+                        size="sm"
+                        color="primary"
+                        variant="light"
+                        className="font-medium"
+                        onPress={() => {
+                            setIsDetailOpen(true);
+                            toast.dismiss(t.id);
+                        }}
+                    >
+                        Open
+                    </Button>
+                </div>
+            ));
+
             onOpenChange(false);
             reset();
             setSelectedProject(null);
@@ -80,72 +104,88 @@ const NewTaskModal = ({ isOpen, onOpenChange, defaultDate, defaultProject, defau
         }
     }, [isOpen, defaultDate, defaultProject, defaultMilestone, reset]);
 
+    const handleDetailOpenChange = (open) => {
+        const next = !!open;
+        setIsDetailOpen(next);
+        if (!next) setCreatedTask(null);
+    };
+
     return (
-        <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl">
-            <ModalContent>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <ModalBody className="pt-4">
-                        <div className="flex flex-col gap-6">
-                            <Input
-                                size="lg"
-                                variant="underlined"
-                                color="primary"
-                                {...register('name', {
-                                    required: true,
-                                })}
-                                label="Task"
-                                autoFocus
-                                isInvalid={!!errors.name}
-                                errorMessage="Title is required"
-                                classNames={{
-                                    inputWrapper: 'shadow-none border-0',
-                                    input: 'text-xl font-medium',
-                                    label: 'text-default-600 font-normal',
-                                }}
-                            />
-                            <div className="flex gap-2">
-                                <DatePicker value={selectedDate} onChange={setSelectedDate} />
-                                <ProjectSelect
-                                    onChange={setSelectedProject}
-                                    defaultValue={defaultProject}
+        <>
+            <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl">
+                <ModalContent>
+                    <form onSubmit={handleSubmit(onSubmit)}>
+                        <ModalBody className="pt-4">
+                            <div className="flex flex-col gap-6">
+                                <Input
+                                    size="lg"
+                                    variant="underlined"
+                                    color="primary"
+                                    {...register('name', {
+                                        required: true,
+                                    })}
+                                    label="Task"
+                                    autoFocus
+                                    isInvalid={!!errors.name}
+                                    errorMessage="Title is required"
+                                    classNames={{
+                                        inputWrapper: 'shadow-none border-0',
+                                        input: 'text-xl font-medium',
+                                        label: 'text-default-600 font-normal',
+                                    }}
                                 />
-                                {(selectedProject || defaultProject) && (
-                                    <MilestoneSelect
-                                        onChange={setSelectedMilestone}
-                                        projectId={selectedProject?.value || defaultProject}
-                                        defaultValue={defaultMilestone}
+                                <div className="flex gap-2">
+                                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                                    <ProjectSelect
+                                        onChange={setSelectedProject}
+                                        defaultValue={defaultProject}
                                     />
-                                )}
-                                <TagSelect onChange={setSelectedTags} multiple={true} />
-                                <PrioritySelect onChange={setSelectedPriority} />
-                                <UserSelect onChange={setSelectedUser} defaultToCurrentUser />
+                                    {(selectedProject || defaultProject) && (
+                                        <MilestoneSelect
+                                            onChange={setSelectedMilestone}
+                                            projectId={selectedProject?.value || defaultProject}
+                                            defaultValue={defaultMilestone}
+                                        />
+                                    )}
+                                    <TagSelect onChange={setSelectedTags} multiple={true} />
+                                    <PrioritySelect onChange={setSelectedPriority} />
+                                    <UserSelect onChange={setSelectedUser} defaultToCurrentUser />
+                                </div>
                             </div>
-                        </div>
-                    </ModalBody>
-                    <Divider />
-                    <ModalFooter>
-                        <Button
-                            variant="light"
-                            onPress={() => {
-                                onOpenChange(false);
-                                reset();
-                                setSelectedProject(null);
-                                setSelectedMilestone(null);
-                                setSelectedTags([]);
-                                setSelectedPriority(null);
-                                setSelectedUser(null);
-                            }}
-                            isDisabled={isPending}
-                        >
-                            Cancel
-                        </Button>
-                        <Button color="primary" type="submit" isLoading={isPending}>
-                            Create Task
-                        </Button>
-                    </ModalFooter>
-                </form>
-            </ModalContent>
-        </Modal>
+                        </ModalBody>
+                        <Divider />
+                        <ModalFooter>
+                            <Button
+                                variant="light"
+                                onPress={() => {
+                                    onOpenChange(false);
+                                    reset();
+                                    setSelectedProject(null);
+                                    setSelectedMilestone(null);
+                                    setSelectedTags([]);
+                                    setSelectedPriority(null);
+                                    setSelectedUser(null);
+                                }}
+                                isDisabled={isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button color="primary" type="submit" isLoading={isPending}>
+                                Create Task
+                            </Button>
+                        </ModalFooter>
+                    </form>
+                </ModalContent>
+            </Modal>
+            {createdTask && (
+                <TaskDetailModal
+                    isOpen={isDetailOpen}
+                    onOpenChange={handleDetailOpenChange}
+                    task={createdTask}
+                    onAction={() => {}}
+                />
+            )}
+        </>
     );
 };
 
