@@ -9,12 +9,6 @@ function PaywallPage() {
     const [currentWorkspace] = useCurrentWorkspace();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        if (currentWorkspace?.subscription_status !== 'trial ended') {
-            navigate('/dashboard');
-        }
-    }, [currentWorkspace, navigate]);
-
     const handleOpenChange = () => {
         // Do nothing. This effectively prevents the user from closing the modal.
     };

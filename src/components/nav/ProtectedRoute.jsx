@@ -61,9 +61,13 @@ function ProtectedRoute({ children }) {
         }
 
         // 6. Trial Expiration Check
+
         const { subscription_status } = currentWorkspace;
         if (subscription_status === 'trial ended' || subscription_status === 'cancelled') {
-            if (location.pathname !== '/paywall') {
+            const isSettings =
+                location.pathname === '/settings' || location.pathname.startsWith('/settings/');
+            const isPaywall = location.pathname === '/paywall';
+            if (!isSettings && !isPaywall) {
                 navigate('/paywall');
             }
         }
@@ -78,7 +82,6 @@ function ProtectedRoute({ children }) {
         location.pathname,
     ]);
 
-    // --- Revised Render logic ---
     // Show loader only while fetching the user, or if we have a user but are still fetching their workspaces.
     const isLoading = isUserLoading || (user && isWorkspacesLoading);
 
@@ -86,12 +89,21 @@ function ProtectedRoute({ children }) {
         return <FullScreenLoader />;
     }
 
-    // Only render children if we have a user and their current workspace is set.
+    // This logic prevents rendering children if a redirect is imminent
     if (user && currentWorkspace) {
+        const { subscription_status } = currentWorkspace;
+        if (subscription_status === 'trial ended' || subscription_status === 'cancelled') {
+            const isAllowedPath =
+                location.pathname.startsWith('/settings') || location.pathname === '/paywall';
+            if (!isAllowedPath) {
+                return null;
+            }
+        }
+
+        // If checks pass, render the page
         return children;
     }
 
-    // In all other cases (e.g., during the brief moment before a redirect), render nothing.
     return null;
 }
 
