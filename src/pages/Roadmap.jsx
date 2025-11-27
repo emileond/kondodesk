@@ -27,7 +27,7 @@ function RoadmapPage() {
                     {columns.map((col) => (
                         <div
                             key={col.title}
-                            className="bg-content1 p-4 rounded-xl border-1 border-content3"
+                            className="bg-content1 p-4 rounded-xl border border-content3"
                         >
                             <div className="mb-3 pb-2">
                                 <h2 className={`text-lg font-semibold mb-2`}>{col.title}</h2>

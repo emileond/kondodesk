@@ -1,4 +1,4 @@
-import { BubbleMenu } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import { Button, Tooltip, Divider } from '@heroui/react';
 import {
     RiBold,

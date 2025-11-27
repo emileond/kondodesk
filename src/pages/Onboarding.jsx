@@ -23,7 +23,7 @@ function OnboardingPage() {
     }, [workspaces, currentWorkspace, setCurrentWorkspace]);
 
     return (
-        <div className="w-screen h-screen bg-content1 flex justify-center items-center bg-gradient-to-b from-content1 to-primary-50">
+        <div className="w-screen h-screen bg-content1 flex justify-center items-center bg-linear-to-b from-content1 to-primary-50">
             <div className="p-9">
                 <div className="flex justify-center mb-10">
                     <Logo />

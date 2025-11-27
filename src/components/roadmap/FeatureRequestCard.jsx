@@ -43,12 +43,12 @@ function FeatureRequestCard({ item, isRoadmapCard, onAnonUserVote }) {
     return (
         <Card
             shadow="none"
-            className="border-1 border-content3  hover:bg-content2/50 transition-bg duration-300 ease-in-out"
+            className="border border-content3  hover:bg-content2/50 transition-bg duration-300 ease-in-out"
         >
             <CardBody className="p-0">
                 <div className="flex items-start gap-0 h-32">
                     <div
-                        className="flex flex-col justify-center w-14 hover:bg-content2 cursor-pointer p-4 border-r-1 border-content3 h-full"
+                        className="flex flex-col justify-center w-14 hover:bg-content2 cursor-pointer p-4 border-r border-content3 h-full"
                         onClick={handleVote}
                     >
                         {isFetching ? (

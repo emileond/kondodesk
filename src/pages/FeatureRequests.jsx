@@ -125,7 +125,7 @@ function FeatureRequestsPage() {
                     Tell us what you’d like to see on {import.meta.env.VITE_APP_NAME}
                 </p>
                 <div className="flex flex-wrap md:flex-nowrap gap-6 pt-12 pb-32">
-                    <div className="bg-content1 p-4 rounded-xl border-1 border-content3 basis-1/3 grow h-full">
+                    <div className="bg-content1 p-4 rounded-xl border border-content3 basis-1/3 grow h-full">
                         <div className="space-y-2">
                             <h2 className={`text-lg font-semibold`}>Add your idea</h2>
                             <p className="text-default-600">
@@ -167,7 +167,7 @@ function FeatureRequestsPage() {
                             </Button>
                         </form>
                     </div>
-                    <div className="bg-content1 p-4 rounded-xl border-1 border-content3 basis-2/3 grow min-h-[60vh]">
+                    <div className="bg-content1 p-4 rounded-xl border border-content3 basis-2/3 grow min-h-[60vh]">
                         <div className="flex gap-3 mb-3 items-start justify-between">
                             <Select
                                 selectionMode="single"

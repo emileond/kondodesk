@@ -88,7 +88,7 @@ const TaskCard = ({ task, sm }) => {
             </Modal>
             <div
                 id={task.id}
-                className="w-full border-1 border-content3 rounded-xl p-3 bg-content1 hover:bg-content2/50 transition-bg duration-300 ease-in-out cursor-grabbing hover:cursor-pointer"
+                className="w-full border border-content3 rounded-xl p-3 bg-content1 hover:bg-content2/50 transition-bg duration-300 ease-in-out cursor-grabbing hover:cursor-pointer"
                 onClick={onOpenChange}
             >
                 <div className="flex justify-between items-center">

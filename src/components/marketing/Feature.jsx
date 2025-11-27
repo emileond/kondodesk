@@ -18,7 +18,7 @@ function Feature({
         <div className="flex items-center justify-center w-full mb-16">
             <Card shadow="md" id={id} className="grow max-w-6xl">
                 <CardBody
-                    className={`w-full flex flex-col p-8 min-h-[35vh] max-w-screen-lg mx-auto ${
+                    className={`w-full flex flex-col p-8 min-h-[35vh] max-w-(--breakpoint-lg) mx-auto ${
                         reverse ? 'md:flex-row' : 'md:flex-row-reverse'
                     } items-center justify-center gap-8`}
                 >

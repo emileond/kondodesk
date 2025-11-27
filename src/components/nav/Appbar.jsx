@@ -20,7 +20,7 @@ export default function Appbar() {
     return (
         <Navbar
             onMenuOpenChange={setIsMenuOpen}
-            className="border-b-1 border-default-200 bg-content1"
+            className="border-b border-default-200 bg-content1"
         >
             <NavbarContent>
                 <NavbarMenuToggle
