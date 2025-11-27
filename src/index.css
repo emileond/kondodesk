@@ -28,26 +28,26 @@ body {
 }
 
 h1 {
-    @apply text-3xl;
+    @reference text-3xl;
 }
 
 h2 {
-    @apply text-xl;
+    @reference text-xl;
 }
 
 h3 {
-    @apply text-lg;
+    @reference text-lg;
 }
 
 h4 {
-    @apply text-base;
+    @reference text-base;
 }
 
 h5 {
-    @apply text-sm;
+    @reference text-sm;
     font-weight: 600;
 }
 
 h6 {
-    @apply text-xs;
+    @reference text-xs;
 }
