@@ -289,7 +289,7 @@ const TableView = ({ items, pageKey = 'global' }) => {
     );
 
     return (
-        <div className="border-1 border-content3 rounded-xl bg-content1 mb-16">
+        <div className="border border-content3 rounded-xl bg-content1 mb-16">
             {selectedTask && (
                 <TaskDetailModalWrapper
                     isOpen={isDetailModalOpen}

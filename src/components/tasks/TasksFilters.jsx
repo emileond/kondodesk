@@ -108,7 +108,7 @@ function TasksFilters({
                         defaultValue={selectedProject ? { value: selectedProject } : null}
                         triggerClassName={
                             selectedProject &&
-                            'text-default-800 bg-default-100 border-1 border-default-300'
+                            'text-default-800 bg-default-100 border border-default-300'
                         }
                     />
                 )}
@@ -120,7 +120,7 @@ function TasksFilters({
                         defaultValue={selectedMilestone ? { value: selectedMilestone } : null}
                         triggerClassName={
                             selectedMilestone &&
-                            'text-default-800 bg-default-100 border-1 border-default-300'
+                            'text-default-800 bg-default-100 border border-default-300'
                         }
                     />
                 )}
@@ -133,7 +133,7 @@ function TasksFilters({
                     }
                     triggerClassName={
                         selectedTags.length > 0 &&
-                        'text-default-800 bg-default-100 border-1 border-default-300'
+                        'text-default-800 bg-default-100 border border-default-300'
                     }
                 />
                 <IntegrationSourceSelect
@@ -144,7 +144,7 @@ function TasksFilters({
                     }
                     triggerClassName={
                         selectedIntegrationSource &&
-                        'text-default-800 bg-default-100 border-1 border-default-300'
+                        'text-default-800 bg-default-100 border border-default-300'
                     }
                 />
                 {showStatusFilter && (
@@ -154,7 +154,7 @@ function TasksFilters({
                         defaultValue={selectedStatuses || []}
                         triggerClassName={
                             selectedStatuses &&
-                            'text-default-800 bg-default-100 border-1 border-default-300'
+                            'text-default-800 bg-default-100 border border-default-300'
                         }
                     />
                 )}
@@ -164,7 +164,7 @@ function TasksFilters({
                     defaultValue={selectedPriority}
                     triggerClassName={
                         selectedPriority &&
-                        'text-default-800 bg-default-100 border-1 border-default-300'
+                        'text-default-800 bg-default-100 border border-default-300'
                     }
                 />
                 <UserSelect

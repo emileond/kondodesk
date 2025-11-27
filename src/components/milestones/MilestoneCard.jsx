@@ -101,7 +101,7 @@ const MilestoneCard = ({ milestone }) => {
 
     return (
         <>
-            <Card key={milestone.id} shadow="none" className="w-full border-1 border-default-200">
+            <Card key={milestone.id} shadow="none" className="w-full border border-default-200">
                 <CardHeader className="pb-0">
                     <div className="w-full flex justify-between">
                         <div className="flex items-center gap-2">

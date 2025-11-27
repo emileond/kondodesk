@@ -154,7 +154,7 @@ function TeamPage() {
                             {(member) => (
                                 <TableRow
                                     key={member.id}
-                                    className="border-b-1 last:border-b-0 border-default-300"
+                                    className="border-b last:border-b-0 border-default-300"
                                 >
                                     {(columnKey) => (
                                         <TableCell>

@@ -130,7 +130,7 @@ const NoteCard = ({ note, currentWorkspace }) => {
         <>
             <Card
                 shadow={isEditable ? 'md' : 'none'}
-                className={`border-1 border-default-200 transition-height duration-300 ease-in-out`}
+                className={`border border-default-200 transition-height duration-300 ease-in-out`}
             >
                 <CardHeader className="pb-0">
                     <Input

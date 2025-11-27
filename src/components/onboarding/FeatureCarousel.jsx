@@ -170,7 +170,7 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
                                     </motion.p>
                                 </motion.div>
                                 <motion.div
-                                    className="flex-grow flex items-center justify-center"
+                                    className="grow flex items-center justify-center"
                                     variants={contentVariants}
                                     initial="hidden"
                                     animate="visible"
@@ -195,7 +195,7 @@ function FeatureCarousel({ features, onClose, backgroundImage }) {
                         </Button>
                     </motion.div>
 
-                    <div className="flex-grow mx-4">
+                    <div className="grow mx-4">
                         <div className="flex gap-2 justify-center">
                             {features.map((_, index) => (
                                 <motion.div

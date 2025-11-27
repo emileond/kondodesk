@@ -6,12 +6,9 @@ import Highlight from '@tiptap/extension-highlight';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import Placeholder from '@tiptap/extension-placeholder';
-import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
-import Underline from '@tiptap/extension-underline';
 
-import DragHandle from '@tiptap-pro/extension-drag-handle-react';
 import { RiDraggable } from 'react-icons/ri';
 
 // Import components
@@ -44,6 +41,9 @@ const BlockEditor = ({
             heading: {
                 levels: [1, 2, 3],
             },
+            link: {
+                openOnClick: false,
+            },
         }),
         Typography,
         Highlight,
@@ -54,14 +54,10 @@ const BlockEditor = ({
         Placeholder.configure({
             placeholder,
         }),
-        Link.configure({
-            openOnClick: false,
-        }),
         Image,
         TextAlign.configure({
             types: ['heading', 'paragraph'],
         }),
-        Underline,
     ];
 
     // Initialize editor
@@ -97,11 +93,6 @@ const BlockEditor = ({
         <div className="block-editor w-full" ref={menuContainerRef}>
             {label && (
                 <span className="block text-small font-medium text-foreground pb-1.5">{label}</span>
-            )}
-            {isEditable && (
-                <DragHandle editor={editor} tippyOptions={{}}>
-                    <RiDraggable fontSize="1.2rem" />
-                </DragHandle>
             )}
             <EditorContent editor={editor} />
 

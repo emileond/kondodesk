@@ -148,7 +148,7 @@ const SimpleEditor = ({
                         startContent={<RiBardFill className="text-[1rem] text-indigo-500" />}
                         onPress={handleWriteWithAI}
                     >
-                        <span className="bg-gradient-to-r from-indigo-500 to-violet-500 text-transparent bg-clip-text font-medium">
+                        <span className="bg-linear-to-r from-indigo-500 to-violet-500 text-transparent bg-clip-text font-medium">
                             Write with AI
                         </span>
                     </Button>

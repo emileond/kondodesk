@@ -170,7 +170,7 @@ const TagDisplayRow = ({ tag, onEdit, onDelete }) => {
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: tag.color || '#cccccc' }}
             />
-            <p className="flex-grow font-medium text-default-foreground">{tag.name}</p>
+            <p className="grow font-medium text-default-foreground">{tag.name}</p>
             <Dropdown>
                 <DropdownTrigger>
                     <Button isIconOnly size="sm" variant="light">

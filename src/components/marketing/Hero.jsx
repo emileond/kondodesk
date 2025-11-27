@@ -5,8 +5,8 @@ import { Link } from 'react-router-dom';
 
 export default function Hero() {
     return (
-        <div className="bg-gradient-to-b from-secondary-50/50 to-primary-50/0 relative justify-center items-center py-32 ">
-            <section className="max-w-screen-xl mx-auto px-4 gap-9 md:px-8 flex flex-col justify-center items-center text-center">
+        <div className="bg-linear-to-b from-secondary-50/50 to-primary-50/0 relative justify-center items-center py-32 ">
+            <section className="max-w-(--breakpoint-xl) mx-auto px-4 gap-9 md:px-8 flex flex-col justify-center items-center text-center">
                 <Chip variant="flat" color="secondary" endContent={<RiArrowRightLine />}>
                     Get 1,000 credits for free
                 </Chip>

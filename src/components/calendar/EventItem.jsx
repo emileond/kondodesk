@@ -22,11 +22,11 @@ const EventItem = ({ event, isCompact }) => {
                 }}
             >
                 <span className={`text-xs text-wrap truncate`}>
-                    <span className="text-xs truncate flex-shrink-0 mr-1">
+                    <span className="text-xs truncate shrink-0 mr-1">
                         {event.is_all_day ? 'All-day' : `${formatTime(event.start)}`}
                     </span>
                     <span
-                        className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium truncate flex-shrink-0`}
+                        className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium truncate shrink-0`}
                     >
                         {event.title}
                     </span>

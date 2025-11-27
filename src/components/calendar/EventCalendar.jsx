@@ -135,7 +135,7 @@ const MonthView = ({ currentDate, events, onDayClick }) => {
     const dayNames = days.slice(0, 7).map((d) => d.format('ddd'));
 
     return (
-        <div className="flex-grow grid grid-cols-7 grid-rows-1 auto-rows-fr gap-px bg-gray-200 dark:bg-gray-700">
+        <div className="grow grid grid-cols-7 grid-rows-1 auto-rows-fr gap-px bg-gray-200 dark:bg-gray-700">
             {dayNames.map((dayName) => (
                 <div
                     key={dayName}
@@ -193,8 +193,8 @@ const WeekView = ({ currentDate, events }) => {
     }, [events, currentDate]);
 
     return (
-        <div className="flex-grow flex flex-col">
-            <div className="grid grid-cols-[auto_1fr] flex-shrink-0">
+        <div className="grow flex flex-col">
+            <div className="grid grid-cols-[auto_1fr] shrink-0">
                 <div className="w-16"></div> {/* Spacer for time column */}
                 <div className="grid grid-cols-7">
                     {days.map((day) => (
@@ -214,7 +214,7 @@ const WeekView = ({ currentDate, events }) => {
                     ))}
                 </div>
             </div>
-            <div className="flex-grow overflow-y-auto">
+            <div className="grow overflow-y-auto">
                 <div className="grid grid-cols-[auto_1fr] h-full">
                     <div className="w-16">
                         {hours.map((hour) => (
@@ -289,9 +289,9 @@ const DayView = ({ currentDate, events }) => {
     const timeIndicatorTop = (currentTime.hour() + currentTime.minute() / 60) * 6;
 
     return (
-        <div ref={scrollContainerRef} className="flex-grow flex flex-col overflow-y-auto">
+        <div ref={scrollContainerRef} className="grow flex flex-col overflow-y-auto">
             <div className="grid grid-cols-[auto_1fr] h-full">
-                <div className="w-14 flex-shrink-0">
+                <div className="w-14 shrink-0">
                     {hours.map((hour) => (
                         <div
                             key={hour}
@@ -301,7 +301,7 @@ const DayView = ({ currentDate, events }) => {
                         </div>
                     ))}
                 </div>
-                <div className="relative flex-grow">
+                <div className="relative grow">
                     {hours.map((hour) => {
                         const hasPassed = isToday && hour < currentTime.hour();
                         return (
@@ -318,7 +318,7 @@ const DayView = ({ currentDate, events }) => {
                             style={{ top: `${timeIndicatorTop}rem` }}
                         >
                             <div className="w-2 h-2 bg-primary-600 rounded-full -ml-1"></div>
-                            <div className="h-0.5 flex-grow bg-primary-600"></div>
+                            <div className="h-0.5 grow bg-primary-600"></div>
                         </div>
                     )}
 
@@ -347,7 +347,7 @@ const AgendaView = ({ currentDate, events }) => {
     const days = Array.from({ length: 7 }, (_, i) => weekStart.add(i, 'day'));
 
     return (
-        <div className="flex-grow overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="grow overflow-y-auto p-4 md:p-6 space-y-6">
             {days.map((day) => {
                 const dayEvents = events
                     .filter((event) => parseToLocal(event.start).isSame(day, 'day'))
@@ -369,7 +369,7 @@ const AgendaView = ({ currentDate, events }) => {
                         <div className="mt-4 space-y-4">
                             {dayEvents.map((event) => (
                                 <div key={event.id} className="flex items-start gap-4">
-                                    <div className="w-28 flex-shrink-0 text-right">
+                                    <div className="w-28 shrink-0 text-right">
                                         <p className="font-semibold text-gray-800 dark:text-gray-200">
                                             {event.allDay
                                                 ? 'All Day'
@@ -384,7 +384,7 @@ const AgendaView = ({ currentDate, events }) => {
                                                 : '#6B7280',
                                         }}
                                     ></div>
-                                    <div className="flex-grow">
+                                    <div className="grow">
                                         <p className="font-bold text-gray-900 dark:text-gray-100">
                                             {event.title}
                                         </p>
@@ -562,7 +562,7 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
     return (
         <div className="bg-content2 text-foreground h-[88vh] flex flex-col rounded-lg border border-content4 shadow-2xl">
             {/* Header */}
-            <header className="flex-shrink-0 p-4 border-b border-content4 flex flex-wrap items-center justify-between gap-4">
+            <header className="shrink-0 p-4 border-b border-content4 flex flex-wrap items-center justify-between gap-4">
                 <div className="w-full flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
                         <Button size="sm" variant="faded" onPress={handleToday}>
@@ -641,7 +641,7 @@ const EventCalendar = ({ initialView = 'month', views = ['day', 'week', 'month',
             </header>
 
             {/* Calendar Body */}
-            <div className="flex-grow flex flex-col overflow-hidden">
+            <div className="grow flex flex-col overflow-hidden">
                 {/* Conditionally render views based on the current view state */}
                 {view === 'month' && (
                     <MonthView

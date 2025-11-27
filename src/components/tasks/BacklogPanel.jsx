@@ -149,7 +149,7 @@ const BacklogPanelContent = memo(({ currentWorkspace, isOpen, onOpenChange }) =>
     return (
         <>
             <NewTaskModal isOpen={isOpen} onOpenChange={onOpenChange} defaultDate={null} />
-            <div className="bg-content2 border-1 border-default rounded-xl p-4 flex flex-col h-full">
+            <div className="bg-content2 border border-default rounded-xl p-4 flex flex-col h-full">
                 <div className="flex items-center gap-2 w-full py-2">
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-default-700 pb-1">
                         <RiArchiveStackLine fontSize="1.2rem" /> Backlog

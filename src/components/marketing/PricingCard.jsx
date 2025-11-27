@@ -29,7 +29,7 @@ function PricingCard({
         highlight && !isLTD ? 'border-2 border-primary-400/60 ' : ''
     } ${
         isLTD || highlight
-            ? 'bg-gradient-to-br from-content1 to-primary-50/50 border-2 border-primary-400/60 shadow-lg shadow-primary/20'
+            ? 'bg-linear-to-br from-content1 to-primary-50/50 border-2 border-primary-400/60 shadow-lg shadow-primary/20'
             : ''
     }`;
 
@@ -52,7 +52,7 @@ function PricingCard({
                 )}
             </CardHeader>
             <Divider />
-            <CardBody className="p-6 flex-grow">
+            <CardBody className="p-6 grow">
                 <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-bold">${displayPrice}</span>
                     <span className="text-default-500">{periodText}</span>

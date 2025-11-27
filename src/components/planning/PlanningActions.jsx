@@ -19,7 +19,7 @@ function PlanningActions({ lastPlanResponse, onAutoPlan, onRollback }) {
     return (
         <Button
             onPress={handleAction}
-            className="border-2 border-indigo-300 hover:border-indigo-400 bg-transparent hover:bg-content2 hover:!opacity-100"
+            className="border-2 border-indigo-300 hover:border-indigo-400 bg-transparent hover:bg-content2 hover:opacity-100!"
             startContent={
                 lastPlanResponse ? (
                     <RiArrowGoBackLine fontSize="1rem" />
@@ -28,7 +28,7 @@ function PlanningActions({ lastPlanResponse, onAutoPlan, onRollback }) {
                 )
             }
         >
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text font-medium">
+            <span className="bg-linear-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text font-medium">
                 {lastPlanResponse ? 'Rollback' : 'Auto Plan'}
             </span>
         </Button>

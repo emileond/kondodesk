@@ -105,7 +105,7 @@ const DayColumn = ({ day, filters, events, showEvents, isLoadingEvents }) => {
             <NewTaskModal isOpen={isOpen} onOpenChange={onOpenChange} defaultDate={newTaskDate} />
             <div
                 key={dateStr}
-                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3/75' : 'bg-content2'} border-1 border-content4 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md flex-shrink-0 snap-center overflow-y-hidden ${isPast ? 'opacity-60' : ''}`}
+                className={`flex flex-col gap-2 ${isWeekend ? 'bg-content3/75' : 'bg-content2'} border border-content4 rounded-xl p-2 min-w-[280px] w-[75vw] sm:w-[50vw] md:w-[20vw] lg:w-[12vw] md shrink-0 snap-center overflow-y-hidden ${isPast ? 'opacity-60' : ''}`}
                 ref={parent}
             >
                 <div

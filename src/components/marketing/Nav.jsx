@@ -40,7 +40,7 @@ export default function NavBar() {
     return (
         <div className="fixed top-0 z-50 w-full flex items-center justify-center">
             <Navbar
-                className={`w-full h-full p-0 transition-all ease-in-out duration-250 bg-content2/70 border-1 border-content3 ${scrolled ? 'max-w-5xl mt-2 rounded-2xl overflow-hidden' : 'max-w-full'}`}
+                className={`w-full h-full p-0 transition-all ease-in-out duration-250 bg-content2/70 border border-content3 ${scrolled ? 'max-w-5xl mt-2 rounded-2xl overflow-hidden' : 'max-w-full'}`}
             >
                 <NavbarContent className="sm:hidden" justify="start">
                     <NavbarMenuToggle />

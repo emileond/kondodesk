@@ -8,7 +8,7 @@ const ThemePreviewCard = ({ themeInfo, isSelected, onSelect }) => {
     // Defines the styles for the preview cards
     const previewStyles = {
         light: {
-            bg: 'bg-[#fff]',
+            bg: 'bg-white',
             primary: 'bg-[#735587]',
             secondary: 'bg-[#5bc0be]',
             default400: 'bg-[#b4afa8]',

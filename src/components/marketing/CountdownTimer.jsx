@@ -63,7 +63,7 @@ const CountdownTimer = ({ targetDate }) => {
     });
 
     return (
-        <div className="text-center py-2 bg-gradient-to-br from-primary-50/50 to-primary-100 border-2 border-primary-200 rounded-xl w-full max-w-screen-sm">
+        <div className="text-center py-2 bg-linear-to-br from-primary-50/50 to-primary-100 border-2 border-primary-200 rounded-xl w-full max-w-(--breakpoint-sm)">
             <div className="flex justify-center gap-3">
                 {timerComponents.length ? (
                     timerComponents
