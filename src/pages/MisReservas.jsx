@@ -53,7 +53,7 @@ function MisReservasPage() {
                                         color="primary"
                                         className="font-medium"
                                     >
-                                        Ir a Reservas
+                                        Reservar amenidades
                                     </Button>
                                 }
                             />

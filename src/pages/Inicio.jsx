@@ -86,7 +86,7 @@ function InicioPage() {
                                             color="primary"
                                             className="font-medium"
                                         >
-                                            Ir a Reservas
+                                            Reservar amenidades
                                         </Button>
                                     }
                                 />

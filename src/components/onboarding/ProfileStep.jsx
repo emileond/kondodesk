@@ -35,6 +35,7 @@ function ProfileStep({ goToNextStep }) {
         try {
             const updateData = {
                 name: formData.name,
+                onboarded: true,
             };
 
             await updateUserProfile(updateData);

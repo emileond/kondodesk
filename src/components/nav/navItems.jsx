@@ -23,15 +23,15 @@ export const navItems = [
         endContent: null,
     },
     {
-        name: 'Amenidades',
-        path: '/amenidades',
-        startContent: <RiStarLine fontSize={ICON_SIZE} />,
-        endContent: null,
-    },
-    {
         name: 'Mis Reservas',
         path: '/mis-reservas',
         startContent: <RiCalendarEventLine fontSize={ICON_SIZE} />,
+        endContent: null,
+    },
+    {
+        name: 'Amenidades',
+        path: '/amenidades',
+        startContent: <RiStarLine fontSize={ICON_SIZE} />,
         endContent: null,
     },
     {

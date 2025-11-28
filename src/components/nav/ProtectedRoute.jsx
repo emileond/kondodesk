@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../../hooks/react-query/user/useUser';
+import { useUserProfile } from '../../hooks/react-query/user/useUserProfile.js';
 import { useWorkspaces } from '../../hooks/react-query/condos/useWorkspaces';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 
@@ -13,6 +14,7 @@ const FullScreenLoader = () => (
 
 function ProtectedRoute({ children }) {
     const { data: user, isPending: isUserLoading } = useUser();
+    const { data: userProfile, isPending: isUserProfilePending } = useUserProfile(user);
     // Pass an `enabled` flag to the useWorkspaces hook based on the user's existence
     const { data: workspaces, isPending: isWorkspacesLoading } = useWorkspaces(user, {
         enabled: !!user, // This is a common pattern with libraries like React Query
@@ -53,7 +55,7 @@ function ProtectedRoute({ children }) {
         if (!currentWorkspace) return;
 
         // 5. Onboarding Check
-        if (!currentWorkspace.onboarded) {
+        if (!isUserProfilePending && !userProfile?.onboarded) {
             if (location.pathname !== '/onboarding') {
                 navigate('/onboarding');
             }

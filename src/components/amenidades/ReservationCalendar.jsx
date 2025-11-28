@@ -1,24 +1,23 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, CardBody, Select, SelectItem } from '@heroui/react';
+import { Button, Card, CardBody } from '@heroui/react';
 import dayjs from 'dayjs';
 
 // availability: Record<string, string[]> where key = 'YYYY-MM-DD', values = ['09:00', '09:30', ...]
 // onSelect({ date, time })
-// onConfirm({ date, time, timezone })
+// onConfirm({ date, time })
 function ReservationCalendar({
     availability = {},
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
     onSelect,
     onConfirm,
     amenityName,
     onCancelSelection,
+    slotDurationByDow = {}, // map: 0..6 -> minutes
 }) {
     // Views: 'day' | 'month' (default to 'day' per request)
     const [view, setView] = useState('day');
     const [monthCursor, setMonthCursor] = useState(dayjs().startOf('month'));
     const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [selected, setSelected] = useState(null); // {date, time}
-    const [tz, setTz] = useState(timezone);
     // Mode switches between browsing slots and confirming a chosen slot
     const [mode, setMode] = useState('browse'); // 'browse' | 'confirm'
 
@@ -51,7 +50,6 @@ function ReservationCalendar({
         setMode('confirm');
     }
 
-    const tzOptions = [tz, 'UTC'].filter((v, i, arr) => arr.indexOf(v) === i);
 
     // Helpers for day navigation
     function goToToday() {
@@ -114,7 +112,7 @@ function ReservationCalendar({
 
     const handleConfirm = () => {
         if (!selected) return;
-        onConfirm?.({ ...selected, timezone: tz });
+        onConfirm?.({ ...selected });
     };
     const handleChangeTime = () => {
         setMode('browse');
@@ -149,11 +147,21 @@ function ReservationCalendar({
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-default-500">Hora</span>
-                                    <span className="font-medium">{selected?.time}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-default-500">Zona horaria</span>
-                                    <span className="font-medium">{tz}</span>
+                                    <span className="font-medium">
+                                        {(() => {
+                                            const start = selected?.time || '';
+                                            const [sh, sm] = start.split(':').map((v) => parseInt(v || '0', 10));
+                                            const dow = dayjs(selected?.date).day();
+                                            const dur = Number(slotDurationByDow[dow] || 60);
+                                            const end = dayjs()
+                                                .hour(sh)
+                                                .minute(sm)
+                                                .add(dur, 'minute');
+                                            const fmt = (h, m) => (m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`);
+                                            const label = `${fmt(sh, sm)}-${fmt(end.hour(), end.minute())}`;
+                                            return label;
+                                        })()}
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
@@ -197,20 +205,6 @@ function ReservationCalendar({
                             {/* Context toolbar changes with view */}
                             {view === 'day' ? DayToolbar : MonthToolbar}
                         </div>
-
-                        <Select
-                            aria-label="Zona horaria"
-                            size="sm"
-                            className="max-w-48"
-                            selectedKeys={[tz]}
-                            onSelectionChange={(keys) => setTz(Array.from(keys)[0])}
-                        >
-                            {tzOptions.map((z) => (
-                                <SelectItem key={z} value={z}>
-                                    {z}
-                                </SelectItem>
-                            ))}
-                        </Select>
                     </div>
 
                     {/* Views */}

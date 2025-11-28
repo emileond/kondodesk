@@ -21,7 +21,7 @@ function OnboardingSteps({ userProfile, currentWorkspace, setCurrentWorkspace })
             description:
                 'Nos alegra que estés aquí. Necesitamos algunos datos para personalizar tu experiencia.',
             component: ProfileStep,
-            isVisible: () => !userProfile?.name,
+            isVisible: () => true,
         },
         {
             id: 'workspace',

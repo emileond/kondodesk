@@ -15,53 +15,53 @@ function CompletionStep({ currentWorkspace, setCurrentWorkspace }) {
     const { data: user } = useUser();
 
     // Function to update workspace onboarding status
-    const updateWorkspaceOnboarding = async () => {
-        if (!currentWorkspace) {
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            // Get the current session
-            const { data: sessionData } = await supabaseClient.auth.getSession();
-
-            // Make a request to the API endpoint to update onboarding status
-            await ky
-                .post('/api/update-workspace', {
-                    json: {
-                        updateData: {
-                            onboarded: true,
-                        },
-                        workspaceId: currentWorkspace.workspace_id,
-                        session: sessionData.session,
-                    },
-                })
-                .json();
-
-            // Invalidate workspaces query to refresh data
-            await queryClient.invalidateQueries(['workspaces', user.id]);
-
-            // Update the current workspace with the new name
-            setCurrentWorkspace({
-                ...currentWorkspace,
-                onboarded: true,
-            });
-        } catch (error) {
-            console.error('Error updating workspace onboarding status:', error);
-            toast.error('Failed to update workspace status.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // const updateWorkspaceOnboarding = async () => {
+    //     if (!currentWorkspace) {
+    //         return;
+    //     }
+    //
+    //     setIsLoading(true);
+    //     try {
+    //         // Get the current session
+    //         const { data: sessionData } = await supabaseClient.auth.getSession();
+    //
+    //         // Make a request to the API endpoint to update onboarding status
+    //         await ky
+    //             .post('/api/update-workspace', {
+    //                 json: {
+    //                     updateData: {
+    //                         onboarded: true,
+    //                     },
+    //                     workspaceId: currentWorkspace.workspace_id,
+    //                     session: sessionData.session,
+    //                 },
+    //             })
+    //             .json();
+    //
+    //         // Invalidate workspaces query to refresh data
+    //         await queryClient.invalidateQueries(['workspaces', user.id]);
+    //
+    //         // Update the current workspace with the new name
+    //         setCurrentWorkspace({
+    //             ...currentWorkspace,
+    //             onboarded: true,
+    //         });
+    //     } catch (error) {
+    //         console.error('Error updating workspace onboarding status:', error);
+    //         toast.error('Failed to update workspace status.');
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
 
     // Update workspace when component mounts
     useEffect(() => {
-        updateWorkspaceOnboarding();
+        // updateWorkspaceOnboarding();
     }, []);
 
     // Function to handle navigation to dashboard
     const goToDashboard = () => {
-        navigate('/dashboard');
+        navigate('/home');
     };
 
     return (
