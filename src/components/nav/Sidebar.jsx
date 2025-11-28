@@ -44,7 +44,7 @@ function Sidebar() {
             <div className="flex flex-col gap-3">
                 {currentWorkspace?.subscription_status === 'trial' && <TrialEndsCard />}
                 <Divider />
-                <CommandPalette />
+                {/*<CommandPalette />*/}
                 <UserMenu />
             </div>
         </div>

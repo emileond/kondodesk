@@ -36,6 +36,10 @@ import ReflectPage from './pages/reflect/Reflect.jsx';
 import ReflectSessionPage from './pages/reflect/ReflectSession.jsx';
 import AcceptInvitePage from './pages/team/AcceptInvite.jsx';
 import PaywallPage from './pages/marketing/Paywall.jsx';
+import ReservasPage from './pages/Reservas.jsx';
+import ReservaAmenityPage from './pages/ReservaAmenity.jsx';
+import InicioPage from './pages/Inicio.jsx';
+import MisReservasPage from './pages/MisReservas.jsx';
 
 function App() {
     const { isLoading } = useUser();
@@ -224,6 +228,46 @@ function App() {
         {
             path: '/acceptable-use-policy',
             element: <AUPolicyPage />,
+        },
+        {
+            path: '/amenidades',
+            element: (
+                <ProtectedRoute>
+                    <ReservasPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/amenidades/:amenity',
+            element: (
+                <ProtectedRoute>
+                    <ReservaAmenityPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/inicio',
+            element: (
+                <ProtectedRoute>
+                    <InicioPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/home',
+            element: (
+                <ProtectedRoute>
+                    <InicioPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/mis-reservas',
+            element: (
+                <ProtectedRoute>
+                    <MisReservasPage />
+                </ProtectedRoute>
+            ),
         },
         {
             path: '*',

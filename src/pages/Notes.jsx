@@ -25,10 +25,10 @@ const Notes = () => {
     return (
         <AppLayout>
             <PageLayout
-                title="Notes"
+                title="Avisos"
                 maxW="3xl"
                 onClick={() => setIsOpen(true)}
-                primaryAction="New note"
+                primaryAction="Nuevo aviso"
             >
                 <div ref={parent} className="flex flex-col gap-3 py-6">
                     {isOpen && (
