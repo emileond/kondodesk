@@ -55,19 +55,20 @@ export const ContainerScroll = ({ children }) => {
                                 endContent={<RiArrowRightLine fontSize="1rem" />}
                                 className="mb-6"
                             >
-                                14-day free trial, no credit card required
+                                Prueba gratis 14 días, sin tarjeta
                             </Chip>
                             <div className="text-4xl font-semibold space-y-3">
-                                <span className="text-default-500">Achieve Your Goals,</span>
+                                <span className="text-default-500">Administra tus amenidades</span>
                                 <h1>
                                     <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none text-default-800">
-                                        Find Your Flow.
+                                        Sin complicaciones.
                                     </span>
                                 </h1>
                             </div>
                             <p className="max-w-2xl text-lg mx-auto text-default-600 text-balance py-6">
-                                Weekfuse centralizes your tasks, plans your week, and guides your
-                                reflection so you can achieve more without the overwhelm
+                                Kondodesk centraliza las reservas de gimnasio, canchas, salones y
+                                terrazas, y te permite compartir avisos con todos los residentes
+                                desde un solo lugar.
                             </p>
 
                             <Button
@@ -78,7 +79,7 @@ export const ContainerScroll = ({ children }) => {
                                 variant="shadow"
                                 className="mb-12"
                             >
-                                Get started
+                                Empezar ahora
                             </Button>
                         </>
                     }

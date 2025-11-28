@@ -17,96 +17,96 @@ function FeaturesGrid() {
     const bentoFeatures = [
         {
             Icon: RiStackedView,
-            name: 'Personal backlog',
+            name: 'Reservas de amenidades',
             description:
-                'Keep all your ideas and future tasks organized in one dedicated space, ready when you are.',
+                'Reserva gimnasio, canchas, salones y terrazas sin choques de horario.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-backlog.svg',
         },
         {
             Icon: RiBookletLine,
-            name: 'Notes',
+            name: 'Avisos y comunicados',
             description:
-                'Jot down quick thoughts, project details, or meeting summaries right alongside your tasks.',
+                'Publica anuncios y reglamentos para mantener a todos informados desde un solo lugar.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-notes.svg',
         },
         {
             Icon: RiGroupLine,
-            name: 'Effortless collaboration',
+            name: 'Roles y permisos',
             description:
-                'Need to delegate? Assign tasks to others and add guests for easy, focused collaboration.',
+                'Define administradores, conserjes y residentes. Controla quién puede reservar, aprobar o publicar avisos.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-collab.svg',
         },
         {
             Icon: RiKanbanView,
-            name: 'Flexible views',
+            name: 'Calendario por amenidad',
             description:
-                'Switch between Kanban boards, detailed lists, or comprehensive table views.',
+                'Visualiza disponibilidad por día y por amenidad para evitar choques de horario.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: 'User interface',
         },
         {
             Icon: RiCalendarScheduleLine,
-            name: 'Auto planning',
-            description: 'Weekfuse plans your tasks for you, based on your preferences and goals.',
+            name: 'Aprobaciones y reglas',
+            description: 'Configura horarios, aforos, reglas y aprobaciones por amenidad.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-2',
             background: '/bento-plan.svg',
         },
         {
             Icon: RiPaintBrushLine,
-            name: 'Themes',
-            description: 'Choose from a variety of themes to match your personal style.',
+            name: 'Reglamento y aforos',
+            description: 'Define reglas, aforos y horarios bloqueados por amenidad.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-theme.svg',
         },
         {
             Icon: RiCommandLine,
-            name: 'Shortcuts and Command Palette',
-            description: 'Quickly access your most used features with a few keystrokes.',
+            name: 'Accesos rápidos',
+            description: 'Accede en segundos a funciones clave con atajos y comandos.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-command.svg',
         },
         {
             Icon: RiQuillPenAiLine,
-            name: 'Guided reflections',
-            description: 'Reflect on your progress, learn and grow with weekly prompts.',
+            name: 'Historial y reportes',
+            description: 'Consulta historial de reservas y genera reportes para tu administración.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-reflect.svg',
         },
         {
             Icon: RiHardDrive3Line,
-            name: 'File storage',
-            description: 'Save files to your tasks.',
+            name: 'Evidencias y archivos',
+            description: 'Adjunta comprobantes o fotos a las reservas.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-2',
             background: '/bento-storage.svg',
         },
         {
             Icon: RiTimerFlashLine,
-            name: 'Productivity tools',
+            name: 'Herramientas de productividad',
             description:
-                'Productivity tools that help you get the most out of your day and avoid burnout.',
+                'Recordatorios, notificaciones y bloqueos para que las reglas se cumplan sin fricción.',
             href: '#',
-            cta: 'Learn more',
+            cta: 'Saber más',
             className: 'col-span-3 lg:col-span-1',
             background: '/bento-pomodoro.svg',
         },
@@ -115,10 +115,9 @@ function FeaturesGrid() {
     return (
         <div className="max-w-6xl mx-auto py-32 px-6">
             <div className="space-y-6 mb-12">
-                <h2 className="text-3xl font-bold text-center">Much more than just tasks</h2>
+                <h2 className="text-3xl font-bold text-center">Mucho más que solo reservas</h2>
                 <p className="text-center text-default-500">
-                    Weekfuse is a thoughtfully curated suite of powerful features designed to work
-                    together, helping you stay organized, focused, and balanced.
+                    Kondodesk reúne funciones clave para administrar amenidades y la comunicación en tu condominio, todo en un mismo lugar.
                 </p>
             </div>
             <BentoGrid>

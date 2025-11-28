@@ -114,19 +114,19 @@ function PricingPlans({ showLTD = false }) {
                     variant={isYearly ? 'flat' : 'faded'}
                     endContent={
                         <Chip size="sm" color="primary">
-                            Save 20%
+                            Ahorra 20%
                         </Chip>
                     }
                     onPress={() => setIsYearly(true)}
                 >
-                    Yearly
+                    Anual
                 </Button>
                 <Button
                     color={isYearly ? 'default' : 'primary'}
                     variant={isYearly ? 'faded' : 'flat'}
                     onPress={() => setIsYearly(false)}
                 >
-                    Monthly
+                    Mensual
                 </Button>
             </ButtonGroup>
             <div className="w-full flex flex-wrap justify-center gap-4">

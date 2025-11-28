@@ -3,47 +3,29 @@ import { Accordion, AccordionItem } from '@heroui/react';
 export default function Faq() {
     const accordionItems = [
         {
-            title: 'I already use Trello, Notion, Monday, etc. How is Weekfuse different?',
+            title: '¿Cómo evita Kondodesk los choques de horario en las amenidades?',
             content: (
                 <div className="text-muted-foreground py-1 space-y-6">
                     <p>
-                        While tools like Notion and Monday are powerful for managing projects, they
-                        are built around the project first. Weekfuse is built around you and your
-                        time.
+                        Configuramos calendarios por amenidad y bloqueos inteligentes de horario para que no se crucen reservas. También puedes definir aforos, tiempos mínimos/máximos y días no disponibles.
                     </p>
-                    <p>Here’s how Weekfuse is different:</p>
                     <ul className="list-inside space-y-6">
                         <li>
-                            <strong>A Single Source of Truth for Your Day</strong>
+                            <strong>Calendario por amenidad</strong>
                             <p>
-                                Instead of forcing you to live in a dozen different apps, Weekfuse
-                                acts as your calm, central hub. We integrate with Trello, Jira,
-                                GitHub, and more, pulling all your tasks into one unified view. This
-                                isn't about replacing your team's tools; it's about giving you
-                                personal clarity and control over your entire workload without the
-                                constant app-hopping.
+                                Cada gimnasio, terraza o cancha tiene su propio calendario con disponibilidad clara por día y hora.
                             </p>
                         </li>
                         <li>
-                            <strong>We Prioritize People, Not Just Projects</strong>
+                            <strong>Reglas y aforos</strong>
                             <p>
-                                Traditional project management tools are excellent at tracking one
-                                thing: work. But you are not a machine. Weekfuse is designed to
-                                manage your most valuable resources: your time and energy. With
-                                features like AI-powered weekly planning and reflection sessions, we
-                                help you build sustainable habits, prevent burnout, and find a
-                                healthy work/life balance—a focus you won't find in a Gantt chart.
+                                Establece duración máxima, anticipación mínima, número de invitados y aforos por amenidad.
                             </p>
                         </li>
                         <li>
-                            <strong>Collaboration, Without the Chaos</strong>
+                            <strong>Aprobaciones opcionales</strong>
                             <p>
-                                We believe collaboration should bring clarity, not clutter. Instead
-                                of throwing you into a sea of shared boards and notifications, our
-                                features are designed for focused interaction. You start with your
-                                personal plan and then intentionally delegate tasks, share progress,
-                                or collaborate on specific items when needed. It’s about bringing
-                                people into your focused workflow, not getting lost in theirs.
+                                Activa aprobaciones por parte de administración para eventos especiales o áreas comunes que lo requieran.
                             </p>
                         </li>
                     </ul>
@@ -51,48 +33,44 @@ export default function Faq() {
             ),
         },
         {
-            title: 'Is Weekfuse a fit for me?',
+            title: '¿Para quién es Kondodesk?',
             content: (
                 <div className="text-muted-foreground py-1 space-y-6">
                     <p className="mb-6">
-                        Weekfuse is designed for the ambitious individual who values both high
-                        performance and personal well-being. If you're a knowledge worker,
-                        freelancer, founder, or creative professional trying to build a sustainable
-                        path to success, you're in the right place.
+                        Kondodesk está pensado para administraciones de condominios, comités y
+                        desarrollos que necesitan organizar reservas de amenidades y comunicar
+                        avisos a toda la comunidad de forma simple.
                     </p>
 
-                    <p>We're the perfect fit if you find yourself nodding along to this:</p>
+                    <p>Es ideal si buscas:</p>
 
                     <ul className="list-inside space-y-6">
                         <li>
-                            <strong>You Juggle Multiple Projects </strong>
+                            <strong>Evitar choques de horario</strong>
                             <p>
-                                Your tasks aren't just from one source; they're from your 9-to-5,
-                                your freelance gig, your personal projects, etc. You need a system
-                                that can handle it all.
+                                Calendarios por amenidad con reglas claras, aforos y aprobación
+                                opcional para eventos.
                             </p>
                         </li>
                         <li>
-                            <strong>You're Tired of "App Sprawl"</strong>
+                            <strong>Comunicación centralizada</strong>
                             <p>
-                                Your to-dos are scattered across emails, Slack, Trello, Jira...
-                                Creating more noise than clarity. You crave a single, calm place to
-                                see what's on your plate.
+                                Publica comunicados, reglamentos y recordatorios para todos los
+                                residentes desde un solo lugar.
                             </p>
                         </li>
                         <li>
-                            <strong>You Seek Balance, Not Burnout</strong>
+                            <strong>Control por roles</strong>
                             <p>
-                                You believe productivity isn't just about doing more—it's about
-                                doing what matters and having a life outside of work. You're looking
-                                for a tool that actively prevents burnout.
+                                Define quién puede reservar, aprobar o publicar avisos (admin,
+                                conserje, residente).
                             </p>
                         </li>
                         <li>
-                            <strong>You're Proactive, Not Reactive</strong>
+                            <strong>Historial y reportes</strong>
                             <p>
-                                You'd rather plan your week with intention and reflect on your
-                                progress than spend your days constantly putting out fires.
+                                Consulta actividad y genera reportes para una administración más
+                                ordenada.
                             </p>
                         </li>
                     </ul>
@@ -100,140 +78,120 @@ export default function Faq() {
             ),
         },
         {
-            title: 'What integrations do you support?',
+            title: '¿Qué integraciones soporta Kondodesk?',
             content: (
                 <div className="text-muted-foreground">
-                    Weekfuse currently integrates with Jira, Trello, GitHub, ClickUp, Tick tick and
-                    Todoist, with more integrations planned.
+                    Actualmente trabajamos en integraciones con herramientas usadas por condominios.
+                    Si tienes alguna prioridad (por ejemplo, pasarelas de pago o comunicación), compártenosla y la consideramos en el roadmap.
                 </div>
             ),
         },
         {
-            title: 'How does the AI Auto-Planning work?',
+            title: '¿Puedo cambiar o cancelar una reserva?',
             content: (
                 <div className="text-muted-foreground space-y-6">
                     <p>
-                        Our AI is your smart planning assistant. When you're ready, it looks at your
-                        pending tasks, due dates, and other factors to help you plan your week.
+                        Sí. Dependiendo de las reglas que definas para cada amenidad, los residentes pueden modificar o cancelar sus reservas con una anticipación mínima.
                     </p>
-                    <p>
-                        Then, it quickly suggests a daily plan for your week. It helps you get
-                        started fast, cuts down on decision fatigue, and you can always tweak it to
-                        fit your day perfectly.
-                    </p>
-                </div>
-            ),
-        },
-        {
-            title: 'How does the AI-Guided Reflections work?',
-            content: (
-                <div className="text-muted-foreground space-y-6">
-                    <p>
-                        Our AI helps you learn from your week. Instead of just checking off tasks,
-                        it asks you thoughtful questions to hlp you really think about your
-                        progress, spot patterns, and get ideas on how to improve your planning and
-                        work habits. It's all about helping you grow and work smarter, not just
-                        harder.
-                    </p>
-                </div>
-            ),
-        },
-        {
-            title: 'Is there research that supports this way of working?',
-            content: (
-                <div className="text-muted-foreground space-y-6">
-                    <p className="mb-6">
-                        Absolutely. Weekfuse isn't based on fleeting trends; it's built on decades
-                        of proven research in cognitive psychology and productivity. We’ve
-                        integrated core principles from established methods into a single, intuitive
-                        system.
-                    </p>
-                    <p>Here are the three research-backed pillars our platform is built on:</p>
-                    <p className="mb-6">
-                        <ul className="list-inside space-y-6">
-                            <li>
-                                <strong>Prioritize with Clarity (The 80/20 Rule)</strong>
-                                <p>
-                                    Our daily planning and timeblocking features are inspired by
-                                    principles like the Pareto Principle (80/20 Rule), which states
-                                    that roughly 80% of outcomes come from 20% of causes. Weekfuse
-                                    guides you to identify and execute those few critical tasks that
-                                    deliver the most impact, ensuring you're always moving the
-                                    needle on what truly matters.
-                                </p>
-                            </li>
-                            <li>
-                                <strong>Build a Sustainable Rhythm (Energy Management)</strong>
-                                Peak productivity isn't about non-stop grinding; it's about managing
-                                your energy. We encourage work cycles that align with concepts like
-                                the Pomodoro Technique—short bursts of deep focus followed by
-                                restorative breaks. This approach is scientifically shown to improve
-                                concentration and prevent the burnout that is common with
-                                "always-on" work cultures.
-                            </li>
-                            <li>
-                                <strong>Improve Through Reflection (Feedback Loops)</strong>
-                                The fastest way to grow is to learn from your own experience.
-                                Research consistently shows that deliberate reflection is one of the
-                                most significant drivers of long-term performance improvement and
-                                personal well-being.
-                            </li>
-                        </ul>
-                    </p>
-                    <p className="mb-6">
-                        By combining these proven pillars with smart AI, Weekfuse provides a system
-                        that doesn't just help you get work done—it helps you work smarter and
-                        healthier.
-                    </p>
-                </div>
-            ),
-        },
-        {
-            title: "Why don't you offer a free plan?",
-            content: (
-                <div className="text-muted-foreground space-y-6">
-                    <p className="mb-6">
-                        We&#39;ve made a deliberate choice to focus entirely on delivering a
-                        high-quality experience for users truly committed to mastering their
-                        productivity and work-life balance.
-                    </p>
-                    <p>Here’s what that means for you:</p>
                     <ul className="list-inside space-y-6">
                         <li>
-                            <strong>Focus on Value, Not Volume: </strong>
+                            <strong>Ventana de cancelación</strong>
                             <p>
-                                Running a &#34;freemium" model means splitting resources between a
-                                free product and a paid one. By being a paid-only service, we can
-                                dedicate every ounce of our effort—from our powerful AI features to
-                                our dedicated customer support—to serving our members. You get a
-                                better, more reliable product because you are our sole focus.
+                                Establece con cuántas horas o días de anticipación se puede cancelar sin penalización.
                             </p>
                         </li>
                         <li>
-                            <strong>Our Business Model Aligns with Your Interests</strong>
+                            <strong>Reprogramación</strong>
                             <p>
-                                Our subscription model is straightforward: we only succeed if you
-                                find consistent value in Weekfuse. We don&#39;t have ads, and we
-                                will never sell your data. Your subscription directly funds our
-                                innovation and ensures we remain a long-term, trusted partner in
-                                your journey, not just another app with a hidden agenda.
-                            </p>
-                        </li>
-                        <li>
-                            <strong>A Commitment to a Higher Standard</strong>
-                            <p>
-                                We are building a tool for individuals who are ready to invest in a
-                                system that truly supports their goals and mental clarity. This
-                                commitment from our users allows us to maintain a higher standard
-                                for the product and the community.
+                                Permite mover la reserva a otro horario disponible sin generar choques.
                             </p>
                         </li>
                     </ul>
+                </div>
+            ),
+        },
+        {
+            title: '¿Cómo funcionan los avisos y notificaciones?',
+            content: (
+                <div className="text-muted-foreground space-y-6">
                     <p>
-                        We do offer a <strong>full-featured 14-day free trial.</strong> So you can
-                        experience everything Weekfuse has to offer, risk-free, and decide if
-                        it&#39;s the right investment for you.
+                        Puedes publicar avisos generales, reglamentos y comunicados para toda la comunidad o por torre. Los residentes reciben notificaciones y pueden consultarlos cuando lo necesiten.
                     </p>
+                    <ul className="list-inside space-y-6">
+                        <li>
+                            <strong>Tipos de avisos</strong>
+                            <p>
+                                Novedades, mantenimiento, eventos, reglamentos y recordatorios de reservas.
+                            </p>
+                        </li>
+                        <li>
+                            <strong>Notificaciones</strong>
+                            <p>
+                                Envío de notificaciones por correo y dentro de la app. Próximamente: canales adicionales según tu preferencia.
+                            </p>
+                        </li>
+                    </ul>
+                </div>
+            ),
+        },
+        {
+            title: '¿Cómo protege Kondodesk mis datos?',
+            content: (
+                <div className="text-muted-foreground space-y-6">
+                    <p className="mb-6">
+                        Tomamos muy en serio la privacidad y seguridad. Tus datos se transmiten de forma cifrada y sólo personal autorizado puede acceder a información necesaria para brindar soporte.
+                    </p>
+                    <ul className="list-inside space-y-6">
+                        <li>
+                            <strong>Cifrado y acceso</strong>
+                            <p>
+                                Cifrado en tránsito y controles de acceso por rol para proteger la información sensible.
+                            </p>
+                        </li>
+                        <li>
+                            <strong>Propiedad de datos</strong>
+                            <p>
+                                Tus datos pertenecen a tu condominio. No vendemos información y sólo se usa para operar el servicio.
+                            </p>
+                        </li>
+                        <li>
+                            <strong>Respaldo y continuidad</strong>
+                            <p>
+                                Contamos con respaldos y monitoreo para mantener la disponibilidad del sistema.
+                            </p>
+                        </li>
+                    </ul>
+                </div>
+            ),
+        },
+        {
+            title: '¿Ofrecen prueba gratis y soporte?',
+            content: (
+                <div className="text-muted-foreground space-y-6">
+                    <p className="mb-6">
+                        Sí. Ofrecemos una <strong>prueba gratis de 14 días</strong> sin necesidad de tarjeta.
+                        Puedes cancelar en cualquier momento durante el periodo de prueba.
+                    </p>
+                    <ul className="list-inside space-y-6">
+                        <li>
+                            <strong>Soporte en español</strong>
+                            <p>
+                                Atención por correo en horario hábil (MX). Tiempo de respuesta típico: 24–48 h.
+                            </p>
+                        </li>
+                        <li>
+                            <strong>Canal prioritario</strong>
+                            <p>
+                                Para administradores con plan activo brindamos canal de soporte prioritario para incidencias.
+                            </p>
+                        </li>
+                        <li>
+                            <strong>Sin letra chiquita</strong>
+                            <p>
+                                No pedimos tarjeta para la prueba y puedes decidir luego si continúas con un plan de pago.
+                            </p>
+                        </li>
+                    </ul>
                 </div>
             ),
         },
@@ -242,7 +200,7 @@ export default function Faq() {
     return (
         <div id="faq" className="mx-auto max-w-3xl py-32">
             <div className="flex flex-col gap-3 justify-center items-center">
-                <h4 className="text-2xl font-bold sm:text-3xl mb-9">Frequently Asked Questions</h4>
+                <h4 className="text-2xl font-bold sm:text-3xl mb-9">Preguntas frecuentes</h4>
             </div>
             <div className="w-full">
                 <Accordion fullWidth selectionMode="multiple" variant="shadow">

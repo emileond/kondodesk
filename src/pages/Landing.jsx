@@ -18,23 +18,23 @@ function LandingPage() {
             {/*<Hero />*/}
             <Feature
                 id="features"
-                chip="Integrations"
+                chip="Integraciones"
                 childComponent={<OrbitingCircles />}
-                heading="All Your Work, One Central Hub."
-                description="Weekfuse seamlessly pulls in your tasks from where they already live to manage workload in one unified space."
+                heading="Todas tus amenidades y avisos en un solo lugar."
+                description="Kondodesk centraliza las reservas de gimnasio, canchas de tenis, terrazas y más, y te permite compartir comunicados con todos los residentes desde un mismo espacio."
             />
 
             <Feature
                 reverse
                 imageUrl="/planner.svg"
-                chip="Weekly Planning"
-                heading="Plan Smarter, Not Harder."
-                description="Take control of your week with our intuitive planning tools. Weekfuse AI can suggest a weekly plan for you, considering your tasks and priorities."
+                chip="Reservas de amenidades"
+                heading="Reserva en segundos."
+                description="Agenda gimnasio, canchas, salones y terrazas sin choques de horario. Configuración sencilla, confirmaciones al instante."
             />
             <Feature
-                chip="AI-Guided Reflections"
-                heading="A Private Space to Grow."
-                description="Journal your wins, frustrations, and ideas alongside your performance data. Our AI then helps you find the signal in the noise, offering gentle guidance for the week ahead."
+                chip="Avisos y comunicados"
+                heading="Comunica a todos al instante."
+                description="Publica anuncios importantes, reglamentos y novedades para que toda la comunidad esté informada por igual, sin chats perdidos."
                 childComponent={<AnimatedInsights />}
             />
             <BentoFeatures />

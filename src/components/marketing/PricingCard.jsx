@@ -18,10 +18,10 @@ function PricingCard({
 
     if (isLTD) {
         displayPrice = price; // For LTD, price is the one-time price
-        periodText = '/ one-time payment';
+        periodText = '/ pago único';
     } else {
         displayPrice = isYearly ? Math.round(yearlyPrice / 12) : price;
-        periodText = '/ month';
+        periodText = '/ mes';
     }
 
     // Conditional styling for LTD and highlighted plans
@@ -47,7 +47,7 @@ function PricingCard({
                         className="bg-[#fef2f3] text-[#e44f6a]"
                         startContent={<RiFireFill fontSize="0.9rem" className="mr-1" />}
                     >
-                        Lifetime deal
+                        Oferta de por vida
                     </Chip>
                 )}
             </CardHeader>
@@ -59,7 +59,7 @@ function PricingCard({
                 </div>
                 {!isLTD && (
                     <p className="text-sm text-default-500 mt-1">
-                        Billed {isYearly ? 'yearly' : 'monthly'}
+                        Facturado {isYearly ? 'anualmente' : 'mensualmente'}
                     </p>
                 )}
                 <ul className="mt-6 space-y-3">
@@ -81,7 +81,7 @@ function PricingCard({
                     size="lg"
                     className="font-medium"
                 >
-                    {isLTD ? 'Get Lifetime Access' : `Get started`}
+                    {isLTD ? 'Obtener acceso de por vida' : `Comenzar`}
                 </Button>
             </CardFooter>
         </Card>
