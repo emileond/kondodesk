@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import DataGrid from '../common/DataGrid';
 import EntityChip from '../common/EntityChip';
 import TaskDetailModalWrapper from './TaskDetailModalWrapper';
-import { useWorkspaceMembers } from '../../hooks/react-query/teams/useWorkspaceMembers';
+import { useWorkspaceMembers } from '../../hooks/react-query/condos/useWorkspaceMembers';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import BoringAvatar from 'boring-avatars';
 
@@ -37,7 +37,7 @@ TaskNameCell.displayName = 'TaskNameCell';
 const AssigneeCell = memo(({ assigneeId, members }) => {
     if (!assigneeId || !members) return <EmptyCell />;
 
-    const assignee = members.find(member => member.user_id === assigneeId);
+    const assignee = members.find((member) => member.user_id === assigneeId);
     if (!assignee) return <EmptyCell />;
 
     return (

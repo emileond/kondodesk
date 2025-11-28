@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../../hooks/react-query/user/useUser';
-import { useWorkspaces } from '../../hooks/react-query/teams/useWorkspaces';
+import { useWorkspaces } from '../../hooks/react-query/condos/useWorkspaces';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 
 // A simple loading spinner component

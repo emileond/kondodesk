@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useUser } from '../hooks/react-query/user/useUser';
 import { useUserProfile } from '../hooks/react-query/user/useUserProfile.js';
-import { useWorkspaces } from '../hooks/react-query/teams/useWorkspaces';
+import { useWorkspaces } from '../hooks/react-query/condos/useWorkspaces';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import OnboardingSteps from '../components/onboarding/OnboardingSteps';
 import Logo from '../components/Logo.jsx';

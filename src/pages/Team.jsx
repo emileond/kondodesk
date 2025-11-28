@@ -24,7 +24,7 @@ import {
     useWorkspaceMembers,
     useAddWorkspaceMember,
     useUpdateWorkspaceMember,
-} from '../hooks/react-query/teams/useWorkspaceMembers';
+} from '../hooks/react-query/condos/useWorkspaceMembers';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import MemberCard from '../components/team/MemberCard';

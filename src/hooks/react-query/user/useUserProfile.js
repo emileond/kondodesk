@@ -50,7 +50,7 @@ export const useUpdateUserProfile = (user, currentWorkspace) => {
         onSuccess: () => {
             console.log('Attempting to invalidate with workspace object:', currentWorkspace);
             console.log('Workspace ID for key:', currentWorkspace?.workspace_id);
-            
+
             // Invalidate and refetch
             queryClient.invalidateQueries(['userProfile', user?.id]);
             queryClient.invalidateQueries(['workspaceMembers', currentWorkspace?.workspace_id]);

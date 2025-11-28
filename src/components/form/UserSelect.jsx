@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import CreatableSelect from './CreatableSelect';
-import { useWorkspaceMembers } from '../../hooks/react-query/teams/useWorkspaceMembers';
+import { useWorkspaceMembers } from '../../hooks/react-query/condos/useWorkspaceMembers';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import { RiUserLine } from 'react-icons/ri';
 import { Avatar, AvatarGroup, Spinner } from '@heroui/react';

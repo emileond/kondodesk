@@ -69,14 +69,15 @@ function ProfileStep({ goToNextStep }) {
             <AvatarUploader />
 
             {/* Name Input Section */}
+            <h4 className="text-lg font-medium">Cual es tu nombre?</h4>
             <Controller
                 name="name"
                 control={control}
-                rules={{ required: 'Name is required' }}
+                rules={{ required: 'Este campo es obligatorio' }}
                 render={({ field }) => (
                     <Input
                         {...field}
-                        label="Name"
+                        label="Nombre"
                         isInvalid={!!errors.name}
                         errorMessage={errors.name?.message}
                         variant="faded"

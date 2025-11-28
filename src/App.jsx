@@ -8,7 +8,6 @@ import NotFoundPage from './pages/404.jsx';
 import { Toaster } from 'react-hot-toast';
 import { Progress } from '@heroui/react';
 import { useUser } from './hooks/react-query/user/useUser.js';
-import ListDetailsPage from './pages/ListDetailsPage.jsx';
 import OnboardingPage from './pages/Onboarding.jsx';
 import { useState } from 'react';
 import CurrentWorkspaceContext from './context/currentWorkspace.js';
@@ -126,14 +125,6 @@ function App() {
             element: (
                 <ProtectedRoute>
                     <ProfilePage />
-                </ProtectedRoute>
-            ),
-        },
-        {
-            path: '/lists/:id', // Dynamic route with "id" as the parameter
-            element: (
-                <ProtectedRoute>
-                    <ListDetailsPage />
                 </ProtectedRoute>
             ),
         },

@@ -90,7 +90,7 @@ const AvatarUploader = () => {
             />
             <label htmlFor="avatar-upload">
                 <Button size="sm" as="span" variant="bordered" color="primary" disabled={uploading}>
-                    {uploading ? <Spinner size="sm" /> : 'Change avatar'}
+                    {uploading ? <Spinner size="sm" /> : 'Cambiar avatar'}
                 </Button>
             </label>
         </div>

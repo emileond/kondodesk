@@ -19,7 +19,7 @@ import TaskIntegrationDescription from './integrations/TaskIntegrationDescriptio
 import TaskCheckbox from './TaskCheckbox.jsx';
 import { markdownToTipTap } from '../../utils/editorUtils.js';
 import UserSelect from '../form/UserSelect.jsx';
-import { useWorkspaceMembers } from '../../hooks/react-query/teams/useWorkspaceMembers.js';
+import { useWorkspaceMembers } from '../../hooks/react-query/condos/useWorkspaceMembers.js';
 import ky from 'ky';
 import AttachmentChip from './AttachmentChip.jsx';
 import TaskOptionsDropdown from './TaskOptionsDropdown.jsx';

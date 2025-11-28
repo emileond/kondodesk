@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@heroui/react';
-import { PiCheckCircleDuotone } from 'react-icons/pi';
 import { supabaseClient } from '../../lib/supabase.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../../hooks/react-query/user/useUser';

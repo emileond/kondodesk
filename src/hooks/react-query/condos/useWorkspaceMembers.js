@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 
 // Fetch email lists for a specific team
-const fetchWorkspaceMembers = async (workspace_id) => {
+const fetchWorkspaceMembers = async (condo_id) => {
     // Fetch workspace members first
     const { data: members, error: membersError } = await supabaseClient
-        .from('workspace_members')
+        .from('condo_members')
         .select('*')
-        .eq('workspace_id', workspace_id)
+        .eq('condo_id', condo_id)
         .in('status', ['active', 'pending']);
 
     if (membersError) {
@@ -136,7 +136,7 @@ const deleteWorkspaceMember = async ({ id }) => {
     }
     // Prevent owner deletion
     const { data: member } = await supabaseClient
-        .from('workspace_members')
+        .from('condo_members')
         .select('role')
         .eq('id', id)
         .single();
@@ -145,7 +145,7 @@ const deleteWorkspaceMember = async ({ id }) => {
         throw new Error('Cannot delete workspace owner');
     }
 
-    const { error } = await supabaseClient.from('workspace_members').delete().eq('id', id);
+    const { error } = await supabaseClient.from('condo_members').delete().eq('id', id);
 
     if (error) {
         console.error('Error deleting:', error);

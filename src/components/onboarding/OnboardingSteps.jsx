@@ -17,9 +17,9 @@ function OnboardingSteps({ userProfile, currentWorkspace, setCurrentWorkspace })
     const steps = [
         {
             id: 'welcome',
-            title: 'Welcome to Weekfuse!',
+            title: 'Bienvenido a Kondodesk,',
             description:
-                "We're happy you're here. Let's start with the basics to personalize your experience",
+                'Nos alegra que estés aquí. Necesitamos algunos datos para personalizar tu experiencia.',
             component: ProfileStep,
             isVisible: () => !userProfile?.name,
         },
@@ -29,7 +29,7 @@ function OnboardingSteps({ userProfile, currentWorkspace, setCurrentWorkspace })
             description:
                 'A workspace is a dedicated area for your tasks. What should we call yours?',
             component: WorkspaceNameStep,
-            isVisible: () => !currentWorkspace?.name || currentWorkspace.name === 'My workspace',
+            isVisible: () => false,
         },
         {
             id: 'integrations',
@@ -37,7 +37,7 @@ function OnboardingSteps({ userProfile, currentWorkspace, setCurrentWorkspace })
             description:
                 'Connect your tools to see everything in one place. You can always do this later.',
             component: IntegrationsStep,
-            isVisible: () => true, // Always visible
+            isVisible: () => false, // Always visible
         },
         {
             id: 'planning',
@@ -45,14 +45,14 @@ function OnboardingSteps({ userProfile, currentWorkspace, setCurrentWorkspace })
             description:
                 'A weekly planning ritual is key to a balanced week. When is a good time for you to plan?',
             component: PlanningStep,
-            isVisible: () => true, // Always visible
+            isVisible: () => false, // Always visible
         },
         {
             id: 'theme',
             title: 'Choose your theme',
             description: 'Select your favorite theme',
             component: ThemeStep,
-            isVisible: () => true, // Always visible
+            isVisible: () => false, // Always visible
         },
         {
             id: 'completion',

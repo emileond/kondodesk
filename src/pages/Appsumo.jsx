@@ -4,7 +4,7 @@ import ky from 'ky';
 import NavBar from '../components/marketing/Nav.jsx';
 import Footer from '../components/marketing/Footer.jsx';
 import { useUser, useLogout } from '../hooks/react-query/user/useUser.js';
-import { useWorkspaces } from '../hooks/react-query/teams/useWorkspaces.js';
+import { useWorkspaces } from '../hooks/react-query/condos/useWorkspaces.js';
 import AuthForm from '../components/auth/AuthForm.jsx';
 import { Alert, Button, Card, CardBody, CardFooter, CardHeader, Link } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Input, Select, SelectItem } from '@heroui/react';
 import { useUser } from '../../hooks/react-query/user/useUser';
-import { useAddWorkspaceMember } from '../../hooks/react-query/teams/useWorkspaceMembers';
+import { useAddWorkspaceMember } from '../../hooks/react-query/condos/useWorkspaceMembers';
 import { validateEmail } from '../../utils/validateEmail.js';
 import toast from 'react-hot-toast';
 

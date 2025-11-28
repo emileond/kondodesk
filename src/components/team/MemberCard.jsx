@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import {
     useDeleteWorkspaceMember,
     useUpdateWorkspaceMember,
-} from '../../hooks/react-query/teams/useWorkspaceMembers.js';
+} from '../../hooks/react-query/condos/useWorkspaceMembers.js';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import { useCallback } from 'react';
 import BoringAvatar from 'boring-avatars';

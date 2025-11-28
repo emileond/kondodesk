@@ -4,13 +4,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import { useWorkspaces } from '../hooks/react-query/teams/useWorkspaces.js';
+import { useWorkspaces } from '../hooks/react-query/condos/useWorkspaces.js';
 import { supabaseClient } from '../lib/supabase.js';
 import AuthForm from '../components/auth/AuthForm';
 import { Spinner } from '@heroui/react';
 
 function AuthPage({ viewMode }) {
     const { data: user } = useUser();
+
     const { data: workspaces, isPending: isWorkspacesLoading } = useWorkspaces(user, {
         enabled: !!user,
     });
@@ -62,10 +63,10 @@ function AuthPage({ viewMode }) {
             if (workspaces && workspaces.length === 0) {
                 setStatusMessage('Creating your new workspace...');
                 try {
-                    await supabaseClient.rpc('create_new_workspace_and_start_trial');
-                    toast.success('Your new workspace is ready!');
+                    // await supabaseClient.rpc('create_new_workspace_and_start_trial');
+                    // toast.success('Your new workspace is ready!');
                     await queryClient.refetchQueries({ queryKey: ['workspaces'] });
-                    navigate('/dashboard');
+                    navigate('/home');
                 } catch (error) {
                     toast.error(`Failed to create workspace: ${error.message}`);
                     isProcessing.current = false; // Unlock on error to allow retry
