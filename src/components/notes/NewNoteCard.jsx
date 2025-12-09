@@ -30,7 +30,7 @@ const NewNoteCard = ({ onCancel, onSuccess }) => {
                 note: {
                     title: noteData.title,
                     content: noteData.content,
-                    workspace_id: currentWorkspace.workspace_id,
+                    condo_id: currentWorkspace.condo_id,
                 },
             },
             {

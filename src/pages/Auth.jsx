@@ -46,7 +46,7 @@ function AuthPage({ viewMode }) {
                     searchParams.delete('invitation_token');
                     setSearchParams(searchParams, { replace: true });
                     await queryClient.refetchQueries({ queryKey: ['workspaces'] });
-                    navigate('/dashboard');
+                    navigate('/home');
                 } catch (error) {
                     toast.error(`Failed to accept invitation: ${error.message}`);
                     isProcessing.current = false; // Unlock on error
@@ -56,7 +56,7 @@ function AuthPage({ viewMode }) {
             }
 
             if (workspaces && workspaces.length > 0) {
-                navigate('/dashboard');
+                navigate('/home');
                 return;
             }
 

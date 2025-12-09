@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 
 // Fetch notes for a specific workspace
-const fetchNotes = async ({ id, workspace_id }) => {
-    let query = supabaseClient.from('notes').select('*').eq('workspace_id', workspace_id);
+const fetchNotes = async ({ id, condo_id }) => {
+    let query = supabaseClient.from('announcements').select('*').eq('condo_id', condo_id);
 
     if (id) {
         query = query.eq('id', id).single(); // Fetch single item
@@ -23,20 +23,20 @@ const fetchNotes = async ({ id, workspace_id }) => {
 // Hook to fetch notes with optional filters
 export const useNotes = (currentWorkspace, filters = {}) => {
     return useQuery({
-        queryKey: ['notes', currentWorkspace?.workspace_id, filters],
+        queryKey: ['announcements', currentWorkspace?.condo_id, filters],
         queryFn: () =>
             fetchNotes({
-                workspace_id: currentWorkspace?.workspace_id,
+                condo_id: currentWorkspace?.condo_id,
                 id: filters.id,
             }),
         staleTime: 1000 * 60 * 5, // 5 minutes
-        enabled: !!currentWorkspace?.workspace_id, // Only fetch if workspace_id is provided
+        enabled: !!currentWorkspace?.condo_id, // Only fetch if condo_id is provided
     });
 };
 
 // Function to create a new note
 const createNote = async ({ note }) => {
-    const { data, error } = await supabaseClient.from('notes').insert(note).select();
+    const { data, error } = await supabaseClient.from('announcements').insert(note).select();
 
     if (error) {
         throw new Error('Failed to create note');
@@ -54,7 +54,7 @@ export const useCreateNote = (currentWorkspace) => {
         onSuccess: () => {
             // Invalidate all note-related queries for the workspace
             queryClient.invalidateQueries({
-                queryKey: ['notes', currentWorkspace?.workspace_id],
+                queryKey: ['announcements', currentWorkspace?.workspace_id],
                 refetchType: 'all',
             });
         },
@@ -82,7 +82,7 @@ export const useUpdateNote = (currentWorkspace) => {
         onSuccess: () => {
             // Invalidate all note-related queries for the workspace
             queryClient.invalidateQueries({
-                queryKey: ['notes', currentWorkspace?.workspace_id],
+                queryKey: ['announcements', currentWorkspace?.workspace_id],
                 refetchType: 'all',
             });
         },
@@ -110,7 +110,7 @@ export const useDeleteNote = (currentWorkspace) => {
         onSuccess: () => {
             // Invalidate all note-related queries for the workspace
             queryClient.invalidateQueries({
-                queryKey: ['notes', currentWorkspace?.workspace_id],
+                queryKey: ['announcements', currentWorkspace?.workspace_id],
                 refetchType: 'all',
             });
         },

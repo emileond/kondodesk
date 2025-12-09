@@ -39,6 +39,7 @@ import ReservasPage from './pages/Reservas.jsx';
 import ReservaAmenityPage from './pages/ReservaAmenity.jsx';
 import InicioPage from './pages/Inicio.jsx';
 import MisReservasPage from './pages/MisReservas.jsx';
+import ReservaConfirmacionPage from './pages/ReservaConfirmacion.jsx';
 
 function App() {
     const { isLoading } = useUser();
@@ -253,10 +254,18 @@ function App() {
             ),
         },
         {
-            path: '/mis-reservas',
+            path: '/reservas',
             element: (
                 <ProtectedRoute>
                     <MisReservasPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/reserva/confirmacion',
+            element: (
+                <ProtectedRoute>
+                    <ReservaConfirmacionPage />
                 </ProtectedRoute>
             ),
         },

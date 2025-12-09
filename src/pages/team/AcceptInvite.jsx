@@ -30,10 +30,10 @@ function AcceptInvitePage() {
                 localStorage.removeItem('pendingInvitationToken');
                 // Refetch workspaces and navigate
                 await queryClient.invalidateQueries({ queryKey: ['workspaces', user.id] });
-                navigate(`/dashboard`); // Navigate to a general dashboard
+                navigate(`/home`); // Navigate to a general dashboard
             } catch (error) {
                 toast.error(`Failed to accept invitation: ${error.message}`);
-                navigate('/dashboard'); // Navigate away even on error
+                navigate('/home'); // Navigate away even on error
             }
         };
 

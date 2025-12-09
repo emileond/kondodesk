@@ -23,8 +23,8 @@ export const navItems = [
         endContent: null,
     },
     {
-        name: 'Mis Reservas',
-        path: '/mis-reservas',
+        name: 'Reservas',
+        path: '/reservas',
         startContent: <RiCalendarEventLine fontSize={ICON_SIZE} />,
         endContent: null,
     },

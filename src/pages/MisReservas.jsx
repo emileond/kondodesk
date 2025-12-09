@@ -1,7 +1,9 @@
 import { Card, CardBody, CardHeader, Button, Divider } from '@heroui/react';
 import { Link } from 'react-router-dom';
+import { useRef, useMemo } from 'react';
 import AppLayout from '../components/layout/AppLayout.jsx';
 import PageLayout from '../components/layout/PageLayout.jsx';
+import ReservationCard from '../components/reservations/ReservationCard.jsx';
 
 function EmptyState({ title, description, cta }) {
     return (
@@ -15,30 +17,43 @@ function EmptyState({ title, description, cta }) {
     );
 }
 
+import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
+import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
+import { useUser } from '../hooks/react-query/user/useUser.js';
+import dayjs from 'dayjs';
+
 function MisReservasPage() {
-    // Placeholder data: replace with real hooks/services when available
-    const upcomingReservations = [];
+    const [currentWorkspace] = useCurrentWorkspace();
+    const { data: currentUser } = useUser();
+
+    const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
+
+    const { data: reservations = [], isLoading } = useReservationsList({
+        condo_id: currentWorkspace?.condo_id,
+        user_id: currentUser?.id,
+        from: fromISO,
+    });
+
+    const upcomingReservations = reservations;
 
     return (
         <AppLayout>
-            <PageLayout title="Mis Reservas" description="Tus próximas reservas" maxW="4xl" backBtn>
-                <Card className="bg-content1 border border-default-100">
+            <PageLayout title="Reservas" description="Tus próximas reservas" maxW="4xl" backBtn>
+                <Card>
                     <CardHeader className="text-default-600 font-semibold">
                         Próximas reservas
                     </CardHeader>
-                    <Divider />
                     <CardBody>
-                        {upcomingReservations.length > 0 ? (
+                        {isLoading ? (
+                            <div className="text-sm text-default-500">Cargando…</div>
+                        ) : upcomingReservations.length > 0 ? (
                             <ul className="flex flex-col gap-3">
                                 {upcomingReservations.map((r, i) => (
-                                    <li
-                                        key={i}
-                                        className="p-3 rounded-medium bg-content2 border border-default-100"
-                                    >
-                                        <div className="text-small font-medium">{r.title}</div>
-                                        <div className="text-tiny text-default-500 mt-1">
-                                            {r.when}
-                                        </div>
+                                    <li key={r?.id || i}>
+                                        <ReservationCard
+                                            reservation={r}
+                                            amenityName={r?.amenity?.name}
+                                        />
                                     </li>
                                 ))}
                             </ul>

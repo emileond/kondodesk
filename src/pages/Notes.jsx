@@ -11,6 +11,7 @@ import EmptyState from '../components/EmptyState';
 const Notes = () => {
     const [currentWorkspace] = useCurrentWorkspace();
     const { data: notes } = useNotes(currentWorkspace);
+    console.log(notes);
     const [isOpen, setIsOpen] = useState(false);
     const [parent] = useAutoAnimate();
 

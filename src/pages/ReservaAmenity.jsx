@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import ReservationCalendar from '../components/amenidades/ReservationCalendar.jsx';
 import dayjs from 'dayjs';
@@ -7,6 +7,8 @@ import AppLayout from '../components/layout/AppLayout.jsx';
 import toast from 'react-hot-toast';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import { useAmenity, useAmenityRules } from '../hooks/react-query/amenities/useAmenities';
+import { useAmenityAvailability, useCreateReservation } from '../hooks/react-query/reservations/useReservations.js';
+import { useUser } from '../hooks/react-query/user/useUser.js';
 import { RiMoneyDollarCircleLine, RiTimerLine } from 'react-icons/ri';
 
 function titleCase(str = '') {
@@ -76,6 +78,7 @@ function generateAvailabilityFromRules({
 }
 
 function ReservaAmenityPage() {
+    const navigate = useNavigate();
     const { amenity: amenitySlug } = useParams();
     const [currentWorkspace] = useCurrentWorkspace();
     const amenityName = useMemo(
@@ -92,7 +95,19 @@ function ReservaAmenityPage() {
         amenity_id: amenityId,
     });
 
+    const { data: currentUser } = useUser();
+
+    // Backend-derived availability that accounts for reservations and rules
+    const { data: availData, isPending: availLoading } = useAmenityAvailability({
+        condo_id: currentWorkspace?.condo_id,
+        amenity_id: amenityId,
+        user_id: currentUser?.id,
+        start: dayjs().startOf('day').format('YYYY-MM-DD'),
+        days: 30,
+    });
+
     const [availability, setAvailability] = useState({});
+    const [userLimitByDate, setUserLimitByDate] = useState({});
 
     // Build helpers for cost and duration display
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
@@ -137,18 +152,17 @@ function ReservaAmenityPage() {
     }, [JSON.stringify(rules)]);
 
     useEffect(() => {
-        if (!amenityId) return;
-        // Compute availability starting today
-        const data = generateAvailabilityFromRules({
-            rules,
-            startDate: dayjs().startOf('day'),
-            days: 30,
-            now: dayjs(),
-        });
-        setAvailability(data);
-    }, [amenityId, JSON.stringify(rules)]);
+        if (availData) {
+            const avail = availData.availability || availData; // backward compatibility
+            const limits = availData.userLimitByDate || {};
+            setAvailability(avail);
+            setUserLimitByDate(limits);
+        }
+    }, [JSON.stringify(availData)]);
 
-    const isLoading = amenityLoading || (amenityId && rulesLoading);
+    const isLoading = amenityLoading || (amenityId && (rulesLoading || availLoading));
+
+    const createReservation = useCreateReservation();
 
     // Helper to format start-end like 9-10 (omit :00)
     function formatRange(dateStr, startHHMM) {
@@ -190,15 +204,57 @@ function ReservaAmenityPage() {
                     <div className="pt-3">
                         <ReservationCalendar
                             availability={availability}
+                            userLimitByDate={userLimitByDate}
                             amenityName={amenityName}
                             costLabel={costLabel}
                             slotDurationByDow={slotDurationByDow}
                             onSelect={() => {}}
                             onCancelSelection={() => {}}
-                            onConfirm={(payload) => {
-                                toast.success(
-                                    `Reserva confirmada: ${amenityName} el ${dayjs(payload.date).format('DD MMM YYYY')} ${formatRange(payload.date, payload.time)}`,
-                                );
+                            onConfirm={async (payload) => {
+                                try {
+                                    const [sh, sm] = (payload.time || '00:00')
+                                        .split(':')
+                                        .map((v) => parseInt(v || '0', 10));
+                                    const startISO = dayjs(payload.date)
+                                        .hour(sh)
+                                        .minute(sm)
+                                        .second(0)
+                                        .millisecond(0)
+                                        .toISOString();
+                                    const dow = dayjs(payload.date).day();
+                                    const reservation_duration_minutes = Number(
+                                        slotDurationByDow[dow] || 60,
+                                    );
+
+                                    const created = await createReservation.mutateAsync({
+                                        condo_id: currentWorkspace?.condo_id,
+                                        user_id: currentUser?.id,
+                                        amenity_id: amenityId,
+                                        start_time: startISO,
+                                        reservation_duration_minutes,
+                                    });
+
+                                    const status = created?.status;
+                                    toast.success(
+                                        status === 'pending'
+                                            ? `Reserva creada como pendiente de pago: ${amenityName} el ${dayjs(payload.date).format('DD MMM YYYY')} ${formatRange(payload.date, payload.time)}`
+                                            : `Reserva confirmada: ${amenityName} el ${dayjs(payload.date).format('DD MMM YYYY')} ${formatRange(payload.date, payload.time)}`,
+                                    );
+                                    // Navigate to confirmation view with details
+                                    navigate('/reserva/confirmacion', {
+                                        state: {
+                                            reservation: created,
+                                            amenityName,
+                                            status,
+                                            date: payload.date,
+                                            time: payload.time,
+                                            reservation_duration_minutes,
+                                        },
+                                    });
+                                } catch (e) {
+                                    console.error(e);
+                                    toast.error('No se pudo crear la reserva');
+                                }
                             }}
                         />
                     </div>

@@ -2,6 +2,8 @@ import { Card, CardBody, CardHeader, Button, Divider } from '@heroui/react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout.jsx';
 import PageLayout from '../components/layout/PageLayout.jsx';
+import { useMemo } from 'react';
+import ReservationCard from '../components/reservations/ReservationCard.jsx';
 
 function EmptyState({ title, description, cta }) {
     return (
@@ -15,19 +17,35 @@ function EmptyState({ title, description, cta }) {
     );
 }
 
+import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
+import { useUser } from '../hooks/react-query/user/useUser.js';
+import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
+import dayjs from 'dayjs';
+import { RiCalendarEventLine, RiMegaphoneLine } from 'react-icons/ri';
+
 function InicioPage() {
-    // Placeholder data: replace with real hooks when available
+    const [currentWorkspace] = useCurrentWorkspace();
+    const { data: currentUser } = useUser();
+
     const announcements = [];
-    const upcomingReservations = [];
+
+    const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
+
+    const { data: upcomingReservations = [], reservationsLoading } = useReservationsList({
+        condo_id: currentWorkspace?.condo_id,
+        user_id: currentUser?.id,
+        from: fromISO,
+    });
 
     return (
         <AppLayout>
             <PageLayout title="Inicio" description="Resumen de tu actividad" maxW="5xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Avisos */}
-                    <Card className="bg-content1 border border-default-100">
-                        <CardHeader className="text-default-600 font-semibold">Avisos</CardHeader>
-                        <Divider />
+                    <Card className="bg-content2">
+                        <CardHeader className="text-default-600 font-semibold">
+                            <RiMegaphoneLine className="mr-2 text-lg" /> Avisos
+                        </CardHeader>
                         <CardBody>
                             {announcements.length > 0 ? (
                                 <ul className="flex flex-col gap-3">
@@ -55,23 +73,22 @@ function InicioPage() {
                     </Card>
 
                     {/* Mis reservas */}
-                    <Card className="bg-content1 border border-default-100">
+                    <Card>
                         <CardHeader className="text-default-600 font-semibold">
-                            Mis reservas
+                            <RiCalendarEventLine className="mr-2 text-lg" />
+                            Próximas Reservas
                         </CardHeader>
-                        <Divider />
                         <CardBody>
-                            {upcomingReservations.length > 0 ? (
+                            {reservationsLoading ? (
+                                <div className="text-sm text-default-500">Cargando…</div>
+                            ) : upcomingReservations.length > 0 ? (
                                 <ul className="flex flex-col gap-3">
                                     {upcomingReservations.map((r, i) => (
-                                        <li
-                                            key={i}
-                                            className="p-3 rounded-medium bg-content2 border border-default-100"
-                                        >
-                                            <div className="text-small font-medium">{r.title}</div>
-                                            <div className="text-tiny text-default-500 mt-1">
-                                                {r.when}
-                                            </div>
+                                        <li key={r?.id || i}>
+                                            <ReservationCard
+                                                reservation={r}
+                                                amenityName={r?.amenity?.name}
+                                            />
                                         </li>
                                     ))}
                                 </ul>

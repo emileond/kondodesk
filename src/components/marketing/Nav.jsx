@@ -76,11 +76,11 @@ export default function NavBar() {
                             <Button
                                 as={RRLink}
                                 color="primary"
-                                to="/dashboard"
+                                to="/home"
                                 variant="solid"
                                 className="sm:flex"
                             >
-                                Dashboard
+                                Ir a la app
                             </Button>
                         </NavbarItem>
                     ) : (

@@ -8,6 +8,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 // onConfirm({ date, time })
 function ReservationCalendar({
     availability = {},
+    userLimitByDate = {},
     onSelect,
     onConfirm,
     amenityName,
@@ -116,9 +117,6 @@ function ReservationCalendar({
                 // Confirmation view replaces the calendar
                 <Card className="overflow-hidden">
                     <CardBody>
-                        <div className="h-64">
-                            <DotLottieReact src="/lottie/animation.lottie" autoplay loop />
-                        </div>
                         <div className="flex flex-col gap-4">
                             <div>
                                 <h3 className="text-lg font-semibold">Confirmar reserva</h3>
@@ -215,6 +213,15 @@ function ReservationCalendar({
                     {/* Views */}
                     {view === 'day' ? (
                         <div>
+                            {/* Alert when user reached daily limit */}
+                            {userLimitByDate[selectedDate] && (
+                                <div
+                                    role="alert"
+                                    className="mb-3 rounded-medium border border-warning-200 bg-warning-50 text-warning-700 px-3 py-2 text-sm"
+                                >
+                                    Has alcanzado tu límite de reservas para este día.
+                                </div>
+                            )}
                             {daySlots.length === 0 && (
                                 <div className="text-sm text-default-500">
                                     Sin disponibilidad para este día
@@ -226,13 +233,21 @@ function ReservationCalendar({
                                         selected &&
                                         selected.date === selectedDate &&
                                         selected.time === t;
+                                    const limited = !!userLimitByDate[selectedDate];
+                                    const variant = isSel
+                                        ? 'solid'
+                                        : limited
+                                          ? 'solid'
+                                          : 'bordered';
+                                    const color = isSel ? 'primary' : 'default';
                                     return (
                                         <Button
                                             key={t}
                                             size="md"
-                                            variant={isSel ? 'solid' : 'bordered'}
-                                            color={isSel ? 'primary' : 'default'}
-                                            className={`h-14 justify-start flex-1/5 hover:bg-default-100 font-medium ${isSel && 'hover:bg-primary'}`}
+                                            variant={variant}
+                                            color={color}
+                                            isDisabled={limited}
+                                            className={`h-14 justify-start flex-1/5 font-medium ${isSel ? 'hover:bg-primary' : 'hover:bg-default-100'}`}
                                             onPress={() => handleSelect(selectedDate, t)}
                                         >
                                             {t}
@@ -298,20 +313,23 @@ function ReservationCalendar({
                                                                     selected &&
                                                                     selected.date === dateStr &&
                                                                     selected.time === t;
+                                                                const limited =
+                                                                    !!userLimitByDate[dateStr];
+                                                                const variant = isSel
+                                                                    ? 'solid'
+                                                                    : limited
+                                                                      ? 'solid'
+                                                                      : 'bordered';
+                                                                const color = isSel
+                                                                    ? 'primary'
+                                                                    : 'default';
                                                                 return (
                                                                     <Button
                                                                         key={t}
                                                                         size="sm"
-                                                                        variant={
-                                                                            isSel
-                                                                                ? 'solid'
-                                                                                : 'bordered'
-                                                                        }
-                                                                        color={
-                                                                            isSel
-                                                                                ? 'primary'
-                                                                                : 'default'
-                                                                        }
+                                                                        variant={variant}
+                                                                        color={color}
+                                                                        isDisabled={limited}
                                                                         className="h-7 text-xs flex-1/3"
                                                                         onPress={() =>
                                                                             handleSelect(dateStr, t)
