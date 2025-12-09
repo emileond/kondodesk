@@ -11,6 +11,7 @@ function ReservationCalendar({
     onSelect,
     onConfirm,
     amenityName,
+    costLabel,
     onCancelSelection,
     slotDurationByDow = {}, // map: 0..6 -> minutes
 }) {
@@ -116,7 +117,7 @@ function ReservationCalendar({
                 <Card className="overflow-hidden">
                     <CardBody>
                         <div className="h-64">
-                            <DotLottieReact src="/lottie/done.lottie" className="w-full h-full" />
+                            <DotLottieReact src="/lottie/animation.lottie" autoplay loop />
                         </div>
                         <div className="flex flex-col gap-4">
                             <div>
@@ -130,6 +131,12 @@ function ReservationCalendar({
                                     <div className="flex items-center justify-between">
                                         <span className="text-default-500">Amenidad</span>
                                         <span className="font-medium">{amenityName}</span>
+                                    </div>
+                                )}
+                                {typeof costLabel !== 'undefined' && costLabel !== null && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-default-500">Costo</span>
+                                        <span className="font-medium">{costLabel}</span>
                                     </div>
                                 )}
                                 <div className="flex items-center justify-between">

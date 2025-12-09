@@ -16,7 +16,7 @@ function ReservasPage() {
 
     return (
         <AppLayout>
-            <PageLayout title="Amenidades" description="Reserva amenidades de tu workspace" backBtn>
+            <PageLayout title="Amenidades" backBtn>
                 {isPending && <p className="text-default-500">Cargando amenidades…</p>}
                 {isError && (
                     <p className="text-danger">

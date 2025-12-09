@@ -191,6 +191,7 @@ function ReservaAmenityPage() {
                         <ReservationCalendar
                             availability={availability}
                             amenityName={amenityName}
+                            costLabel={costLabel}
                             slotDurationByDow={slotDurationByDow}
                             onSelect={() => {}}
                             onCancelSelection={() => {}}

@@ -50,11 +50,12 @@ function AmenityCard({ amenity }) {
 
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
     const showCost = amenity.requires_payment;
-    const costLabel = showCost && Number.isFinite(Number(amenity.cost))
-        ? formatCurrency(amenity.cost, currencyCode)
-        : showCost
-        ? 'Pago requerido'
-        : null;
+    const costLabel =
+        showCost && Number.isFinite(Number(amenity.cost))
+            ? formatCurrency(amenity.cost, currencyCode)
+            : showCost
+              ? 'Pago requerido'
+              : null;
 
     return (
         <Card
@@ -72,9 +73,6 @@ function AmenityCard({ amenity }) {
             )}
             <CardHeader className="flex flex-col items-start gap-1">
                 <h3 className="text-lg font-semibold">{display}</h3>
-                <p className="text-small text-default-500">
-                    Reserva el {display.toLowerCase()} de tu workspace
-                </p>
                 {(costLabel || durationLabel) && (
                     <div className="mt-1 flex items-center gap-3 text-small text-default-600">
                         {costLabel && (
