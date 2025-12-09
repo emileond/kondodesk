@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, CardBody } from '@heroui/react';
 import dayjs from 'dayjs';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // availability: Record<string, string[]> where key = 'YYYY-MM-DD', values = ['09:00', '09:30', ...]
 // onSelect({ date, time })
@@ -114,6 +115,9 @@ function ReservationCalendar({
                 // Confirmation view replaces the calendar
                 <Card className="overflow-hidden">
                     <CardBody>
+                        <div className="h-64">
+                            <DotLottieReact src="/lottie/done.lottie" className="w-full h-full" />
+                        </div>
                         <div className="flex flex-col gap-4">
                             <div>
                                 <h3 className="text-lg font-semibold">Confirmar reserva</h3>

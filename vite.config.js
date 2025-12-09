@@ -13,6 +13,7 @@ export default defineConfig({
         react({ include: /\.(jsx|js|mdx|md|tsx|ts)$/ }),
         tailwindcss(),
     ],
+    assetsInclude: '**/*.lottie',
     server: {
         proxy: {
             '/api': {
