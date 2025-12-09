@@ -50,7 +50,6 @@ function ReservationCalendar({
         setMode('confirm');
     }
 
-
     // Helpers for day navigation
     function goToToday() {
         const today = dayjs();
@@ -74,9 +73,6 @@ function ReservationCalendar({
             <Button size="sm" variant="light" onPress={() => changeDay(1)}>
                 →
             </Button>
-            <Button size="sm" variant="flat" onPress={goToToday}>
-                Hoy
-            </Button>
         </div>
     );
 
@@ -96,13 +92,6 @@ function ReservationCalendar({
                 onPress={() => setMonthCursor(monthCursor.add(1, 'month'))}
             >
                 →
-            </Button>
-            <Button
-                size="sm"
-                variant="light"
-                onPress={() => setMonthCursor(dayjs().startOf('month'))}
-            >
-                Hoy
             </Button>
         </div>
     );
@@ -150,14 +139,19 @@ function ReservationCalendar({
                                     <span className="font-medium">
                                         {(() => {
                                             const start = selected?.time || '';
-                                            const [sh, sm] = start.split(':').map((v) => parseInt(v || '0', 10));
+                                            const [sh, sm] = start
+                                                .split(':')
+                                                .map((v) => parseInt(v || '0', 10));
                                             const dow = dayjs(selected?.date).day();
                                             const dur = Number(slotDurationByDow[dow] || 60);
                                             const end = dayjs()
                                                 .hour(sh)
                                                 .minute(sm)
                                                 .add(dur, 'minute');
-                                            const fmt = (h, m) => (m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`);
+                                            const fmt = (h, m) =>
+                                                m === 0
+                                                    ? String(h)
+                                                    : `${h}:${String(m).padStart(2, '0')}`;
                                             const label = `${fmt(sh, sm)}-${fmt(end.hour(), end.minute())}`;
                                             return label;
                                         })()}
@@ -165,11 +159,11 @@ function ReservationCalendar({
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                                <Button variant="flat" onPress={handleChangeTime}>
-                                    Cambiar horario
-                                </Button>
                                 <Button color="primary" onPress={handleConfirm}>
                                     Confirmar reserva
+                                </Button>
+                                <Button variant="flat" onPress={handleChangeTime}>
+                                    Cambiar horario
                                 </Button>
                             </div>
                         </div>
@@ -181,7 +175,7 @@ function ReservationCalendar({
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             {/* View toggle */}
-                            <div className="inline-flex rounded-medium overflow-hidden border border-default-200">
+                            <div className="inline-flex rounded-medium overflow-hidden border border-default-200 ">
                                 <Button
                                     size="sm"
                                     variant={view === 'day' ? 'solid' : 'light'}
@@ -209,53 +203,49 @@ function ReservationCalendar({
 
                     {/* Views */}
                     {view === 'day' ? (
-                        <Card className="overflow-hidden">
-                            <CardBody>
-                                <div className="flex flex-col gap-2">
-                                    {daySlots.length === 0 && (
-                                        <div className="text-sm text-default-500">
-                                            Sin disponibilidad para este día
-                                        </div>
-                                    )}
-                                    <div className="flex flex-col gap-2 max-h-96 overflow-auto pr-1">
-                                        {daySlots.map((t) => {
-                                            const isSel =
-                                                selected &&
-                                                selected.date === selectedDate &&
-                                                selected.time === t;
-                                            return (
-                                                <Button
-                                                    key={t}
-                                                    size="sm"
-                                                    variant={isSel ? 'solid' : 'faded'}
-                                                    color={isSel ? 'primary' : 'default'}
-                                                    className="h-10 w-full justify-start"
-                                                    onPress={() => handleSelect(selectedDate, t)}
-                                                >
-                                                    {t}
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
+                        <div>
+                            {daySlots.length === 0 && (
+                                <div className="text-sm text-default-500">
+                                    Sin disponibilidad para este día
                                 </div>
-                            </CardBody>
-                        </Card>
+                            )}
+                            <div className="flex flex-wrap gap-3 justify-center">
+                                {daySlots.map((t) => {
+                                    const isSel =
+                                        selected &&
+                                        selected.date === selectedDate &&
+                                        selected.time === t;
+                                    return (
+                                        <Button
+                                            key={t}
+                                            size="md"
+                                            variant={isSel ? 'solid' : 'bordered'}
+                                            color={isSel ? 'primary' : 'default'}
+                                            className={`h-14 justify-start flex-1/5 hover:bg-default-100 font-medium ${isSel && 'hover:bg-primary'}`}
+                                            onPress={() => handleSelect(selectedDate, t)}
+                                        >
+                                            {t}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     ) : (
-                        <Card className="overflow-hidden">
+                        <Card shadow="sm">
                             <CardBody className="p-0">
                                 {/* Header days */}
-                                <div className="grid grid-cols-7 text-xs font-medium text-default-500 px-3 py-2">
+                                <div className="grid grid-cols-7 text-xs font-medium text-default-500 py-2 border-b-1 border-default-200">
                                     {dayNames.map((n) => (
                                         <div key={n} className="text-center">
                                             {n}
                                         </div>
                                     ))}
                                 </div>
-                                <div className="grid grid-rows-6 gap-px bg-default-100">
+                                <div className="grid auto-rows-min gap-px">
                                     {weeks.map((week, wi) => (
                                         <div
                                             key={wi}
-                                            className="grid grid-cols-7 gap-px bg-default-100"
+                                            className="grid grid-cols-7 gap-px bg-default-200"
                                         >
                                             {week.map((d) => {
                                                 const dateStr = d.format('YYYY-MM-DD');
@@ -266,7 +256,7 @@ function ReservationCalendar({
                                                 return (
                                                     <div
                                                         key={dateStr}
-                                                        className="bg-content1 p-2 min-h-28 flex flex-col"
+                                                        className={`bg-content1 p-2 h-30 flex flex-col mb-px ${isToday && 'bg-primary-50 overflow-auto'}`}
                                                     >
                                                         <div className="flex items-center justify-between">
                                                             <button
@@ -280,15 +270,15 @@ function ReservationCalendar({
                                                                 {d.format('D')}
                                                             </button>
                                                             {isToday && (
-                                                                <span className="text-[10px] px-1 rounded bg-primary-100 text-primary-700">
-                                                                    hoy
+                                                                <span className="text-xs px-1 rounded bg-primary-100 text-primary-700">
+                                                                    Hoy
                                                                 </span>
                                                             )}
                                                         </div>
                                                         {/* Slots */}
-                                                        <div className="mt-2 flex flex-col gap-1 max-h-28 overflow-auto pr-1">
+                                                        <div className="overflow-auto flex flex-wrap gap-0.5 ">
                                                             {!hasAvail && (
-                                                                <span className="text-[11px] text-default-400">
+                                                                <span className="text-xs text-default-400">
                                                                     Sin disponibilidad
                                                                 </span>
                                                             )}
@@ -302,14 +292,16 @@ function ReservationCalendar({
                                                                         key={t}
                                                                         size="sm"
                                                                         variant={
-                                                                            isSel ? 'solid' : 'flat'
+                                                                            isSel
+                                                                                ? 'solid'
+                                                                                : 'bordered'
                                                                         }
                                                                         color={
                                                                             isSel
                                                                                 ? 'primary'
                                                                                 : 'default'
                                                                         }
-                                                                        className="h-7 text-[11px]"
+                                                                        className="h-7 text-xs flex-1/3"
                                                                         onPress={() =>
                                                                             handleSelect(dateStr, t)
                                                                         }

@@ -98,7 +98,11 @@ function ReservaAmenityPage() {
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
     const costLabel = amenity?.requires_payment
         ? Number.isFinite(Number(amenity?.cost))
-            ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 }).format(Number(amenity?.cost))
+            ? new Intl.NumberFormat('es-MX', {
+                  style: 'currency',
+                  currency: currencyCode,
+                  maximumFractionDigits: 0,
+              }).format(Number(amenity?.cost))
             : 'Pago requerido'
         : null;
 
@@ -160,28 +164,30 @@ function ReservaAmenityPage() {
         <AppLayout>
             <PageLayout
                 title={`Reservar ${amenityName}`}
-                description="Selecciona un horario disponible"
+                description="Selecciona un horario"
+                customElements={
+                    (costLabel || durationLabel) && (
+                        <div className="mt-1 flex items-center gap-3 text-small text-default-600">
+                            {costLabel && (
+                                <span className="inline-flex items-center gap-1">
+                                    <RiMoneyDollarCircleLine className="text-success" />
+                                    <span>{costLabel}</span>
+                                </span>
+                            )}
+                            {durationLabel && (
+                                <span className="inline-flex items-center gap-1">
+                                    <RiTimerLine className="text-primary" />
+                                    <span>{durationLabel}</span>
+                                </span>
+                            )}
+                        </div>
+                    )
+                }
                 backBtn
             >
                 {isLoading && <p className="text-default-500">Cargando disponibilidad…</p>}
                 {!isLoading && (
-                    <div className="flex flex-col gap-4">
-                        {(costLabel || durationLabel) && (
-                            <div className="mt-1 flex items-center gap-3 text-small text-default-600">
-                                {costLabel && (
-                                    <span className="inline-flex items-center gap-1">
-                                        <RiMoneyDollarCircleLine className="text-success" />
-                                        <span>{costLabel}</span>
-                                    </span>
-                                )}
-                                {durationLabel && (
-                                    <span className="inline-flex items-center gap-1">
-                                        <RiTimerLine className="text-primary" />
-                                        <span>{durationLabel}</span>
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                    <div className="pt-3">
                         <ReservationCalendar
                             availability={availability}
                             amenityName={amenityName}
