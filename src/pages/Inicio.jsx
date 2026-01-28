@@ -4,6 +4,7 @@ import AppLayout from '../components/layout/AppLayout.jsx';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import { useMemo } from 'react';
 import ReservationCard from '../components/reservations/ReservationCard.jsx';
+import NoteCard from '../components/notes/NoteCard.jsx';
 
 function EmptyState({ title, description, cta }) {
     return (
@@ -21,6 +22,7 @@ import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
+import { useNotes } from '../hooks/react-query/notes/useNotes.js';
 import dayjs from 'dayjs';
 import { RiCalendarEventLine, RiMegaphoneLine } from 'react-icons/ri';
 
@@ -29,7 +31,7 @@ function InicioPage() {
     const { data: currentUser } = useUser();
     const { data: unitIds = [] } = useCondoMemberUnitIds(currentWorkspace, currentUser);
 
-    const announcements = [];
+    const { data: announcements = [], isLoading: notesLoading } = useNotes(currentWorkspace);
 
     const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
 
@@ -49,19 +51,20 @@ function InicioPage() {
                             <RiMegaphoneLine className="mr-2 text-lg" /> Avisos
                         </CardHeader>
                         <CardBody className="max-sm:max-h-[70vh] max-sm:overflow-y-auto">
-                            {announcements.length > 0 ? (
+                            {notesLoading ? (
+                                <div className="text-sm text-default-500">Cargando…</div>
+                            ) : announcements.length > 0 ? (
                                 <ul className="flex flex-col gap-3">
                                     {announcements.map((a, i) => (
                                         <li
-                                            key={i}
-                                            className="p-3 rounded-medium bg-content2 border border-default-100"
+                                            key={a?.id || i}
+                                            className="rounded-medium"
                                         >
-                                            <div className="text-small font-medium">{a.title}</div>
-                                            {a.description && (
-                                                <div className="text-tiny text-default-500 mt-1">
-                                                    {a.description}
-                                                </div>
-                                            )}
+                                            <NoteCard
+                                                note={a}
+                                                currentWorkspace={currentWorkspace}
+                                                canEdit={false}
+                                            />
                                         </li>
                                     ))}
                                 </ul>

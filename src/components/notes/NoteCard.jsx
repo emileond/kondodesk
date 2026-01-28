@@ -26,7 +26,7 @@ import { toUTC, formatDate } from '../../utils/dateUtils';
 // Extend dayjs with calendar plugin
 dayjs.extend(calendar);
 
-const NoteCard = ({ note, currentWorkspace }) => {
+const NoteCard = ({ note, currentWorkspace, canEdit = false }) => {
     const [isEditable, setIsEditable] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [hasOverflow, setHasOverflow] = useState(false);
@@ -52,6 +52,7 @@ const NoteCard = ({ note, currentWorkspace }) => {
     };
 
     const handleEdit = () => {
+        if (!canEdit) return;
         // Reset editedNote to current note values when entering edit mode
         setEditedNote({
             title: note.title,
@@ -145,7 +146,7 @@ const NoteCard = ({ note, currentWorkspace }) => {
                         isReadOnly={!isEditable}
                         onChange={handleTitleChange}
                     />
-                    {!isEditable && (
+                    {!isEditable && canEdit && (
                         <div className="flex">
                             <Tooltip content={note.is_pinned ? 'Unpin' : 'Pin'}>
                                 <Button
@@ -217,7 +218,7 @@ const NoteCard = ({ note, currentWorkspace }) => {
                 </CardBody>
                 <Divider />
                 <CardFooter className="flex justify-between">
-                    {isEditable ? (
+                    {isEditable && canEdit ? (
                         <>
                             <Button
                                 variant="light"

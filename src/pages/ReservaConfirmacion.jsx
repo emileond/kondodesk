@@ -101,11 +101,12 @@ function ReservaConfirmacionPage() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <h3 className="text-xl font-semibold">¡Reserva completada!</h3>
+                                <h3 className="text-xl font-semibold">
+                                    {isPending ? 'Reserva pendiente' : '¡Reserva completada!'}
+                                </h3>
                                 {isPending ? (
                                     <div className="rounded-medium border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
-                                        El pago de esta reserva sigue pendiente. Te avisaremos
-                                        cuando se confirme.
+                                        El pago de esta reserva sigue pendiente. Contacta al administrador para realizar el pago y confirmar la reserva.
                                     </div>
                                 ) : (
                                     <p className="text-default-500">

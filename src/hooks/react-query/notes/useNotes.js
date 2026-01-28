@@ -2,12 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 
 // Fetch notes for a specific workspace
-const fetchNotes = async ({ id, condo_id }) => {
+const fetchNotes = async ({ id, condo_id, from }) => {
     let query = supabaseClient.from('announcements').select('*').eq('condo_id', condo_id);
 
     if (id) {
         query = query.eq('id', id).single(); // Fetch single item
     } else {
+        if (from) {
+            query = query.gte('created_at', from);
+        }
         query = query.order('created_at', { ascending: false }); // Order by created_at descending
     }
 
@@ -22,12 +25,17 @@ const fetchNotes = async ({ id, condo_id }) => {
 
 // Hook to fetch notes with optional filters
 export const useNotes = (currentWorkspace, filters = {}) => {
+    const fallbackFrom =
+        filters?.from === null
+            ? null
+            : filters?.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     return useQuery({
         queryKey: ['announcements', currentWorkspace?.condo_id, filters],
         queryFn: () =>
             fetchNotes({
                 condo_id: currentWorkspace?.condo_id,
                 id: filters.id,
+                from: filters.id ? null : fallbackFrom,
             }),
         staleTime: 1000 * 60 * 5, // 5 minutes
         enabled: !!currentWorkspace?.condo_id, // Only fetch if condo_id is provided
