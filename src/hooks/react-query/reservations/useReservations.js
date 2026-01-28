@@ -143,6 +143,12 @@ async function createReservation(payload) {
     return res.data;
 }
 
+async function updateReservation(payload) {
+    const res = await api.patch('reservations', { json: payload }).json();
+    if (!res?.success) throw new Error(res?.error || 'Failed to update reservation');
+    return res.data;
+}
+
 export async function fetchAmenityAvailability(params) {
     const { condo_id, amenity_id, unit_id, start, days, from, to } = params || {};
     const searchParams = new URLSearchParams();
@@ -205,6 +211,17 @@ export function useCreateReservation() {
                         queryKey?.[0] === 'availability' && queryKey?.[1] === condo_id && queryKey?.[2] === amenity_id,
                 });
             }
+        },
+    });
+}
+
+export function useUpdateReservation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: updateReservation,
+        onSuccess: () => {
+            qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'reservations' });
+            qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'availability' });
         },
     });
 }

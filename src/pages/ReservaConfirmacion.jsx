@@ -13,6 +13,7 @@ function ReservaConfirmacionPage() {
     const reservation = state?.reservation || null;
     const amenityName = state?.amenityName || reservation?.amenity?.name || 'Amenidad';
     const status = (state?.status || reservation?.status || '').toLowerCase();
+    const isPending = status === 'pending';
 
     // Try to compute human labels if date/time provided in state
     const dateStr = state?.date
@@ -33,8 +34,11 @@ function ReservaConfirmacionPage() {
     function computeRange() {
         // Prefer payload date + time + duration
         if (state?.date && state?.time) {
-            const maxReservations = Number(state?.rule_max_reservations) === 1;
-            if (maxReservations && state?.rule_open_time && state?.rule_close_time) {
+            const isExclusive =
+                state?.amenity_is_exclusive ??
+                (Number(state?.amenity_max_capacity) === 1 ||
+                Number(reservation?.amenity?.max_capacity) === 1);
+            if (isExclusive && state?.rule_open_time && state?.rule_close_time) {
                 const [oh, om] = String(state.rule_open_time)
                     .slice(0, 5)
                     .split(':')
@@ -81,8 +85,8 @@ function ReservaConfirmacionPage() {
             <PageLayout
                 title="¡Tu reserva está lista!"
                 description={
-                    status === 'pending'
-                        ? 'Se creó tu reserva y está pendiente de pago.'
+                    isPending
+                        ? 'Tu reserva está creada, pero el pago sigue pendiente.'
                         : 'Hemos guardado los detalles de tu reserva.'
                 }
                 maxW="3xl"
@@ -91,15 +95,23 @@ function ReservaConfirmacionPage() {
                     <Card className="overflow-hidden">
                         <CardBody className="flex flex-col items-center text-center gap-4 py-8">
                             <div className="h-52">
-                                <DotLottieReact src="/lottie/done.lottie" autoplay />
+                                <DotLottieReact
+                                    src={isPending ? '/lottie/clock.lottie' : '/lottie/done.lottie'}
+                                    autoplay
+                                />
                             </div>
                             <div className="space-y-1">
                                 <h3 className="text-xl font-semibold">¡Reserva completada!</h3>
-                                <p className="text-default-500">
-                                    {status === 'pending'
-                                        ? 'Tu reserva fue creada y está pendiente de pago. Te avisaremos cuando esté confirmada.'
-                                        : 'Tu reserva fue creada correctamente.'}
-                                </p>
+                                {isPending ? (
+                                    <div className="rounded-medium border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+                                        El pago de esta reserva sigue pendiente. Te avisaremos
+                                        cuando se confirme.
+                                    </div>
+                                ) : (
+                                    <p className="text-default-500">
+                                        Tu reserva fue creada correctamente.
+                                    </p>
+                                )}
                             </div>
                             {(reservation || amenityName || dateStr || horaLabel) && (
                                 <div className="w-full max-w-md text-left">

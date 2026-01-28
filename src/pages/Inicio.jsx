@@ -48,7 +48,7 @@ function InicioPage() {
                         <CardHeader className="text-default-600 font-semibold">
                             <RiMegaphoneLine className="mr-2 text-lg" /> Avisos
                         </CardHeader>
-                        <CardBody>
+                        <CardBody className="max-sm:max-h-[70vh] max-sm:overflow-y-auto">
                             {announcements.length > 0 ? (
                                 <ul className="flex flex-col gap-3">
                                     {announcements.map((a, i) => (
@@ -80,7 +80,7 @@ function InicioPage() {
                             <RiCalendarEventLine className="mr-2 text-lg" />
                             Próximas Reservas
                         </CardHeader>
-                        <CardBody>
+                        <CardBody className="max-sm:max-h-[70vh] max-sm:overflow-y-auto">
                             {reservationsLoading ? (
                                 <div className="text-sm text-default-500">Cargando…</div>
                             ) : upcomingReservations.length > 0 ? (

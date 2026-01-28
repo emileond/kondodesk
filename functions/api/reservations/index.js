@@ -324,3 +324,48 @@ export async function onRequestPost(context) {
         return Response.json({ success: false, error: err.message }, { status: 500 });
     }
 }
+
+export async function onRequestPatch(context) {
+    try {
+        const body = await context.request.json();
+        const { reservation_id, condo_id, status } = body || {};
+        if (!reservation_id || !condo_id || !status) {
+            return Response.json(
+                { success: false, error: 'reservation_id, condo_id, status are required' },
+                { status: 400 },
+            );
+        }
+
+        const normalizedStatus = String(status || '').toLowerCase();
+        const statusMap = {
+            confirmed: 'confirmed',
+            pending: 'pending',
+            cancelled: 'cancelled',
+            canceled: 'cancelled',
+        };
+        const nextStatus = statusMap[normalizedStatus];
+        if (!nextStatus) {
+            return Response.json(
+                { success: false, error: 'Unsupported status' },
+                { status: 400 },
+            );
+        }
+
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const { data, error } = await supabase
+            .from('reservations')
+            .update({ status: nextStatus })
+            .eq('id', reservation_id)
+            .eq('condo_id', condo_id)
+            .select('*')
+            .single();
+
+        if (error) {
+            return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        return Response.json({ success: true, data });
+    } catch (err) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+    }
+}

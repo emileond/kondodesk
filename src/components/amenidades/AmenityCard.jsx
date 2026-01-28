@@ -63,27 +63,21 @@ function AmenityCard({ amenity }) {
         .sort((a, b) => a - b)[0];
 
     const durationLabel = formatDuration(minSlot);
-    const maxReservationRules = rules.filter(
-        (r) =>
-            Number(r.max_reservations) === 1 ||
-            Number(r.max_reservations_per_day) === 1 ||
-            Number(r.max_reservations_per_unit_day) === 1,
-    );
-    const rangeLabel =
-        maxReservationRules.length > 0
-            ? (() => {
-                  const openMins = maxReservationRules
-                      .map((r) => parseTimeToMinutes(String(r.open_time).slice(0, 5)))
-                      .filter((n) => Number.isFinite(n));
-                  const closeMins = maxReservationRules
-                      .map((r) => parseTimeToMinutes(String(r.close_time).slice(0, 5)))
-                      .filter((n) => Number.isFinite(n));
-                  if (!openMins.length || !closeMins.length) return null;
-                  const open = Math.min(...openMins);
-                  const close = Math.max(...closeMins);
-                  return `${formatMinutesToTime(open)} - ${formatMinutesToTime(close)}`;
-              })()
-            : null;
+    const isExclusive = Number(amenity?.max_capacity) === 1;
+    const rangeLabel = isExclusive
+        ? (() => {
+              const openMins = rules
+                  .map((r) => parseTimeToMinutes(String(r.open_time).slice(0, 5)))
+                  .filter((n) => Number.isFinite(n));
+              const closeMins = rules
+                  .map((r) => parseTimeToMinutes(String(r.close_time).slice(0, 5)))
+                  .filter((n) => Number.isFinite(n));
+              if (!openMins.length || !closeMins.length) return null;
+              const open = Math.min(...openMins);
+              const close = Math.max(...closeMins);
+              return `${formatMinutesToTime(open)} - ${formatMinutesToTime(close)}`;
+          })()
+        : null;
     const timeLabel = rangeLabel || durationLabel;
 
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';

@@ -169,11 +169,8 @@ function ReservaAmenityPage() {
         const [sh, sm] = (startHHMM || '00:00').split(':').map((v) => parseInt(v || '0', 10));
         const dow = dayjs(dateStr).day();
         const rule = ruleByDow[dow];
-        const maxReservations =
-            Number(rule?.max_reservations) === 1 ||
-            Number(rule?.max_reservations_per_day) === 1 ||
-            Number(rule?.max_reservations_per_unit_day) === 1;
-        if (maxReservations && rule?.open_time && rule?.close_time) {
+        const isExclusive = Number(amenity?.max_capacity) === 1;
+        if (isExclusive && rule?.open_time && rule?.close_time) {
             const [oh, om] = String(rule.open_time)
                 .slice(0, 5)
                 .split(':')
@@ -224,6 +221,7 @@ function ReservaAmenityPage() {
                             costLabel={costLabel}
                             slotDurationByDow={slotDurationByDow}
                             ruleByDow={ruleByDow}
+                            amenityMaxCapacity={amenity?.max_capacity}
                             reservationsByDate={reservationsByDate}
                             onSelect={() => {}}
                             onCancelSelection={() => {}}
@@ -247,10 +245,7 @@ function ReservaAmenityPage() {
                                         slotDurationByDow[dow] || 60,
                                     );
                                     const rule = ruleByDow[dow];
-                                    const maxReservations =
-                                        Number(rule?.max_reservations) === 1 ||
-                                        Number(rule?.max_reservations_per_day) === 1 ||
-                                        Number(rule?.max_reservations_per_unit_day) === 1;
+                                    const isExclusive = Number(amenity?.max_capacity) === 1;
 
                                     const created = await createReservation.mutateAsync({
                                         condo_id: currentWorkspace?.condo_id,
@@ -278,7 +273,8 @@ function ReservaAmenityPage() {
                                             reservation_duration_minutes,
                                             rule_open_time: rule?.open_time || null,
                                             rule_close_time: rule?.close_time || null,
-                                            rule_max_reservations: maxReservations ? 1 : 0,
+                                            amenity_max_capacity: amenity?.max_capacity ?? null,
+                                            amenity_is_exclusive: isExclusive,
                                         },
                                     });
                                 } catch (e) {

@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, CardBody } from '@heroui/react';
+import {
+    Button,
+    Card,
+    CardBody,
+    Modal,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
+} from '@heroui/react';
 import dayjs from 'dayjs';
+import ReservationCard from '../reservations/ReservationCard.jsx';
 
 // availability: Record<string, string[]> where key = 'YYYY-MM-DD', values = ['09:00', '09:30', ...]
 // onSelect({ date, time })
@@ -15,6 +25,15 @@ function ReservationCalendar({
     onCancelSelection,
     slotDurationByDow = {}, // map: 0..6 -> minutes
     ruleByDow = {},
+    reservationsByDate = {},
+    amenityMaxCapacity = null,
+    showAvailability = true,
+    allowSelection = true,
+    showReservationsAlways = false,
+    onReservationPress,
+    reservationLabelFormatter,
+    reservationCardProps = {},
+    unitLabelById,
 }) {
     // Views: 'day' | 'month' (default to 'day' per request)
     const [view, setView] = useState('day');
@@ -55,7 +74,26 @@ function ReservationCalendar({
         }).format(dt);
     }
 
+    function formatReservationRange(reservation) {
+        const start = dayjs(reservation?.start_time);
+        if (!start.isValid()) return '';
+        let end = reservation?.end_time ? dayjs(reservation.end_time) : null;
+        if (!end && Number.isFinite(Number(reservation?.reservation_duration_minutes))) {
+            end = start.add(Number(reservation.reservation_duration_minutes), 'minute');
+        }
+        const from = start.format('HH:mm');
+        const to = end && end.isValid() ? end.format('HH:mm') : '';
+        return to ? `${from}-${to}` : from;
+    }
+
+    function formatReservationStart(reservation) {
+        const start = dayjs(reservation?.start_time);
+        if (!start.isValid()) return '';
+        return start.format('HH:mm');
+    }
+
     function handleSelect(dateStr, time) {
+        if (!allowSelection) return;
         const sel = { date: dateStr, time };
         setSelected(sel);
         onSelect?.(sel);
@@ -103,6 +141,11 @@ function ReservationCalendar({
 
     // Day view content
     const daySlots = availability[selectedDate] || [];
+    const dayReservations = reservationsByDate[selectedDate] || [];
+    const hasDailyLimit = !!userLimitByDate[selectedDate];
+    const showReservedSlots = hasDailyLimit && dayReservations.length > 0;
+    const showReservations = showReservationsAlways ? dayReservations.length > 0 : showReservedSlots;
+    const isExclusive = Number(amenityMaxCapacity) === 1;
 
     const handleConfirm = () => {
         if (!selected) return;
@@ -113,19 +156,24 @@ function ReservationCalendar({
         onCancelSelection?.();
     };
 
+    const showConfirm = allowSelection && mode === 'confirm';
+
     return (
         <div className="flex flex-col gap-4">
-            {mode === 'confirm' ? (
-                // Confirmation view replaces the calendar
-                <Card className="overflow-hidden">
-                    <CardBody>
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <h3 className="text-lg font-semibold">Confirmar reserva</h3>
-                                <p className="text-sm text-default-500">
-                                    Revisa los detalles y confirma tu reserva.
-                                </p>
-                            </div>
+            {showConfirm && (
+                <Modal
+                    isOpen
+                    onOpenChange={(open) => {
+                        if (!open) handleChangeTime();
+                    }}
+                    scrollBehavior="inside"
+                >
+                    <ModalContent>
+                        <ModalHeader>Confirmar reserva</ModalHeader>
+                        <ModalBody>
+                            <p className="text-sm text-default-500">
+                                Revisa los detalles y confirma tu reserva.
+                            </p>
                             <div className="grid grid-cols-1 gap-2 text-sm">
                                 {amenityName && (
                                     <div className="flex items-center justify-between">
@@ -155,11 +203,7 @@ function ReservationCalendar({
                                                 .map((v) => parseInt(v || '0', 10));
                                             const dow = dayjs(selected?.date).day();
                                             const rule = ruleByDow[dow];
-                                            const maxReservations =
-                                                Number(rule?.max_reservations) === 1 ||
-                                                Number(rule?.max_reservations_per_day) === 1 ||
-                                                Number(rule?.max_reservations_per_unit_day) === 1;
-                                            if (maxReservations && rule?.open_time && rule?.close_time) {
+                                            if (isExclusive && rule?.open_time && rule?.close_time) {
                                                 const [oh, om] = String(rule.open_time)
                                                     .slice(0, 5)
                                                     .split(':')
@@ -183,18 +227,19 @@ function ReservationCalendar({
                                     </span>
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                                <Button color="primary" onPress={handleConfirm}>
-                                    Confirmar reserva
-                                </Button>
-                                <Button variant="flat" onPress={handleChangeTime}>
-                                    Cambiar horario
-                                </Button>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-            ) : (
+                        </ModalBody>
+                        <ModalFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                            <Button color="primary" onPress={handleConfirm}>
+                                Confirmar reserva
+                            </Button>
+                            <Button variant="flat" onPress={handleChangeTime}>
+                                Cambiar horario
+                            </Button>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+            )}
+            {mode === 'browse' && (
                 <>
                     {/* Header: View toggle + toolbar + timezone */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -230,7 +275,7 @@ function ReservationCalendar({
                     {view === 'day' ? (
                         <div>
                             {/* Alert when user reached daily limit */}
-                            {userLimitByDate[selectedDate] && (
+                            {hasDailyLimit && (
                                 <div
                                     role="alert"
                                     className="mb-3 rounded-medium border border-warning-200 bg-warning-50 text-warning-700 px-3 py-2 text-sm"
@@ -238,38 +283,89 @@ function ReservationCalendar({
                                     Has alcanzado tu límite de reservas para este día.
                                 </div>
                             )}
-                            {daySlots.length === 0 && (
+                            {showReservedSlots && (
+                                <div className="mb-2 text-sm text-default-500">
+                                    Tus reservas para este día
+                                </div>
+                            )}
+                            {showReservationsAlways && dayReservations.length > 0 && (
+                                <div className="mb-2 text-sm text-default-500">
+                                    Reservas para este día
+                                </div>
+                            )}
+                            {showReservationsAlways && dayReservations.length === 0 && (
+                                <div className="text-sm text-default-500">
+                                    Sin reservas para este día
+                                </div>
+                            )}
+                            {!showReservations && showAvailability && daySlots.length === 0 && (
                                 <div className="text-sm text-default-500">
                                     Sin disponibilidad para este día
                                 </div>
                             )}
-                            <div className="flex flex-wrap gap-3 justify-center">
-                                {daySlots.map((t) => {
-                                    const isSel =
-                                        selected &&
-                                        selected.date === selectedDate &&
-                                        selected.time === t;
-                                    const limited = !!userLimitByDate[selectedDate];
-                                    const variant = isSel
-                                        ? 'solid'
-                                        : limited
-                                          ? 'solid'
-                                          : 'bordered';
-                                    const color = isSel ? 'primary' : 'default';
-                                    return (
-                                        <Button
-                                            key={t}
-                                            size="md"
-                                            variant={variant}
-                                            color={color}
-                                            isDisabled={limited}
-                                            className={`h-14 justify-start flex-1/5 font-medium ${isSel ? 'hover:bg-primary' : 'hover:bg-default-100'}`}
-                                            onPress={() => handleSelect(selectedDate, t)}
-                                        >
-                                            {t}
-                                        </Button>
-                                    );
-                                })}
+                            <div
+                                className={
+                                    showReservations
+                                        ? 'flex flex-col gap-2'
+                                        : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3'
+                                }
+                            >
+                                {showReservations
+                                    ? dayReservations.map((reservation) => {
+                                          const key =
+                                              reservation?.id ||
+                                              reservation?.start_time ||
+                                              formatReservationRange(reservation);
+                                          const unitLabel = unitLabelById?.get?.(
+                                              String(reservation?.unit_id),
+                                          );
+                                          return (
+                                              <ReservationCard
+                                                  key={key}
+                                                  reservation={reservation}
+                                                  amenityName={reservation?.amenity?.name}
+                                                  rangeLabel={reservationLabelFormatter?.(
+                                                      reservation,
+                                                  )}
+                                                  unitLabel={unitLabel}
+                                                  showStatus
+                                                  className="w-full"
+                                                  {...reservationCardProps}
+                                                  onPress={
+                                                      onReservationPress
+                                                          ? () => onReservationPress(reservation)
+                                                          : undefined
+                                                  }
+                                              />
+                                          );
+                                      })
+                                    : showAvailability &&
+                                      daySlots.map((t) => {
+                                          const isSel =
+                                              selected &&
+                                              selected.date === selectedDate &&
+                                              selected.time === t;
+                                          const limited = hasDailyLimit;
+                                          const variant = isSel
+                                              ? 'solid'
+                                              : limited
+                                                ? 'solid'
+                                                : 'bordered';
+                                          const color = isSel ? 'primary' : 'default';
+                                          return (
+                                              <Button
+                                                  key={t}
+                                                  size="md"
+                                                  variant={variant}
+                                                  color={color}
+                                                  isDisabled={limited}
+                                                  className={`h-14 justify-start w-full font-medium ${isSel ? 'hover:bg-primary' : 'hover:bg-default-100'}`}
+                                                  onPress={() => handleSelect(selectedDate, t)}
+                                              >
+                                                  {t}
+                                              </Button>
+                                          );
+                                      })}
                             </div>
                         </div>
                     ) : (
@@ -292,9 +388,14 @@ function ReservationCalendar({
                                             {week.map((d) => {
                                                 const dateStr = d.format('YYYY-MM-DD');
                                                 const slots = availability[dateStr] || [];
+                                                const reservations = reservationsByDate[dateStr] || [];
                                                 const isToday = isSame(d, dayjs());
                                                 const inMonth = d.month() === monthCursor.month();
                                                 const hasAvail = slots.length > 0;
+                                                const limited = !!userLimitByDate[dateStr];
+                                                const showReserved = showReservationsAlways
+                                                    ? reservations.length > 0
+                                                    : limited && reservations.length > 0;
                                                 return (
                                                     <div
                                                         key={dateStr}
@@ -318,116 +419,109 @@ function ReservationCalendar({
                                                             )}
                                                         </div>
                                                         {/* Slots */}
-                                                        <div className="overflow-auto flex flex-wrap gap-0.5 ">
-                                                            {!hasAvail && (
-                                                                <span className="text-xs text-default-400">
-                                                                    Sin disponibilidad
+                                                            <div className="overflow-auto flex flex-col gap-1">
+                                                                {!showReserved &&
+                                                                    showAvailability &&
+                                                                    !hasAvail && (
+                                                                    <span className="text-xs text-default-400">
+                                                                        Sin disponibilidad
                                                                 </span>
                                                             )}
-                                                            {slots.map((t) => {
-                                                                const isSel =
-                                                                    selected &&
-                                                                    selected.date === dateStr &&
-                                                                    selected.time === t;
-                                                                const limited =
-                                                                    !!userLimitByDate[dateStr];
-                                                                const variant = isSel
-                                                                    ? 'solid'
-                                                                    : limited
-                                                                      ? 'solid'
-                                                                      : 'bordered';
-                                                                const color = isSel
-                                                                    ? 'primary'
-                                                                    : 'default';
-                                                                return (
-                                                                    <Button
-                                                                        key={t}
-                                                                        size="sm"
-                                                                        variant={variant}
-                                                                        color={color}
-                                                                        isDisabled={limited}
-                                                                        className="h-7 text-xs flex-1/3"
-                                                                        onPress={() =>
-                                                                            handleSelect(dateStr, t)
-                                                                        }
-                                                                    >
-                                                                        {(() => {
-                                                                            const start =
-                                                                                selected?.time ||
-                                                                                '';
-                                                                            const [sh, sm] = start
-                                                                                .split(':')
-                                                                                .map((v) =>
-                                                                                    parseInt(
-                                                                                        v || '0',
-                                                                                        10,
-                                                                                    ),
-                                                                                );
-                                                                            const dow = dayjs(
-                                                                                selected?.date,
-                                                                            ).day();
-                                                                            const rule =
-                                                                                ruleByDow[dow];
-                                                                            const maxReservations =
-                                                                                Number(
-                                                                                    rule?.max_reservations,
-                                                                                ) === 1 ||
-                                                                                Number(
-                                                                                    rule?.max_reservations_per_day,
-                                                                                ) === 1 ||
-                                                                                Number(
-                                                                                    rule?.max_reservations_per_unit_day,
-                                                                                ) === 1;
-                                                                            if (
-                                                                                maxReservations &&
-                                                                                rule?.open_time &&
-                                                                                rule?.close_time
-                                                                            ) {
-                                                                                const [oh, om] =
-                                                                                    String(
-                                                                                        rule.open_time,
-                                                                                    )
-                                                                                        .slice(0, 5)
-                                                                                        .split(':')
-                                                                                        .map((v) =>
-                                                                                            parseInt(
-                                                                                                v ||
-                                                                                                    '0',
-                                                                                                10,
-                                                                                            ),
-                                                                                        );
-                                                                                const [ch, cm] =
-                                                                                    String(
-                                                                                        rule.close_time,
-                                                                                    )
-                                                                                        .slice(0, 5)
-                                                                                        .split(':')
-                                                                                        .map((v) =>
-                                                                                            parseInt(
-                                                                                                v ||
-                                                                                                    '0',
-                                                                                                10,
-                                                                                            ),
-                                                                                        );
-                                                                                return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
-                                                                            }
-                                                                            const dur = Number(
-                                                                                slotDurationByDow[
-                                                                                    dow
-                                                                                ] || 60,
-                                                                            );
-                                                                            const end = dayjs()
-                                                                                .hour(sh)
-                                                                                .minute(sm)
-                                                                                .add(dur, 'minute');
-                                                                            return `${formatTimeIntl(sh, sm)}-${formatTimeIntl(
-                                                                                end.hour(),
-                                                                                end.minute(),
-                                                                            )}`;
-                                                                        })()}
-                                                                    </Button>
-                                                                );
-                                                            })}
+                                                            {showReserved
+                                                                ? reservations.map((reservation) => {
+                                                                      const label =
+                                                                          formatReservationStart(
+                                                                              reservation,
+                                                                          );
+                                                                      const key =
+                                                                          reservation?.id ||
+                                                                          reservation?.start_time ||
+                                                                          label;
+                                                                      const unitLabel =
+                                                                          unitLabelById?.get?.(
+                                                                              String(
+                                                                                  reservation?.unit_id,
+                                                                              ),
+                                                                          );
+                                                                      return (
+                                                                          <ReservationCard
+                                                                              key={key}
+                                                                              reservation={
+                                                                                  reservation
+                                                                              }
+                                                                              amenityName={
+                                                                                  reservation?.amenity
+                                                                                      ?.name
+                                                                              }
+                                                                              rangeLabel={label}
+                                                                              dateLabel={label}
+                                                                              unitLabel={unitLabel}
+                                                                              showStatus
+                                                                              variant="calendar"
+                                                                              {...reservationCardProps}
+                                                                              onPress={
+                                                                                  onReservationPress
+                                                                                      ? () =>
+                                                                                            onReservationPress(
+                                                                                                reservation,
+                                                                                            )
+                                                                                      : undefined
+                                                                              }
+                                                                          />
+                                                                      );
+                                                                  })
+                                                                : showAvailability &&
+                                                                  slots.map((t) => {
+                                                                      const isSel =
+                                                                          selected &&
+                                                                          selected.date ===
+                                                                              dateStr &&
+                                                                          selected.time === t;
+                                                                      const variant = isSel
+                                                                          ? 'solid'
+                                                                          : limited
+                                                                            ? 'solid'
+                                                                            : 'bordered';
+                                                                      const color = isSel
+                                                                          ? 'primary'
+                                                                          : 'default';
+                                                                      return (
+                                                                          <Button
+                                                                              key={t}
+                                                                              size="sm"
+                                                                              variant={variant}
+                                                                              color={color}
+                                                                              isDisabled={limited}
+                                                                              className="h-7 text-xs w-full justify-start"
+                                                                              onPress={() =>
+                                                                                  handleSelect(
+                                                                                      dateStr,
+                                                                                      t,
+                                                                                  )
+                                                                              }
+                                                                          >
+                                                                              {(() => {
+                                                                                  const [sh, sm] =
+                                                                                      t
+                                                                                          .split(
+                                                                                              ':',
+                                                                                          )
+                                                                                          .map(
+                                                                                              (v) =>
+                                                                                                  parseInt(
+                                                                                                      v ||
+                                                                                                          '0',
+                                                                                                      10,
+                                                                                                  ),
+                                                                                          );
+                                                                                  return formatTimeIntl(
+                                                                                      sh,
+                                                                                      sm,
+                                                                                  );
+                                                                              })()}
+                                                                          </Button>
+                                                                      );
+                                                                  })}
                                                         </div>
                                                     </div>
                                                 );
