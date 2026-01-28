@@ -25,17 +25,13 @@ const fetchNotes = async ({ id, condo_id, from }) => {
 
 // Hook to fetch notes with optional filters
 export const useNotes = (currentWorkspace, filters = {}) => {
-    const fallbackFrom =
-        filters?.from === null
-            ? null
-            : filters?.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     return useQuery({
         queryKey: ['announcements', currentWorkspace?.condo_id, filters],
         queryFn: () =>
             fetchNotes({
                 condo_id: currentWorkspace?.condo_id,
                 id: filters.id,
-                from: filters.id ? null : fallbackFrom,
+                from: filters.id ? null : filters.from,
             }),
         staleTime: 1000 * 60 * 5, // 5 minutes
         enabled: !!currentWorkspace?.condo_id, // Only fetch if condo_id is provided
@@ -71,7 +67,7 @@ export const useCreateNote = (currentWorkspace) => {
 
 // Function to update a note
 const updateNote = async ({ noteId, updates }) => {
-    const { error } = await supabaseClient.from('notes').update(updates).eq('id', noteId);
+    const { error } = await supabaseClient.from('announcements').update(updates).eq('id', noteId);
 
     if (error) {
         throw new Error('Failed to update note');
@@ -99,7 +95,7 @@ export const useUpdateNote = (currentWorkspace) => {
 
 // Function to delete a note
 const deleteNote = async ({ noteId }) => {
-    const { error } = await supabaseClient.from('notes').delete().eq('id', noteId);
+    const { error } = await supabaseClient.from('announcements').delete().eq('id', noteId);
 
     if (error) {
         throw new Error('Failed to delete note');

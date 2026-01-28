@@ -31,7 +31,13 @@ function InicioPage() {
     const { data: currentUser } = useUser();
     const { data: unitIds = [] } = useCondoMemberUnitIds(currentWorkspace, currentUser);
 
-    const { data: announcements = [], isLoading: notesLoading } = useNotes(currentWorkspace);
+    const notesFromISO = useMemo(
+        () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        [],
+    );
+    const { data: announcements = [], isLoading: notesLoading } = useNotes(currentWorkspace, {
+        from: notesFromISO,
+    });
 
     const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
 
