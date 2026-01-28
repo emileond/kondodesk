@@ -21,9 +21,30 @@ function ReservaConfirmacionPage() {
           ? dayjs(reservation.start_time).format('DD MMM YYYY')
           : null;
 
+    function formatTimeIntl(hour, minute) {
+        const dt = new Date(2000, 0, 1, hour, minute, 0, 0);
+        return new Intl.DateTimeFormat('es-MX', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        }).format(dt);
+    }
+
     function computeRange() {
         // Prefer payload date + time + duration
         if (state?.date && state?.time) {
+            const maxReservations = Number(state?.rule_max_reservations) === 1;
+            if (maxReservations && state?.rule_open_time && state?.rule_close_time) {
+                const [oh, om] = String(state.rule_open_time)
+                    .slice(0, 5)
+                    .split(':')
+                    .map((v) => parseInt(v || '0', 10));
+                const [ch, cm] = String(state.rule_close_time)
+                    .slice(0, 5)
+                    .split(':')
+                    .map((v) => parseInt(v || '0', 10));
+                return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
+            }
             const [sh, sm] = String(state.time || '00:00')
                 .split(':')
                 .map((v) => parseInt(v || '0', 10));
@@ -34,8 +55,10 @@ function ReservaConfirmacionPage() {
                     60,
             );
             const end = start.add(dur, 'minute');
-            const fmt = (h, m) => (m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`);
-            return `${fmt(start.hour(), start.minute())}-${fmt(end.hour(), end.minute())}`;
+            return `${formatTimeIntl(start.hour(), start.minute())}-${formatTimeIntl(
+                end.hour(),
+                end.minute(),
+            )}`;
         }
         // Fallback to reservation times
         if (reservation?.start_time) {
@@ -43,7 +66,10 @@ function ReservaConfirmacionPage() {
             const end = reservation?.end_time
                 ? dayjs(reservation.end_time)
                 : start.add(Number(reservation?.reservation_duration_minutes || 60), 'minute');
-            return `${start.format('HH:mm')}-${end.format('HH:mm')}`;
+            return `${formatTimeIntl(start.hour(), start.minute())}-${formatTimeIntl(
+                end.hour(),
+                end.minute(),
+            )}`;
         }
         return null;
     }
@@ -110,6 +136,7 @@ function ReservaConfirmacionPage() {
                                             }
                                         }
                                         amenityName={amenityName}
+                                        rangeLabel={horaLabel}
                                     />
                                 </div>
                             )}

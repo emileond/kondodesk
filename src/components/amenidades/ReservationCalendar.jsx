@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, CardBody } from '@heroui/react';
 import dayjs from 'dayjs';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // availability: Record<string, string[]> where key = 'YYYY-MM-DD', values = ['09:00', '09:30', ...]
 // onSelect({ date, time })
@@ -15,6 +14,7 @@ function ReservationCalendar({
     costLabel,
     onCancelSelection,
     slotDurationByDow = {}, // map: 0..6 -> minutes
+    ruleByDow = {},
 }) {
     // Views: 'day' | 'month' (default to 'day' per request)
     const [view, setView] = useState('day');
@@ -46,18 +46,20 @@ function ReservationCalendar({
 
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+    function formatTimeIntl(hour, minute) {
+        const dt = new Date(2000, 0, 1, hour, minute, 0, 0);
+        return new Intl.DateTimeFormat('es-MX', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        }).format(dt);
+    }
+
     function handleSelect(dateStr, time) {
         const sel = { date: dateStr, time };
         setSelected(sel);
         onSelect?.(sel);
         setMode('confirm');
-    }
-
-    // Helpers for day navigation
-    function goToToday() {
-        const today = dayjs();
-        setSelectedDate(today.format('YYYY-MM-DD'));
-        setMonthCursor(today.startOf('month'));
     }
 
     function changeDay(delta) {
@@ -152,17 +154,31 @@ function ReservationCalendar({
                                                 .split(':')
                                                 .map((v) => parseInt(v || '0', 10));
                                             const dow = dayjs(selected?.date).day();
+                                            const rule = ruleByDow[dow];
+                                            const maxReservations =
+                                                Number(rule?.max_reservations) === 1 ||
+                                                Number(rule?.max_reservations_per_day) === 1 ||
+                                                Number(rule?.max_reservations_per_unit_day) === 1;
+                                            if (maxReservations && rule?.open_time && rule?.close_time) {
+                                                const [oh, om] = String(rule.open_time)
+                                                    .slice(0, 5)
+                                                    .split(':')
+                                                    .map((v) => parseInt(v || '0', 10));
+                                                const [ch, cm] = String(rule.close_time)
+                                                    .slice(0, 5)
+                                                    .split(':')
+                                                    .map((v) => parseInt(v || '0', 10));
+                                                return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
+                                            }
                                             const dur = Number(slotDurationByDow[dow] || 60);
                                             const end = dayjs()
                                                 .hour(sh)
                                                 .minute(sm)
                                                 .add(dur, 'minute');
-                                            const fmt = (h, m) =>
-                                                m === 0
-                                                    ? String(h)
-                                                    : `${h}:${String(m).padStart(2, '0')}`;
-                                            const label = `${fmt(sh, sm)}-${fmt(end.hour(), end.minute())}`;
-                                            return label;
+                                            return `${formatTimeIntl(sh, sm)}-${formatTimeIntl(
+                                                end.hour(),
+                                                end.minute(),
+                                            )}`;
                                         })()}
                                     </span>
                                 </div>
@@ -335,7 +351,80 @@ function ReservationCalendar({
                                                                             handleSelect(dateStr, t)
                                                                         }
                                                                     >
-                                                                        {t}
+                                                                        {(() => {
+                                                                            const start =
+                                                                                selected?.time ||
+                                                                                '';
+                                                                            const [sh, sm] = start
+                                                                                .split(':')
+                                                                                .map((v) =>
+                                                                                    parseInt(
+                                                                                        v || '0',
+                                                                                        10,
+                                                                                    ),
+                                                                                );
+                                                                            const dow = dayjs(
+                                                                                selected?.date,
+                                                                            ).day();
+                                                                            const rule =
+                                                                                ruleByDow[dow];
+                                                                            const maxReservations =
+                                                                                Number(
+                                                                                    rule?.max_reservations,
+                                                                                ) === 1 ||
+                                                                                Number(
+                                                                                    rule?.max_reservations_per_day,
+                                                                                ) === 1 ||
+                                                                                Number(
+                                                                                    rule?.max_reservations_per_unit_day,
+                                                                                ) === 1;
+                                                                            if (
+                                                                                maxReservations &&
+                                                                                rule?.open_time &&
+                                                                                rule?.close_time
+                                                                            ) {
+                                                                                const [oh, om] =
+                                                                                    String(
+                                                                                        rule.open_time,
+                                                                                    )
+                                                                                        .slice(0, 5)
+                                                                                        .split(':')
+                                                                                        .map((v) =>
+                                                                                            parseInt(
+                                                                                                v ||
+                                                                                                    '0',
+                                                                                                10,
+                                                                                            ),
+                                                                                        );
+                                                                                const [ch, cm] =
+                                                                                    String(
+                                                                                        rule.close_time,
+                                                                                    )
+                                                                                        .slice(0, 5)
+                                                                                        .split(':')
+                                                                                        .map((v) =>
+                                                                                            parseInt(
+                                                                                                v ||
+                                                                                                    '0',
+                                                                                                10,
+                                                                                            ),
+                                                                                        );
+                                                                                return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
+                                                                            }
+                                                                            const dur = Number(
+                                                                                slotDurationByDow[
+                                                                                    dow
+                                                                                ] || 60,
+                                                                            );
+                                                                            const end = dayjs()
+                                                                                .hour(sh)
+                                                                                .minute(sm)
+                                                                                .add(dur, 'minute');
+                                                                            return `${formatTimeIntl(sh, sm)}-${formatTimeIntl(
+                                                                                end.hour(),
+                                                                                end.minute(),
+                                                                            )}`;
+                                                                        })()}
                                                                     </Button>
                                                                 );
                                                             })}

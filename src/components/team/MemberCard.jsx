@@ -20,7 +20,7 @@ import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import { useCallback } from 'react';
 import BoringAvatar from 'boring-avatars';
 
-function MemberCard({ member, onEditMember, columnKey }) {
+function MemberCard({ member, onEditMember, columnKey, canDelete = true }) {
     const [currentWorkspace] = useCurrentWorkspace();
     const { onOpen, isOpen, onOpenChange, onClose } = useDisclosure();
     const { mutateAsync: deleteWorkspaceMember, isPending: isDeleting } =
@@ -66,6 +66,7 @@ function MemberCard({ member, onEditMember, columnKey }) {
         owner: 'text-primary',
         admin: 'text-default-600',
         member: 'text-default-600',
+        resident: 'text-default-600',
     };
 
     const avatarUrl = member?.avatar ? `${member?.avatar}/w=60` : null;
@@ -158,18 +159,20 @@ function MemberCard({ member, onEditMember, columnKey }) {
                                     <RiEditLine className="text-default-600 text-lg" />
                                 </Button>
                             </Tooltip>
-                            <Tooltip content="Delete user">
-                                <Button
-                                    color="danger"
-                                    variant="light"
-                                    size="md"
-                                    isIconOnly
-                                    onPress={onOpen}
-                                    isDisabled={member.role === 'owner'}
-                                >
-                                    <RiDeleteBin6Line className="text-lg" />
-                                </Button>
-                            </Tooltip>
+                            {canDelete && (
+                                <Tooltip content="Delete user">
+                                    <Button
+                                        color="danger"
+                                        variant="light"
+                                        size="md"
+                                        isIconOnly
+                                        onPress={onOpen}
+                                        isDisabled={member.role === 'owner'}
+                                    >
+                                        <RiDeleteBin6Line className="text-lg" />
+                                    </Button>
+                                </Tooltip>
+                            )}
                         </div>
                     );
                 default:

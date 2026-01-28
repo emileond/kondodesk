@@ -29,27 +29,78 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import MemberCard from '../components/team/MemberCard';
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabaseClient } from '../lib/supabase';
+import CreatableSelect from '../components/form/CreatableSelect.jsx';
+import {
+    useCondoMemberUnitIds,
+    useCreateUnit,
+    useUnitsList,
+} from '../hooks/react-query/units/useUnits.js';
 
 function TeamPage() {
     const { data: user } = useUser();
     const [currentWorkspace] = useCurrentWorkspace();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
     const { data: workspaceMembers } = useWorkspaceMembers(currentWorkspace);
     const { mutateAsync: addWorkspaceMember, isPending } = useAddWorkspaceMember(currentWorkspace);
     const { mutateAsync: updateWorkspaceMember } = useUpdateWorkspaceMember(currentWorkspace);
     const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
     const [editMember, setEditMember] = useState();
+    const [formKey, setFormKey] = useState(0);
+
+    const { data: currentMember } = useQuery({
+        queryKey: ['condoMember', condoId, user?.id],
+        queryFn: async () => {
+            const { data, error } = await supabaseClient
+                .from('condo_members')
+                .select('role, unit_ids')
+                .eq('condo_id', condoId)
+                .eq('user_id', user?.id)
+                .maybeSingle();
+            if (error) throw new Error('Failed to fetch user role');
+            return data;
+        },
+        enabled: !!condoId && !!user?.id,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const isAdmin = currentMember?.role === 'admin';
+    const { data: memberUnitIds = [] } = useCondoMemberUnitIds(currentWorkspace, user);
+    const { data: units = [] } = useUnitsList(currentWorkspace, user, {
+        includeAll: isAdmin,
+        unit_ids: isAdmin ? undefined : memberUnitIds,
+    });
+    const { mutateAsync: createUnit } = useCreateUnit(currentWorkspace);
+
+    const unitOptions = useMemo(
+        () => units.map((unit) => ({ value: unit.id, label: unit.address })),
+        [units],
+    );
+    const unitAddressById = useMemo(
+        () => new Map(units.map((unit) => [String(unit.id), unit.address])),
+        [units],
+    );
+    const displayMembers = useMemo(() => {
+        return (workspaceMembers || []).map((member) => {
+            const unitIds = Array.isArray(member.unit_ids) ? member.unit_ids : [];
+            const unitLabel =
+                unitIds.length > 0
+                    ? unitIds
+                          .map((id) => unitAddressById.get(String(id)) || String(id))
+                          .join(', ')
+                    : '—';
+            return { ...member, unit_display: unitLabel };
+        });
+    }, [workspaceMembers, unitAddressById]);
 
     const teamMembersCount =
         workspaceMembers?.filter(
-            (member) =>
-                member.role === 'admin' || member.role === 'member' || member.role === 'owner',
+            (member) => member.role === 'admin' || member.role === 'resident',
         ).length || 0;
 
-    const guestsCount = workspaceMembers?.filter((member) => member.role === 'guest').length || 0;
-
     const isTeamLimitReached = teamMembersCount >= currentWorkspace?.team_seats;
-    const isGuestLimitReached = guestsCount >= currentWorkspace?.guest_seats;
 
     const {
         register,
@@ -57,17 +108,24 @@ function TeamPage() {
         reset,
         setValue,
         watch,
+        setError,
+        clearErrors,
         formState: { errors },
     } = useForm();
 
     const selectedRole = watch('role');
+    const selectedUnitIds = watch('unit_ids') || [];
+
+    useEffect(() => {
+        register('unit_ids');
+    }, [register]);
 
     const onSubmit = async (data) => {
         if (editMember) {
             await updateWorkspaceMember(
                 {
                     id: editMember.id,
-                    role: data.role,
+                    role: isAdmin ? data.role : editMember?.role,
                     workspace_id: editMember.workspace_id,
                 },
                 {
@@ -87,12 +145,21 @@ function TeamPage() {
             if (isDuplicate) {
                 toast.error('This user is already invited');
             } else {
+                const unitIds = Array.isArray(data.unit_ids) ? data.unit_ids : [];
+                if (unitIds.length === 0) {
+                    setError('unit_ids', {
+                        type: 'manual',
+                        message: 'Select at least one unit',
+                    });
+                    return;
+                }
                 await addWorkspaceMember(
                     {
                         invite_email: data.email,
-                        role: data.role,
-                        workspace_id: currentWorkspace.workspace_id,
+                        role: isAdmin ? data.role : 'resident',
+                        workspace_id: currentWorkspace?.workspace_id || currentWorkspace?.condo_id,
                         invited_by: user.email,
+                        unit_ids: unitIds,
                     },
                     {
                         onSuccess: () => {
@@ -111,13 +178,17 @@ function TeamPage() {
     };
 
     const handleAddMember = () => {
-        reset();
+        reset({ email: '', role: 'resident', unit_ids: [] });
+        clearErrors();
+        setFormKey((prev) => prev + 1);
         setEditMember(null);
         onOpen();
     };
 
     const handleEditMember = (member) => {
         setValue('email', member.email);
+        setValue('role', member.role);
+        setValue('unit_ids', []);
         setEditMember(member);
         onOpen();
     };
@@ -125,6 +196,7 @@ function TeamPage() {
     const columns = [
         { name: 'Name', uid: 'name' },
         { name: 'Role', uid: 'role' },
+        { name: 'Residencia', uid: 'unit_display' },
         { name: 'Status', uid: 'status' },
         { name: 'Actions', uid: 'actions' },
     ];
@@ -132,10 +204,10 @@ function TeamPage() {
     return (
         <AppLayout>
             <PageLayout
-                title="Team"
+                title="Usuarios"
                 maxW="2xl"
-                primaryAction="Invite team member"
-                description="Invite team members to your workspace"
+                primaryAction="Agregar usuario"
+                description="Invita usuarios a Kondodesk"
                 onClick={handleAddMember}
             >
                 <div className="flex flex-col gap-3 mb-12">
@@ -150,7 +222,7 @@ function TeamPage() {
                                 </TableColumn>
                             )}
                         </TableHeader>
-                        <TableBody items={workspaceMembers || []}>
+                        <TableBody items={displayMembers}>
                             {(member) => (
                                 <TableRow
                                     key={member.id}
@@ -163,6 +235,7 @@ function TeamPage() {
                                                 member={member}
                                                 columnKey={columnKey}
                                                 onEditMember={(m) => handleEditMember(m)}
+                                                canDelete={isAdmin}
                                             />
                                         </TableCell>
                                     )}
@@ -178,18 +251,10 @@ function TeamPage() {
                                 {editMember ? 'Edit team member' : 'Invite team member'}
                             </ModalHeader>
                             <ModalBody>
-                                {isTeamLimitReached && !editMember && selectedRole !== 'guest' && (
+                                {isTeamLimitReached && !editMember && (
                                     <Alert
                                         title="Team limit reached"
                                         description="You have reached your team seat limit. Upgrade your plan to invite more members."
-                                        color="danger"
-                                        icon="exclamation-circle"
-                                    />
-                                )}
-                                {isGuestLimitReached && !editMember && selectedRole === 'guest' && (
-                                    <Alert
-                                        title="Guest limit reached"
-                                        description="You have reached your guests limit. Upgrade your plan to invite more guests."
                                         color="danger"
                                         icon="exclamation-circle"
                                     />
@@ -214,15 +279,79 @@ function TeamPage() {
                                         {...register('role', { required: true })}
                                         label="Role"
                                         className="basis-1/3"
+                                        isDisabled={!isAdmin}
                                         defaultSelectedKeys={
-                                            editMember ? [editMember.role] : ['member']
+                                            editMember
+                                                ? [editMember.role]
+                                                : [selectedRole || 'resident']
                                         }
                                     >
+                                        <SelectItem key="resident">Resident</SelectItem>
                                         <SelectItem key="admin">Admin</SelectItem>
-                                        <SelectItem key="member">Member</SelectItem>
-                                        <SelectItem key="guest">Guest</SelectItem>
                                     </Select>
                                 </div>
+                                {!editMember && (
+                                    <div className="mt-2">
+                                        {isAdmin ? (
+                                            <CreatableSelect
+                                                key={formKey}
+                                                label="Units"
+                                                placeholder="Search units..."
+                                                options={unitOptions}
+                                                multiple
+                                                onChange={(values) => {
+                                                    setValue('unit_ids', values || []);
+                                                    clearErrors('unit_ids');
+                                                }}
+                                                onCreate={async (value) => {
+                                                    const address = String(value || '').trim();
+                                                    if (!address) return null;
+                                                    const unit = await createUnit({
+                                                        address,
+                                                        condo_id: condoId,
+                                                    });
+                                                    return {
+                                                        value: unit.id,
+                                                        label: unit.address,
+                                                    };
+                                                }}
+                                                triggerClassName="px-2"
+                                            />
+                                        ) : (
+                                            <Select
+                                                key={formKey}
+                                                label="Residencias"
+                                                selectionMode="multiple"
+                                                variant="bordered"
+                                                selectedKeys={selectedUnitIds.map(String)}
+                                                onSelectionChange={(keys) => {
+                                                    const values = Array.from(keys).map((key) => {
+                                                        const parsed = Number(key);
+                                                        return Number.isNaN(parsed) ? key : parsed;
+                                                    });
+                                                    setValue('unit_ids', values);
+                                                    clearErrors('unit_ids');
+                                                }}
+                                            >
+                                                {unitOptions.map((option) => (
+                                                    <SelectItem key={String(option.value)}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </Select>
+                                        )}
+                                        {errors.unit_ids && (
+                                            <p className="text-tiny text-danger mt-1">
+                                                {errors.unit_ids.message}
+                                            </p>
+                                        )}
+                                        {!isAdmin && unitOptions.length === 0 && (
+                                            <p className="text-tiny text-default-500 mt-1">
+                                                You can only invite residents to units you belong to.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </ModalBody>
                             <ModalFooter>
                                 <Button variant="light" onPress={onClose} isDisabled={isPending}>

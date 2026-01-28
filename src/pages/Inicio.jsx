@@ -19,6 +19,7 @@ function EmptyState({ title, description, cta }) {
 
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
+import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
 import dayjs from 'dayjs';
 import { RiCalendarEventLine, RiMegaphoneLine } from 'react-icons/ri';
@@ -26,6 +27,7 @@ import { RiCalendarEventLine, RiMegaphoneLine } from 'react-icons/ri';
 function InicioPage() {
     const [currentWorkspace] = useCurrentWorkspace();
     const { data: currentUser } = useUser();
+    const { data: unitIds = [] } = useCondoMemberUnitIds(currentWorkspace, currentUser);
 
     const announcements = [];
 
@@ -33,7 +35,7 @@ function InicioPage() {
 
     const { data: upcomingReservations = [], reservationsLoading } = useReservationsList({
         condo_id: currentWorkspace?.condo_id,
-        user_id: currentUser?.id,
+        unit_ids: unitIds,
         from: fromISO,
     });
 

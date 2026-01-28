@@ -7,8 +7,9 @@ import AppLayout from '../components/layout/AppLayout.jsx';
 import toast from 'react-hot-toast';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import { useAmenity, useAmenityRules } from '../hooks/react-query/amenities/useAmenities';
-import { useAmenityAvailability, useCreateReservation } from '../hooks/react-query/reservations/useReservations.js';
+import { useAmenityAvailability, useCreateReservation, useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
+import { useUnitsList } from '../hooks/react-query/units/useUnits.js';
 import { RiMoneyDollarCircleLine, RiTimerLine } from 'react-icons/ri';
 
 function titleCase(str = '') {
@@ -30,51 +31,13 @@ function minutesToHHMM(total) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function generateAvailabilityFromRules({
-    rules = [],
-    startDate = dayjs().startOf('day'),
-    days = 30,
-    now = dayjs(),
-}) {
-    const byDow = new Map();
-    rules.forEach((r) => byDow.set(Number(r.day_of_week), r));
-
-    const maxLead = Math.max(...rules.map((r) => Number(r.max_lead_time_days || 0)), days);
-
-    const horizonDays = Math.max(days, isFinite(maxLead) ? maxLead : days);
-
-    const result = {};
-    let d = startDate.clone();
-    for (let i = 0; i < horizonDays; i++) {
-        const dow = d.day();
-        const rule = byDow.get(dow);
-        if (rule) {
-            const openM = parseTimeToMinutes(String(rule.open_time).slice(0, 5));
-            const closeM = parseTimeToMinutes(String(rule.close_time).slice(0, 5));
-            const step = Number(rule.slot_duration_minutes || 60);
-            const minLeadH = Number(rule.min_lead_time_hours || 0);
-            const maxLeadD = Number(rule.max_lead_time_days || 365);
-
-            const slots = [];
-            for (let t = openM; t + step <= closeM; t += step) {
-                const hhmm = minutesToHHMM(t);
-                // Apply lead-time constraints
-                const slotDateTime = d
-                    .hour(parseInt(hhmm.slice(0, 2), 10))
-                    .minute(parseInt(hhmm.slice(3, 5), 10));
-                const diffHours = slotDateTime.diff(now, 'hour');
-                const diffDays = slotDateTime.startOf('day').diff(now.startOf('day'), 'day');
-                if (diffHours >= minLeadH && diffDays <= maxLeadD) {
-                    slots.push(hhmm);
-                }
-            }
-            if (slots.length > 0) {
-                result[d.format('YYYY-MM-DD')] = slots;
-            }
-        }
-        d = d.add(1, 'day');
-    }
-    return result;
+function formatTimeIntl(hour, minute) {
+    const dt = new Date(2000, 0, 1, hour, minute, 0, 0);
+    return new Intl.DateTimeFormat('es-MX', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    }).format(dt);
 }
 
 function ReservaAmenityPage() {
@@ -96,14 +59,29 @@ function ReservaAmenityPage() {
     });
 
     const { data: currentUser } = useUser();
+    const { data: units = [] } = useUnitsList(currentWorkspace, currentUser);
+    const unitId = units?.[0]?.id || null;
 
     // Backend-derived availability that accounts for reservations and rules
     const { data: availData, isPending: availLoading } = useAmenityAvailability({
         condo_id: currentWorkspace?.condo_id,
         amenity_id: amenityId,
-        user_id: currentUser?.id,
+        unit_id: unitId,
         start: dayjs().startOf('day').format('YYYY-MM-DD'),
         days: 30,
+    });
+
+    const reservationsRangeStart = useMemo(() => dayjs().startOf('day'), []);
+    const reservationsRangeEnd = useMemo(
+        () => reservationsRangeStart.add(30, 'day').endOf('day'),
+        [reservationsRangeStart],
+    );
+    const { data: reservations = [] } = useReservationsList({
+        condo_id: currentWorkspace?.condo_id,
+        unit_id: unitId,
+        amenity_id: amenityId,
+        from: reservationsRangeStart.toISOString(),
+        to: reservationsRangeEnd.toISOString(),
     });
 
     const [availability, setAvailability] = useState({});
@@ -151,6 +129,28 @@ function ReservaAmenityPage() {
         return map;
     }, [JSON.stringify(rules)]);
 
+    const ruleByDow = useMemo(() => {
+        const map = {};
+        for (const r of rules || []) {
+            const dow = Number(r.day_of_week);
+            if (Number.isFinite(dow)) map[dow] = r;
+        }
+        return map;
+    }, [JSON.stringify(rules)]);
+
+    const reservationsByDate = useMemo(() => {
+        const map = {};
+        for (const r of reservations || []) {
+            const status = String(r?.status || '').toLowerCase();
+            if (status === 'cancelled' || status === 'canceled') continue;
+            const dateKey = r?.start_time ? dayjs(r.start_time).format('YYYY-MM-DD') : null;
+            if (!dateKey) continue;
+            if (!map[dateKey]) map[dateKey] = [];
+            map[dateKey].push(r);
+        }
+        return map;
+    }, [JSON.stringify(reservations)]);
+
     useEffect(() => {
         if (availData) {
             const avail = availData.availability || availData; // backward compatibility
@@ -168,10 +168,25 @@ function ReservaAmenityPage() {
     function formatRange(dateStr, startHHMM) {
         const [sh, sm] = (startHHMM || '00:00').split(':').map((v) => parseInt(v || '0', 10));
         const dow = dayjs(dateStr).day();
+        const rule = ruleByDow[dow];
+        const maxReservations =
+            Number(rule?.max_reservations) === 1 ||
+            Number(rule?.max_reservations_per_day) === 1 ||
+            Number(rule?.max_reservations_per_unit_day) === 1;
+        if (maxReservations && rule?.open_time && rule?.close_time) {
+            const [oh, om] = String(rule.open_time)
+                .slice(0, 5)
+                .split(':')
+                .map((v) => parseInt(v || '0', 10));
+            const [ch, cm] = String(rule.close_time)
+                .slice(0, 5)
+                .split(':')
+                .map((v) => parseInt(v || '0', 10));
+            return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
+        }
         const dur = Number(slotDurationByDow[dow] || 60);
         const end = dayjs().hour(sh).minute(sm).add(dur, 'minute');
-        const fmt = (h, m) => (m === 0 ? String(h) : `${h}:${String(m).padStart(2, '0')}`);
-        return `${fmt(sh, sm)}-${fmt(end.hour(), end.minute())}`;
+        return `${formatTimeIntl(sh, sm)}-${formatTimeIntl(end.hour(), end.minute())}`;
     }
 
     return (
@@ -208,10 +223,16 @@ function ReservaAmenityPage() {
                             amenityName={amenityName}
                             costLabel={costLabel}
                             slotDurationByDow={slotDurationByDow}
+                            ruleByDow={ruleByDow}
+                            reservationsByDate={reservationsByDate}
                             onSelect={() => {}}
                             onCancelSelection={() => {}}
                             onConfirm={async (payload) => {
                                 try {
+                                    if (!unitId) {
+                                        toast.error('No tienes una unidad asignada');
+                                        return;
+                                    }
                                     const [sh, sm] = (payload.time || '00:00')
                                         .split(':')
                                         .map((v) => parseInt(v || '0', 10));
@@ -225,10 +246,16 @@ function ReservaAmenityPage() {
                                     const reservation_duration_minutes = Number(
                                         slotDurationByDow[dow] || 60,
                                     );
+                                    const rule = ruleByDow[dow];
+                                    const maxReservations =
+                                        Number(rule?.max_reservations) === 1 ||
+                                        Number(rule?.max_reservations_per_day) === 1 ||
+                                        Number(rule?.max_reservations_per_unit_day) === 1;
 
                                     const created = await createReservation.mutateAsync({
                                         condo_id: currentWorkspace?.condo_id,
                                         user_id: currentUser?.id,
+                                        unit_id: unitId,
                                         amenity_id: amenityId,
                                         start_time: startISO,
                                         reservation_duration_minutes,
@@ -249,6 +276,9 @@ function ReservaAmenityPage() {
                                             date: payload.date,
                                             time: payload.time,
                                             reservation_duration_minutes,
+                                            rule_open_time: rule?.open_time || null,
+                                            rule_close_time: rule?.close_time || null,
+                                            rule_max_reservations: maxReservations ? 1 : 0,
                                         },
                                     });
                                 } catch (e) {

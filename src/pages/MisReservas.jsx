@@ -20,17 +20,19 @@ function EmptyState({ title, description, cta }) {
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
 import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
+import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import dayjs from 'dayjs';
 
 function MisReservasPage() {
     const [currentWorkspace] = useCurrentWorkspace();
     const { data: currentUser } = useUser();
+    const { data: unitIds = [] } = useCondoMemberUnitIds(currentWorkspace, currentUser);
 
     const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
 
     const { data: reservations = [], isLoading } = useReservationsList({
         condo_id: currentWorkspace?.condo_id,
-        user_id: currentUser?.id,
+        unit_ids: unitIds,
         from: fromISO,
     });
 

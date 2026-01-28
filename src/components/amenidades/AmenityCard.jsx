@@ -33,6 +33,22 @@ function formatDuration(mins) {
     return `${m} min`;
 }
 
+function parseTimeToMinutes(timeStr = '00:00') {
+    const [h, m] = String(timeStr).split(':');
+    return parseInt(h || '0', 10) * 60 + parseInt(m || '0', 10);
+}
+
+function formatMinutesToTime(total) {
+    const h24 = Math.floor(total / 60) % 24;
+    const m = total % 60;
+    const dt = new Date(2000, 0, 1, h24, m, 0, 0);
+    return new Intl.DateTimeFormat('es-MX', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    }).format(dt);
+}
+
 function AmenityCard({ amenity }) {
     const [currentWorkspace] = useCurrentWorkspace();
     const slug = amenity.name.toLowerCase();
@@ -47,6 +63,28 @@ function AmenityCard({ amenity }) {
         .sort((a, b) => a - b)[0];
 
     const durationLabel = formatDuration(minSlot);
+    const maxReservationRules = rules.filter(
+        (r) =>
+            Number(r.max_reservations) === 1 ||
+            Number(r.max_reservations_per_day) === 1 ||
+            Number(r.max_reservations_per_unit_day) === 1,
+    );
+    const rangeLabel =
+        maxReservationRules.length > 0
+            ? (() => {
+                  const openMins = maxReservationRules
+                      .map((r) => parseTimeToMinutes(String(r.open_time).slice(0, 5)))
+                      .filter((n) => Number.isFinite(n));
+                  const closeMins = maxReservationRules
+                      .map((r) => parseTimeToMinutes(String(r.close_time).slice(0, 5)))
+                      .filter((n) => Number.isFinite(n));
+                  if (!openMins.length || !closeMins.length) return null;
+                  const open = Math.min(...openMins);
+                  const close = Math.max(...closeMins);
+                  return `${formatMinutesToTime(open)} - ${formatMinutesToTime(close)}`;
+              })()
+            : null;
+    const timeLabel = rangeLabel || durationLabel;
 
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
     const showCost = amenity.requires_payment;
@@ -81,10 +119,10 @@ function AmenityCard({ amenity }) {
                                 <span>{costLabel}</span>
                             </span>
                         )}
-                        {durationLabel && (
+                        {timeLabel && (
                             <span className="inline-flex items-center gap-1">
                                 <RiTimerLine className="text-primary" />
-                                <span>{durationLabel}</span>
+                                <span>{timeLabel}</span>
                             </span>
                         )}
                     </div>

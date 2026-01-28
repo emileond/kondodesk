@@ -6,19 +6,38 @@ import { supabaseClient } from '../../../lib/supabase';
 const api = ky.create({ prefixUrl: '/api' });
 
 export async function fetchReservations(params) {
-    const { condo_id, user_id, is_admin, amenity_id, status, date, from, to, limit } =
-        params || {};
+    const {
+        condo_id,
+        user_id,
+        unit_id,
+        unit_ids,
+        is_admin,
+        amenity_id,
+        status,
+        date,
+        from,
+        to,
+        limit,
+    } = params || {};
 
     if (!condo_id) return [];
 
     let query = supabaseClient.from('reservations').select('*').eq('condo_id', condo_id);
 
     const admin = is_admin === true || is_admin === 'true' || is_admin === 1 || is_admin === '1';
+    const unitIds = Array.isArray(unit_ids) ? unit_ids.filter(Boolean) : [];
     if (!admin) {
-        if (!user_id) return [];
-        query = query.eq('user_id', user_id);
-    } else if (user_id) {
-        query = query.eq('user_id', user_id);
+        if (unit_id) {
+            query = query.eq('unit_id', unit_id);
+        } else if (unitIds.length > 0) {
+            query = query.in('unit_id', unitIds);
+        } else {
+            return [];
+        }
+    } else {
+        if (unit_id) query = query.eq('unit_id', unit_id);
+        if (unitIds.length > 0) query = query.in('unit_id', unitIds);
+        if (user_id) query = query.eq('user_id', user_id);
     }
 
     if (amenity_id) query = query.eq('amenity_id', amenity_id);
@@ -78,16 +97,30 @@ export async function fetchReservations(params) {
 }
 
 export function useReservationsList(filters = {}) {
-    const { condo_id, user_id, is_admin, amenity_id, status, date, from, to, limit } =
-        filters || {};
+    const {
+        condo_id,
+        user_id,
+        unit_id,
+        unit_ids,
+        is_admin,
+        amenity_id,
+        status,
+        date,
+        from,
+        to,
+        limit,
+    } = filters || {};
 
-    const enabled = !!condo_id && (!!user_id || String(is_admin) === 'true');
+    const hasUnits = !!unit_id || (Array.isArray(unit_ids) && unit_ids.length > 0);
+    const enabled = !!condo_id && (String(is_admin) === 'true' || hasUnits);
 
     return useQuery({
         queryKey: [
             'reservations',
             condo_id,
             user_id,
+            unit_id || null,
+            Array.isArray(unit_ids) ? unit_ids.join(',') : null,
             String(is_admin) === 'true',
             amenity_id || null,
             status || null,
@@ -111,12 +144,12 @@ async function createReservation(payload) {
 }
 
 export async function fetchAmenityAvailability(params) {
-    const { condo_id, amenity_id, user_id, start, days, from, to } = params || {};
+    const { condo_id, amenity_id, unit_id, start, days, from, to } = params || {};
     const searchParams = new URLSearchParams();
     searchParams.set('availability', '1');
     if (condo_id) searchParams.set('condo_id', condo_id);
     if (amenity_id) searchParams.set('amenity_id', amenity_id);
-    if (user_id) searchParams.set('user_id', user_id);
+    if (unit_id) searchParams.set('unit_id', unit_id);
     if (start) searchParams.set('start', start);
     if (Number.isFinite(Number(days))) searchParams.set('days', String(days));
     if (from) searchParams.set('from', from);
@@ -131,11 +164,20 @@ export async function fetchAmenityAvailability(params) {
 }
 
 export function useAmenityAvailability(filters = {}) {
-    const { condo_id, amenity_id, user_id, start, days = 30, from, to } = filters || {};
+    const { condo_id, amenity_id, unit_id, start, days = 30, from, to } = filters || {};
     const enabled = !!condo_id && !!amenity_id;
     return useQuery({
-        queryKey: ['availability', condo_id, amenity_id, user_id || null, start || null, days, from || null, to || null],
-        queryFn: () => fetchAmenityAvailability({ condo_id, amenity_id, user_id, start, days, from, to }),
+        queryKey: [
+            'availability',
+            condo_id,
+            amenity_id,
+            unit_id || null,
+            start || null,
+            days,
+            from || null,
+            to || null,
+        ],
+        queryFn: () => fetchAmenityAvailability({ condo_id, amenity_id, unit_id, start, days, from, to }),
         enabled,
         staleTime: 1000 * 60, // 1 minute
         refetchOnWindowFocus: false,

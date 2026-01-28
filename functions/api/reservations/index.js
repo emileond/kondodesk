@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 // Cloudflare Pages Function: /api/reservations
 // Supports:
 // - GET availability for an amenity considering rules and existing reservations
-//   query: availability=1&condo_id&amenity_id&start=YYYY-MM-DD&days=30&user_id(optional)
+//   query: availability=1&condo_id&amenity_id&start=YYYY-MM-DD&days=30&unit_id(optional)
 //   or from/to ISO datetime range
 // - POST: create reservation with validations
-//   body: { condo_id, user_id, amenity_id, start_time (ISO), end_time (ISO)?, reservation_duration_minutes? }
+//   body: { condo_id, user_id, unit_id, amenity_id, start_time (ISO), end_time (ISO)?, reservation_duration_minutes? }
 //   status rule: if amenity.requires_payment => 'pending', else 'confirmed'
 
 function minutesBetween(a, b) {
@@ -52,7 +52,7 @@ function addMinutes(date, mins) {
 async function fetchAmenityAndRules(supabase, condo_id, amenity_id) {
     const [{ data: amenity, error: amenityError }, { data: rules, error: rulesError }] = await Promise.all([
         supabase.from('amenities').select('id, max_capacity, is_reservable, requires_payment, condo_id').eq('id', amenity_id).eq('condo_id', condo_id).single(),
-        supabase.from('amenity_rules').select('amenity_id, day_of_week, open_time, close_time, slot_duration_minutes, min_lead_time_hours, max_lead_time_days, reservations_per_user_day, condo_id').eq('amenity_id', amenity_id).eq('condo_id', condo_id),
+        supabase.from('amenity_rules').select('amenity_id, day_of_week, open_time, close_time, slot_duration_minutes, min_lead_time_hours, max_lead_time_days, reservations_per_unit_day, condo_id').eq('amenity_id', amenity_id).eq('condo_id', condo_id),
     ]);
     if (amenityError || !amenity) throw new Error(amenityError?.message || 'Amenity not found');
     if (rulesError) throw new Error(rulesError.message);
@@ -61,7 +61,10 @@ async function fetchAmenityAndRules(supabase, condo_id, amenity_id) {
 
 function buildRuleMap(rules) {
     const byDow = new Map();
-    for (const r of rules || []) byDow.set(Number(r.day_of_week), r);
+    for (const r of rules || []) {
+        const dow = Number(r.day_of_week);
+        if (Number.isFinite(dow)) byDow.set(dow, r);
+    }
     return byDow;
 }
 
@@ -88,7 +91,7 @@ export async function onRequestGet(context) {
         }
         const condo_id = url.searchParams.get('condo_id');
         const amenity_id = url.searchParams.get('amenity_id');
-        const user_id = url.searchParams.get('user_id');
+        const unit_id = url.searchParams.get('unit_id');
         const start = url.searchParams.get('start'); // YYYY-MM-DD
         const from = url.searchParams.get('from'); // ISO
         const to = url.searchParams.get('to'); // ISO
@@ -117,7 +120,7 @@ export async function onRequestGet(context) {
         // Fetch existing reservations within range for that amenity
         const { data: reservations, error: resErr } = await supabase
             .from('reservations')
-            .select('id, start_time, end_time, status, user_id')
+            .select('id, start_time, end_time, status, user_id, unit_id')
             .eq('condo_id', condo_id)
             .eq('amenity_id', amenity_id)
             .neq('status', 'cancelled')
@@ -151,13 +154,13 @@ export async function onRequestGet(context) {
                 const key = toYmd(cursor);
                 const dayReservations = resByDate.get(key) || [];
 
-                // Check user's daily limit once per day and mark, but do not hide slots
-                if (user_id && Number(rule.reservations_per_user_day || 0) > 0) {
-                    let userCount = 0;
+                // Check unit's daily limit once per day and mark, but do not hide slots
+                if (unit_id && Number(rule.reservations_per_unit_day || 0) > 0) {
+                    let unitCount = 0;
                     for (const r of dayReservations) {
-                        if (String(r.user_id) === String(user_id)) userCount += 1;
+                        if (String(r.unit_id) === String(unit_id)) unitCount += 1;
                     }
-                    if (userCount >= Number(rule.reservations_per_user_day)) {
+                    if (unitCount >= Number(rule.reservations_per_unit_day)) {
                         userLimitByDate[key] = true;
                     }
                 }
@@ -197,15 +200,16 @@ export async function onRequestPost(context) {
         const {
             condo_id,
             user_id,
+            unit_id,
             amenity_id,
             start_time,
             end_time: endTimeInput,
             reservation_duration_minutes,
         } = body || {};
 
-        if (!condo_id || !user_id || !amenity_id || !start_time) {
+        if (!condo_id || !user_id || !unit_id || !amenity_id || !start_time) {
             return Response.json(
-                { success: false, error: 'condo_id, user_id, amenity_id, start_time are required' },
+                { success: false, error: 'condo_id, user_id, unit_id, amenity_id, start_time are required' },
                 { status: 400 },
             );
         }
@@ -262,7 +266,7 @@ export async function onRequestPost(context) {
         // Validate capacity overlap in the same slot window
         const { data: dayReservations, error: resErr } = await supabase
             .from('reservations')
-            .select('id, start_time, end_time, status, user_id')
+            .select('id, start_time, end_time, status, user_id, unit_id')
             .eq('condo_id', condo_id)
             .eq('amenity_id', amenity_id)
             .neq('status', 'cancelled')
@@ -272,21 +276,21 @@ export async function onRequestPost(context) {
             return Response.json({ success: false, error: resErr.message }, { status: 500 });
         }
         let overlapping = 0;
-        let userCount = 0;
+        let unitCount = 0;
         for (const r of dayReservations || []) {
             const rs = new Date(r.start_time);
             const re = new Date(r.end_time);
             if (overlap(start, end, rs, re)) overlapping += 1;
-            if (String(r.user_id) === String(user_id)) userCount += 1;
+            if (String(r.unit_id) === String(unit_id)) unitCount += 1;
         }
         const maxCap = Number(amenity.max_capacity || 1);
         if (overlapping >= maxCap) {
             return Response.json({ success: false, error: 'Slot full' }, { status: 409 });
         }
 
-        // Per-user-per-day limit
-        const perDay = Number(rule.reservations_per_user_day || 0);
-        if (perDay > 0 && userCount >= perDay) {
+        // Per-unit-per-day limit
+        const perDay = Number(rule.reservations_per_unit_day || 0);
+        if (perDay > 0 && unitCount >= perDay) {
             return Response.json({ success: false, error: 'Daily reservation limit reached' }, { status: 409 });
         }
 
@@ -297,6 +301,7 @@ export async function onRequestPost(context) {
         const insertPayload = {
             condo_id,
             user_id,
+            unit_id,
             amenity_id,
             start_time: start.toISOString(),
             end_time: end.toISOString(),

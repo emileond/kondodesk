@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 
-// Fetch email lists for a specific team
+// Fetch email lists for a specific condo
 const fetchWorkspaceMembers = async (condo_id) => {
-    // Fetch workspace members first
+    // Fetch condo members first
     const { data: members, error: membersError } = await supabaseClient
         .from('condo_members')
         .select('*')
@@ -29,12 +29,12 @@ const fetchWorkspaceMembers = async (condo_id) => {
         throw new Error('Failed to fetch profiles');
     }
 
-    // Merge workspace members with their corresponding profile emails
+    // Merge condo members with their corresponding profile emails
     return members.map((member) => {
         const correspondingProfile = profiles.find((profile) => profile.user_id === member.user_id);
 
         return {
-            ...member, // This keeps the original 'updated_at' from workspace_members
+            ...member, // This keeps the original 'updated_at' from condo_members
             avatar: correspondingProfile?.avatar,
             email: correspondingProfile?.email || member?.invite_email,
             name: correspondingProfile?.name,
@@ -43,23 +43,32 @@ const fetchWorkspaceMembers = async (condo_id) => {
     });
 };
 
-// Hook to fetch all workspace members
+// Hook to fetch all condo members
 export const useWorkspaceMembers = (currentWorkspace) => {
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
     return useQuery({
-        queryKey: ['workspaceMembers', currentWorkspace?.workspace_id],
-        queryFn: () => fetchWorkspaceMembers(currentWorkspace?.workspace_id),
+        queryKey: ['workspaceMembers', condoId],
+        queryFn: () => fetchWorkspaceMembers(condoId),
         staleTime: 1000 * 60 * 30, // 30 minutes
-        enabled: !!currentWorkspace?.workspace_id, // Only fetch if teamId is provided
+        enabled: !!condoId, // Only fetch if teamId is provided
     });
 };
 
 // Function to add a new member
-const addWorkspaceMember = async ({ invite_email, role, workspace_id, invited_by }) => {
-    if (!invite_email || !role || !workspace_id || !invited_by) {
+const addWorkspaceMember = async ({
+    invite_email,
+    role,
+    condo_id,
+    workspace_id,
+    invited_by,
+    unit_ids,
+}) => {
+    const condoId = condo_id || workspace_id;
+    if (!invite_email || !role || !condoId || !invited_by) {
         throw new Error('Missing required fields');
     }
     const { error: rpcError } = await supabaseClient.rpc('check_seat_limit', {
-        p_workspace_id: workspace_id,
+        p_workspace_id: condoId,
         p_role: role,
     });
 
@@ -67,11 +76,12 @@ const addWorkspaceMember = async ({ invite_email, role, workspace_id, invited_by
         throw new Error(rpcError.message);
     }
 
-    const { error } = await supabaseClient.from('workspace_members').insert([
+    const { error } = await supabaseClient.from('condo_members').insert([
         {
             invite_email,
             role,
-            workspace_id,
+            condo_id: condoId,
+            unit_ids: Array.isArray(unit_ids) && unit_ids.length > 0 ? unit_ids : null,
             status: 'pending',
             invited_by: invited_by,
             updated_at: new Date(),
@@ -87,24 +97,24 @@ const addWorkspaceMember = async ({ invite_email, role, workspace_id, invited_by
 // Hook to create a new member
 export const useAddWorkspaceMember = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
         mutationFn: addWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch
-            queryClient.invalidateQueries(['workspaceMembers', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries(['workspaceMembers', condoId]);
         },
     });
 };
 
 // Function to resend invite (force update)
-const updateWorkspaceMember = async ({ id, role, workspace_id }) => {
+const updateWorkspaceMember = async ({ id, role }) => {
     const { error } = await supabaseClient
-        .from('workspace_members')
+        .from('condo_members')
         .update([
             {
                 role,
-                workspace_id,
                 updated_at: new Date(),
             },
         ])
@@ -119,12 +129,13 @@ const updateWorkspaceMember = async ({ id, role, workspace_id }) => {
 // Hook to create a new member
 export const useUpdateWorkspaceMember = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
         mutationFn: updateWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch
-            queryClient.invalidateQueries(['workspaceMembers', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries(['workspaceMembers', condoId]);
         },
     });
 };
@@ -156,12 +167,13 @@ const deleteWorkspaceMember = async ({ id }) => {
 // Hook to delete an api key
 export const useDeleteWorkspaceMember = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
         mutationFn: deleteWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch the email lists query for the team
-            queryClient.invalidateQueries(['workspaceMembers', currentWorkspace?.workspace_id]);
+            queryClient.invalidateQueries(['workspaceMembers', condoId]);
         },
     });
 };

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 
-// Fetch all worskpaces for a user
-const fetchWorkspaces = async (user) => {
+// Fetch all condos for a user
+const fetchCondos = async (user) => {
     const { data, error } = await supabaseClient
         .from('condo_members')
         .select(
@@ -31,11 +31,11 @@ const fetchWorkspaces = async (user) => {
     return transformedData;
 };
 
-// Hook to fetch all worskpaces
+// Hook to fetch all condos
 export const useWorkspaces = (user) => {
     return useQuery({
         queryKey: ['workspaces', user?.id],
-        queryFn: () => fetchWorkspaces(user),
+        queryFn: () => fetchCondos(user),
         staleTime: 1000 * 60 * 30, // 30 minutes
         enabled: !!user,
     });

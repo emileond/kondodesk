@@ -1,7 +1,13 @@
 import dayjs from 'dayjs';
 import { Chip } from '@heroui/react';
 
-function ReservationCard({ reservation, className = '', showStatus = true, amenityName }) {
+function ReservationCard({
+    reservation,
+    className = '',
+    showStatus = true,
+    amenityName,
+    rangeLabel,
+}) {
     if (!reservation) return null;
 
     const { start_time, end_time, reservation_duration_minutes, status } = reservation;
@@ -28,11 +34,10 @@ function ReservationCard({ reservation, className = '', showStatus = true, ameni
     }
 
     const title = amenityName || 'Amenidad';
-    const dateLine = `${dayjs(start_time).format('DD MMM YYYY')} · ${formatRange(
-        start_time,
-        end_time,
-        reservation_duration_minutes,
-    )}`;
+    const dateLine = `${dayjs(start_time).format('DD MMM YYYY')} · ${
+        rangeLabel ||
+        formatRange(start_time, end_time, reservation_duration_minutes)
+    }`;
 
     return (
         <div className={`p-3 rounded-medium bg-content2 border border-default-100 ${className}`}>
