@@ -14,7 +14,9 @@ function minutesBetween(a, b) {
 }
 
 function parseDateOnly(yyyyMmDd) {
-    const [y, m, d] = String(yyyyMmDd || '').split('-').map(Number);
+    const [y, m, d] = String(yyyyMmDd || '')
+        .split('-')
+        .map(Number);
     if (!y || !m || !d) return null;
     const dt = new Date(Date.UTC(y, m - 1, d));
     return dt;
@@ -28,7 +30,9 @@ function toYmd(date) {
 }
 
 function parseTimeToMinutes(hhmm) {
-    const [h, m] = String(hhmm || '00:00').split(':').map((v) => parseInt(v || '0', 10));
+    const [h, m] = String(hhmm || '00:00')
+        .split(':')
+        .map((v) => parseInt(v || '0', 10));
     return h * 60 + m;
 }
 
@@ -50,10 +54,22 @@ function addMinutes(date, mins) {
 }
 
 async function fetchAmenityAndRules(supabase, condo_id, amenity_id) {
-    const [{ data: amenity, error: amenityError }, { data: rules, error: rulesError }] = await Promise.all([
-        supabase.from('amenities').select('id, max_capacity, is_reservable, requires_payment, condo_id').eq('id', amenity_id).eq('condo_id', condo_id).single(),
-        supabase.from('amenity_rules').select('amenity_id, day_of_week, open_time, close_time, slot_duration_minutes, min_lead_time_hours, max_lead_time_days, reservations_per_unit_day, condo_id').eq('amenity_id', amenity_id).eq('condo_id', condo_id),
-    ]);
+    const [{ data: amenity, error: amenityError }, { data: rules, error: rulesError }] =
+        await Promise.all([
+            supabase
+                .from('amenities')
+                .select('id, max_capacity, is_reservable, requires_payment, condo_id')
+                .eq('id', amenity_id)
+                .eq('condo_id', condo_id)
+                .single(),
+            supabase
+                .from('amenity_rules')
+                .select(
+                    'amenity_id, day_of_week, open_time, close_time, slot_duration_minutes, min_lead_time_hours, max_lead_time_days, reservations_per_unit_day, condo_id',
+                )
+                .eq('amenity_id', amenity_id)
+                .eq('condo_id', condo_id),
+        ]);
     if (amenityError || !amenity) throw new Error(amenityError?.message || 'Amenity not found');
     if (rulesError) throw new Error(rulesError.message);
     return { amenity, rules: rules || [] };
@@ -97,7 +113,10 @@ export async function onRequestGet(context) {
         const to = url.searchParams.get('to'); // ISO
         const days = Number(url.searchParams.get('days') || 30);
         if (!condo_id || !amenity_id) {
-            return Response.json({ success: false, error: 'condo_id and amenity_id are required' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'condo_id and amenity_id are required' },
+                { status: 400 },
+            );
         }
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
         const { amenity, rules } = await fetchAmenityAndRules(supabase, condo_id, amenity_id);
@@ -112,7 +131,11 @@ export async function onRequestGet(context) {
             rangeTo = new Date(to);
         } else {
             const startDate = start ? parseDateOnly(start) : new Date();
-            const startLocal = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const startLocal = new Date(
+                startDate.getFullYear(),
+                startDate.getMonth(),
+                startDate.getDate(),
+            );
             rangeFrom = startLocal;
             rangeTo = new Date(startLocal.getTime());
             rangeTo.setDate(rangeTo.getDate() + (isFinite(days) ? days : 30));
@@ -167,7 +190,15 @@ export async function onRequestGet(context) {
 
                 const slots = [];
                 for (let t = openM; t + step <= closeM; t += step) {
-                    const startDt = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), Math.floor(t / 60), t % 60, 0, 0);
+                    const startDt = new Date(
+                        cursor.getFullYear(),
+                        cursor.getMonth(),
+                        cursor.getDate(),
+                        Math.floor(t / 60),
+                        t % 60,
+                        0,
+                        0,
+                    );
                     const endDt = addMinutes(startDt, step);
                     // lead times
                     if (!withinLeadTimes(now, startDt, rule)) continue;
@@ -209,7 +240,10 @@ export async function onRequestPost(context) {
 
         if (!condo_id || !user_id || !unit_id || !amenity_id || !start_time) {
             return Response.json(
-                { success: false, error: 'condo_id, user_id, unit_id, amenity_id, start_time are required' },
+                {
+                    success: false,
+                    error: 'condo_id, user_id, unit_id, amenity_id, start_time are required',
+                },
                 { status: 400 },
             );
         }
@@ -219,7 +253,10 @@ export async function onRequestPost(context) {
         // Fetch amenity and rules
         const { amenity, rules } = await fetchAmenityAndRules(supabase, condo_id, amenity_id);
         if (!amenity.is_reservable) {
-            return Response.json({ success: false, error: 'Amenity is not reservable' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'Amenity is not reservable' },
+                { status: 400 },
+            );
         }
 
         // Determine rule for the day
@@ -233,7 +270,10 @@ export async function onRequestPost(context) {
         const dow = getDow(start);
         const rule = buildRuleMap(rules).get(dow);
         if (!rule) {
-            return Response.json({ success: false, error: 'No rule for selected day' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'No rule for selected day' },
+                { status: 400 },
+            );
         }
 
         const step = Number(rule.slot_duration_minutes || reservation_duration_minutes || 60);
@@ -246,7 +286,10 @@ export async function onRequestPost(context) {
         }
         const end = new Date(end_time);
         if (!(end > start)) {
-            return Response.json({ success: false, error: 'end_time must be after start_time' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'end_time must be after start_time' },
+                { status: 400 },
+            );
         }
 
         // Validate within open/close
@@ -255,12 +298,18 @@ export async function onRequestPost(context) {
         const startM = start.getHours() * 60 + start.getMinutes();
         const endM = end.getHours() * 60 + end.getMinutes();
         if (startM < openM || endM > closeM) {
-            return Response.json({ success: false, error: 'Time outside opening hours' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'Time outside opening hours' },
+                { status: 400 },
+            );
         }
 
         // Validate lead times
         if (!withinLeadTimes(new Date(), start, rule)) {
-            return Response.json({ success: false, error: 'Does not meet lead-time constraints' }, { status: 400 });
+            return Response.json(
+                { success: false, error: 'Does not meet lead-time constraints' },
+                { status: 400 },
+            );
         }
 
         // Validate capacity overlap in the same slot window
@@ -270,8 +319,14 @@ export async function onRequestPost(context) {
             .eq('condo_id', condo_id)
             .eq('amenity_id', amenity_id)
             .neq('status', 'cancelled')
-            .gte('start_time', new Date(start.getFullYear(), start.getMonth(), start.getDate()).toISOString())
-            .lt('start_time', new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).toISOString());
+            .gte(
+                'start_time',
+                new Date(start.getFullYear(), start.getMonth(), start.getDate()).toISOString(),
+            )
+            .lt(
+                'start_time',
+                new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).toISOString(),
+            );
         if (resErr) {
             return Response.json({ success: false, error: resErr.message }, { status: 500 });
         }
@@ -291,7 +346,10 @@ export async function onRequestPost(context) {
         // Per-unit-per-day limit
         const perDay = Number(rule.reservations_per_unit_day || 0);
         if (perDay > 0 && unitCount >= perDay) {
-            return Response.json({ success: false, error: 'Daily reservation limit reached' }, { status: 409 });
+            return Response.json(
+                { success: false, error: 'Daily reservation limit reached' },
+                { status: 409 },
+            );
         }
 
         // Determine status based on amenity.requires_payment
@@ -305,7 +363,8 @@ export async function onRequestPost(context) {
             amenity_id,
             start_time: start.toISOString(),
             end_time: end.toISOString(),
-            reservation_duration_minutes: reservation_duration_minutes || minutesBetween(start, end),
+            reservation_duration_minutes:
+                reservation_duration_minutes || minutesBetween(start, end),
             status,
         };
 
@@ -321,7 +380,11 @@ export async function onRequestPost(context) {
 
         return Response.json({ success: true, data });
     } catch (err) {
-        return Response.json({ success: false, error: err.message }, { status: 500 });
+        console.error('API Execution Failed:', err);
+        return Response.json(
+            { success: false, error: err.message, stack: err.stack },
+            { status: 500 },
+        );
     }
 }
 
@@ -345,10 +408,7 @@ export async function onRequestPatch(context) {
         };
         const nextStatus = statusMap[normalizedStatus];
         if (!nextStatus) {
-            return Response.json(
-                { success: false, error: 'Unsupported status' },
-                { status: 400 },
-            );
+            return Response.json({ success: false, error: 'Unsupported status' }, { status: 400 });
         }
 
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
@@ -366,6 +426,10 @@ export async function onRequestPatch(context) {
 
         return Response.json({ success: true, data });
     } catch (err) {
-        return Response.json({ success: false, error: err.message }, { status: 500 });
+        console.error('API Execution Failed:', err);
+        return Response.json(
+            { success: false, error: err.message, stack: err.stack },
+            { status: 500 },
+        );
     }
 }
