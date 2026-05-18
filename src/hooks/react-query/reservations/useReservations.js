@@ -82,7 +82,7 @@ export async function fetchReservations(params) {
 
     const { data: amenities, error: amenitiesError } = await supabaseClient
         .from('amenities')
-        .select('id, name, requires_payment, condo_id')
+        .select('id, name, icon, requires_payment, condo_id')
         .in('id', amenityIds)
         .eq('condo_id', condo_id);
 

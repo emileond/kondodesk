@@ -223,6 +223,7 @@ function ReservaAmenityPage() {
                             availability={availability}
                             userLimitByDate={userLimitByDate}
                             amenityName={amenityName}
+                            amenityIcon={amenity?.icon}
                             costLabel={costLabel}
                             slotDurationByDow={slotDurationByDow}
                             ruleByDow={ruleByDow}

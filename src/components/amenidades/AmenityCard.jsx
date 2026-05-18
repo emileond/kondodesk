@@ -1,8 +1,13 @@
-import { Card, CardBody, CardHeader, Button } from '@heroui/react';
+import { Button, Chip } from '@heroui/react';
 import { Link } from 'react-router-dom';
-import { RiMoneyDollarCircleLine, RiTimerLine } from 'react-icons/ri';
+import {
+    RiMoneyDollarCircleLine,
+    RiTimeLine,
+    RiArrowRightLine,
+} from 'react-icons/ri';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace';
 import { useAmenityRules } from '../../hooks/react-query/amenities/useAmenities';
+import { getAmenityIcon } from '../../utils/amenityIcon.jsx';
 
 function titleCase(str) {
     return str
@@ -19,7 +24,6 @@ function formatCurrency(amount, currencyCode = 'MXN') {
             maximumFractionDigits: 0,
         }).format(Number(amount || 0));
     } catch {
-        // Fallback: prefix with $ if formatter fails
         return `$${Number(amount || 0).toFixed(0)}`;
     }
 }
@@ -54,8 +58,6 @@ function AmenityCard({ amenity }) {
     const slug = amenity.name.toLowerCase();
     const display = titleCase(amenity.name);
     const img = amenity.img;
-
-    // Fetch rules to compute a representative slot duration (min across rules)
     const { data: rules = [] } = useAmenityRules(currentWorkspace, { amenity_id: amenity.id });
     const minSlot = rules
         .map((r) => Number(r.slot_duration_minutes))
@@ -64,6 +66,7 @@ function AmenityCard({ amenity }) {
 
     const durationLabel = formatDuration(minSlot);
     const isExclusive = Number(amenity?.max_capacity) === 1;
+
     const rangeLabel = isExclusive
         ? (() => {
               const openMins = rules
@@ -75,9 +78,10 @@ function AmenityCard({ amenity }) {
               if (!openMins.length || !closeMins.length) return null;
               const open = Math.min(...openMins);
               const close = Math.max(...closeMins);
-              return `${formatMinutesToTime(open)} - ${formatMinutesToTime(close)}`;
+              return `${formatMinutesToTime(open)} – ${formatMinutesToTime(close)}`;
           })()
         : null;
+
     const timeLabel = rangeLabel || durationLabel;
 
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
@@ -90,12 +94,10 @@ function AmenityCard({ amenity }) {
               : null;
 
     return (
-        <Card
-            radius="lg"
-            className="bg-content1 border border-default-100 hover:border-primary-200 transition-colors"
-        >
+        <div className="rounded-xl border border-default-200 bg-content1 overflow-hidden hover:border-primary-300 hover:shadow-sm transition-all flex flex-col">
+            {/* Cover image */}
             {img && (
-                <div className="h-36 w-full overflow-hidden rounded-t-large">
+                <div className="h-36 w-full overflow-hidden">
                     <img
                         src={`${img}/w=400`}
                         alt={display}
@@ -103,40 +105,65 @@ function AmenityCard({ amenity }) {
                     />
                 </div>
             )}
-            <CardHeader className="flex flex-col items-start gap-1">
-                <h3 className="text-lg font-semibold">{display}</h3>
-                {(costLabel || durationLabel) && (
-                    <div className="mt-1 flex items-center gap-3 text-small text-default-600">
-                        {costLabel && (
-                            <span className="inline-flex items-center gap-1">
-                                <RiMoneyDollarCircleLine className="text-success" />
-                                <span>{costLabel}</span>
-                            </span>
-                        )}
-                        {timeLabel && (
-                            <span className="inline-flex items-center gap-1">
-                                <RiTimerLine className="text-primary" />
-                                <span>{timeLabel}</span>
-                            </span>
-                        )}
-                    </div>
-                )}
-            </CardHeader>
-            <CardBody className="pt-0">
-                <div className="flex w-full justify-end">
-                    <Button
-                        as={Link}
-                        to={`/amenidades/${encodeURIComponent(slug)}`}
-                        color="primary"
-                        size="md"
-                        className="font-medium"
-                        fullWidth
-                    >
-                        Reservar
-                    </Button>
+
+            {/* Amenity name header — matches modal style */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-content2 border-b border-default-100">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 shrink-0">
+                    {getAmenityIcon(amenity.icon, 'text-primary-600 text-base')}
                 </div>
-            </CardBody>
-        </Card>
+                <div className="text-base font-semibold text-default-800 truncate">{display}</div>
+            </div>
+
+            {/* Cost / duration meta rows */}
+            {(costLabel || timeLabel) && (
+                <div className="divide-y divide-default-100">
+                    {costLabel && (
+                        <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center gap-2 text-default-500 text-sm">
+                                <RiMoneyDollarCircleLine className="text-success-500 text-base shrink-0" />
+                                <span className="text-xs text-default-500">Costo</span>
+                            </div>
+                            <Chip
+                                color="success"
+                                variant="flat"
+                                size="sm"
+                                className="font-semibold"
+                            >
+                                {costLabel}
+                            </Chip>
+                        </div>
+                    )}
+                    {timeLabel && (
+                        <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center gap-2 text-default-500 text-sm">
+                                <RiTimeLine className="text-primary-500 text-base shrink-0" />
+                                <span className="text-xs text-default-500">
+                                    {isExclusive ? 'Horario' : 'Duración'}
+                                </span>
+                            </div>
+                            <span className="text-sm font-semibold text-default-700">
+                                {timeLabel}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* CTA */}
+            <div className="px-4 py-3 border-t border-default-100 mt-auto">
+                <Button
+                    as={Link}
+                    to={`/amenidades/${encodeURIComponent(slug)}`}
+                    color="primary"
+                    size="md"
+                    className="font-medium w-full"
+                    endContent={<RiArrowRightLine />}
+                    fullWidth
+                >
+                    Reservar
+                </Button>
+            </div>
+        </div>
     );
 }
 
