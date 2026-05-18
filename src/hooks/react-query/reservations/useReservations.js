@@ -150,7 +150,8 @@ async function updateReservation(payload) {
 }
 
 export async function fetchAmenityAvailability(params) {
-    const { condo_id, amenity_id, unit_id, start, days, from, to } = params || {};
+    const { condo_id, amenity_id, unit_id, start, days, from, to, timezone_offset_minutes } =
+        params || {};
     const searchParams = new URLSearchParams();
     searchParams.set('availability', '1');
     if (condo_id) searchParams.set('condo_id', condo_id);
@@ -160,6 +161,9 @@ export async function fetchAmenityAvailability(params) {
     if (Number.isFinite(Number(days))) searchParams.set('days', String(days));
     if (from) searchParams.set('from', from);
     if (to) searchParams.set('to', to);
+    if (Number.isFinite(Number(timezone_offset_minutes))) {
+        searchParams.set('timezone_offset_minutes', String(timezone_offset_minutes));
+    }
 
     const res = await api.get(`reservations?${searchParams.toString()}`).json();
     if (!res?.success) throw new Error(res?.error || 'Failed to fetch availability');
@@ -170,7 +174,16 @@ export async function fetchAmenityAvailability(params) {
 }
 
 export function useAmenityAvailability(filters = {}) {
-    const { condo_id, amenity_id, unit_id, start, days = 30, from, to } = filters || {};
+    const {
+        condo_id,
+        amenity_id,
+        unit_id,
+        start,
+        days = 30,
+        from,
+        to,
+        timezone_offset_minutes,
+    } = filters || {};
     const enabled = !!condo_id && !!amenity_id;
     return useQuery({
         queryKey: [
@@ -182,8 +195,21 @@ export function useAmenityAvailability(filters = {}) {
             days,
             from || null,
             to || null,
+            Number.isFinite(Number(timezone_offset_minutes))
+                ? Number(timezone_offset_minutes)
+                : null,
         ],
-        queryFn: () => fetchAmenityAvailability({ condo_id, amenity_id, unit_id, start, days, from, to }),
+        queryFn: () =>
+            fetchAmenityAvailability({
+                condo_id,
+                amenity_id,
+                unit_id,
+                start,
+                days,
+                from,
+                to,
+                timezone_offset_minutes,
+            }),
         enabled,
         staleTime: 1000 * 60, // 1 minute
         refetchOnWindowFocus: false,

@@ -22,6 +22,34 @@ function parseDateOnly(yyyyMmDd) {
     return dt;
 }
 
+function getTimezoneOffsetMinutes(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return Math.trunc(n);
+}
+
+function zonedUtcFromParts(year, monthIndex, day, hour, minute, tzOffsetMinutes = 0) {
+    return new Date(
+        Date.UTC(year, monthIndex, day, hour || 0, minute || 0, 0, 0) + tzOffsetMinutes * 60000,
+    );
+}
+
+function toYmdInOffset(date, tzOffsetMinutes = 0) {
+    const shifted = new Date(date.getTime() - tzOffsetMinutes * 60000);
+    const y = shifted.getUTCFullYear();
+    const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(shifted.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function startOfDayInOffset(date, tzOffsetMinutes = 0) {
+    const shifted = new Date(date.getTime() - tzOffsetMinutes * 60000);
+    const y = shifted.getUTCFullYear();
+    const m = shifted.getUTCMonth();
+    const d = shifted.getUTCDate();
+    return zonedUtcFromParts(y, m, d, 0, 0, tzOffsetMinutes);
+}
+
 function toYmd(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -36,15 +64,25 @@ function parseTimeToMinutes(hhmm) {
     return h * 60 + m;
 }
 
+function getSlotIncrementMinutes(rule, durationMinutes) {
+    const configured = Number(rule?.slot_interval_minutes);
+    if (Number.isFinite(configured) && configured > 0) return configured;
+    const duration = Number(durationMinutes || 60);
+    if (duration >= 60) return 60;
+    return duration > 0 ? duration : 60;
+}
+
 function minutesToHHMM(total) {
     const h = Math.floor(total / 60);
     const m = total % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function getDow(date) {
+function getDow(date, tzOffsetMinutes = null) {
     // 0..6, Sunday=0
-    return date.getDay();
+    if (!Number.isFinite(tzOffsetMinutes)) return date.getDay();
+    const shifted = new Date(date.getTime() - tzOffsetMinutes * 60000);
+    return shifted.getUTCDay();
 }
 
 function addMinutes(date, mins) {
@@ -84,14 +122,21 @@ function buildRuleMap(rules) {
     return byDow;
 }
 
-function withinLeadTimes(now, slotStart, rule) {
+function withinLeadTimes(now, slotStart, rule, tzOffsetMinutes = null) {
     const minLeadH = Number(rule.min_lead_time_hours || 0);
     const maxLeadD = Number(rule.max_lead_time_days || 365);
-    const diffHours = Math.floor((slotStart.getTime() - now.getTime()) / 3600000);
-    const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const slotDay0 = new Date(slotStart.getFullYear(), slotStart.getMonth(), slotStart.getDate());
-    const diffDays = Math.round((slotDay0.getTime() - today0.getTime()) / 86400000);
-    return diffHours >= minLeadH && diffDays <= maxLeadD;
+    const minLeadMs = Math.max(0, minLeadH) * 3600000;
+    const diffMs = slotStart.getTime() - now.getTime();
+    if (diffMs < minLeadMs) return false;
+
+    const today0 = Number.isFinite(tzOffsetMinutes)
+        ? startOfDayInOffset(now, tzOffsetMinutes)
+        : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const slotDay0 = Number.isFinite(tzOffsetMinutes)
+        ? startOfDayInOffset(slotStart, tzOffsetMinutes)
+        : new Date(slotStart.getFullYear(), slotStart.getMonth(), slotStart.getDate());
+    const diffDays = Math.floor((slotDay0.getTime() - today0.getTime()) / 86400000);
+    return diffDays <= maxLeadD;
 }
 
 function overlap(aStart, aEnd, bStart, bEnd) {
@@ -112,6 +157,9 @@ export async function onRequestGet(context) {
         const from = url.searchParams.get('from'); // ISO
         const to = url.searchParams.get('to'); // ISO
         const days = Number(url.searchParams.get('days') || 30);
+        const tzOffsetMinutes = getTimezoneOffsetMinutes(
+            url.searchParams.get('timezone_offset_minutes'),
+        );
         if (!condo_id || !amenity_id) {
             return Response.json(
                 { success: false, error: 'condo_id and amenity_id are required' },
@@ -131,11 +179,16 @@ export async function onRequestGet(context) {
             rangeTo = new Date(to);
         } else {
             const startDate = start ? parseDateOnly(start) : new Date();
-            const startLocal = new Date(
-                startDate.getFullYear(),
-                startDate.getMonth(),
-                startDate.getDate(),
-            );
+            const startLocal = Number.isFinite(tzOffsetMinutes)
+                ? zonedUtcFromParts(
+                      startDate.getUTCFullYear(),
+                      startDate.getUTCMonth(),
+                      startDate.getUTCDate(),
+                      0,
+                      0,
+                      tzOffsetMinutes,
+                  )
+                : new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
             rangeFrom = startLocal;
             rangeTo = new Date(startLocal.getTime());
             rangeTo.setDate(rangeTo.getDate() + (isFinite(days) ? days : 30));
@@ -161,20 +214,28 @@ export async function onRequestGet(context) {
         const resByDate = new Map();
         for (const r of reservations || []) {
             const d = new Date(r.start_time);
-            const key = toYmd(d);
+            const key = Number.isFinite(tzOffsetMinutes)
+                ? toYmdInOffset(d, tzOffsetMinutes)
+                : toYmd(d);
             if (!resByDate.has(key)) resByDate.set(key, []);
             resByDate.get(key).push(r);
         }
 
         const cursor = new Date(rangeFrom.getTime());
         while (cursor < rangeTo) {
-            const dow = getDow(cursor);
+            const dow = getDow(cursor, tzOffsetMinutes);
             const rule = byDow.get(dow);
             if (rule) {
                 const openM = parseTimeToMinutes(String(rule.open_time).slice(0, 5));
                 const closeM = parseTimeToMinutes(String(rule.close_time).slice(0, 5));
                 const step = Number(rule.slot_duration_minutes || 60);
-                const key = toYmd(cursor);
+                const isExclusiveAmenity = Number(amenity.max_capacity || 1) === 1;
+                const slotIncrement = isExclusiveAmenity
+                    ? step
+                    : getSlotIncrementMinutes(rule, step);
+                const key = Number.isFinite(tzOffsetMinutes)
+                    ? toYmdInOffset(cursor, tzOffsetMinutes)
+                    : toYmd(cursor);
                 const dayReservations = resByDate.get(key) || [];
 
                 // Check unit's daily limit once per day and mark, but do not hide slots
@@ -189,19 +250,28 @@ export async function onRequestGet(context) {
                 }
 
                 const slots = [];
-                for (let t = openM; t + step <= closeM; t += step) {
-                    const startDt = new Date(
-                        cursor.getFullYear(),
-                        cursor.getMonth(),
-                        cursor.getDate(),
-                        Math.floor(t / 60),
-                        t % 60,
-                        0,
-                        0,
-                    );
+                for (let t = openM; t + step <= closeM; t += slotIncrement) {
+                    const startDt = Number.isFinite(tzOffsetMinutes)
+                        ? zonedUtcFromParts(
+                              cursor.getUTCFullYear(),
+                              cursor.getUTCMonth(),
+                              cursor.getUTCDate(),
+                              Math.floor(t / 60),
+                              t % 60,
+                              tzOffsetMinutes,
+                          )
+                        : new Date(
+                              cursor.getFullYear(),
+                              cursor.getMonth(),
+                              cursor.getDate(),
+                              Math.floor(t / 60),
+                              t % 60,
+                              0,
+                              0,
+                          );
                     const endDt = addMinutes(startDt, step);
                     // lead times
-                    if (!withinLeadTimes(now, startDt, rule)) continue;
+                    if (!withinLeadTimes(now, startDt, rule, tzOffsetMinutes)) continue;
                     // capacity: count overlaps in dayReservations
                     let count = 0;
                     for (const r of dayReservations) {
@@ -236,7 +306,9 @@ export async function onRequestPost(context) {
             start_time,
             end_time: endTimeInput,
             reservation_duration_minutes,
+            timezone_offset_minutes,
         } = body || {};
+        const tzOffsetMinutes = getTimezoneOffsetMinutes(timezone_offset_minutes);
 
         if (!condo_id || !user_id || !unit_id || !amenity_id || !start_time) {
             return Response.json(
@@ -267,7 +339,7 @@ export async function onRequestPost(context) {
                 { status: 400 },
             );
         }
-        const dow = getDow(start);
+        const dow = getDow(start, tzOffsetMinutes);
         const rule = buildRuleMap(rules).get(dow);
         if (!rule) {
             return Response.json(
@@ -305,7 +377,7 @@ export async function onRequestPost(context) {
         }
 
         // Validate lead times
-        if (!withinLeadTimes(new Date(), start, rule)) {
+        if (!withinLeadTimes(new Date(), start, rule, tzOffsetMinutes)) {
             return Response.json(
                 { success: false, error: 'Does not meet lead-time constraints' },
                 { status: 400 },
@@ -321,11 +393,20 @@ export async function onRequestPost(context) {
             .neq('status', 'cancelled')
             .gte(
                 'start_time',
-                new Date(start.getFullYear(), start.getMonth(), start.getDate()).toISOString(),
+                (
+                    Number.isFinite(tzOffsetMinutes)
+                        ? startOfDayInOffset(start, tzOffsetMinutes)
+                        : new Date(start.getFullYear(), start.getMonth(), start.getDate())
+                ).toISOString(),
             )
             .lt(
                 'start_time',
-                new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).toISOString(),
+                addMinutes(
+                    Number.isFinite(tzOffsetMinutes)
+                        ? startOfDayInOffset(start, tzOffsetMinutes)
+                        : new Date(start.getFullYear(), start.getMonth(), start.getDate()),
+                    1440,
+                ).toISOString(),
             );
         if (resErr) {
             return Response.json({ success: false, error: resErr.message }, { status: 500 });

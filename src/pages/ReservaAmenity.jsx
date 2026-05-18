@@ -9,7 +9,7 @@ import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import { useAmenity, useAmenityRules } from '../hooks/react-query/amenities/useAmenities';
 import { useAmenityAvailability, useCreateReservation, useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
-import { useUnitsList } from '../hooks/react-query/units/useUnits.js';
+import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import { RiMoneyDollarCircleLine, RiTimerLine } from 'react-icons/ri';
 
 function titleCase(str = '') {
@@ -59,8 +59,11 @@ function ReservaAmenityPage() {
     });
 
     const { data: currentUser } = useUser();
-    const { data: units = [] } = useUnitsList(currentWorkspace, currentUser);
-    const unitId = units?.[0]?.id || null;
+    const { data: memberUnitIds = [], isPending: memberUnitsLoading } = useCondoMemberUnitIds(
+        currentWorkspace,
+        currentUser,
+    );
+    const unitId = memberUnitIds?.[0] || null;
 
     // Backend-derived availability that accounts for reservations and rules
     const { data: availData, isPending: availLoading } = useAmenityAvailability({
@@ -69,6 +72,7 @@ function ReservaAmenityPage() {
         unit_id: unitId,
         start: dayjs().startOf('day').format('YYYY-MM-DD'),
         days: 30,
+        timezone_offset_minutes: new Date().getTimezoneOffset(),
     });
 
     const reservationsRangeStart = useMemo(() => dayjs().startOf('day'), []);
@@ -160,7 +164,8 @@ function ReservaAmenityPage() {
         }
     }, [JSON.stringify(availData)]);
 
-    const isLoading = amenityLoading || (amenityId && (rulesLoading || availLoading));
+    const isLoading =
+        amenityLoading || memberUnitsLoading || (amenityId && (rulesLoading || availLoading));
 
     const createReservation = useCreateReservation();
 
@@ -254,6 +259,7 @@ function ReservaAmenityPage() {
                                         amenity_id: amenityId,
                                         start_time: startISO,
                                         reservation_duration_minutes,
+                                        timezone_offset_minutes: new Date().getTimezoneOffset(),
                                     });
 
                                     const status = created?.status;
