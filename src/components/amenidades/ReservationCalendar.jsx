@@ -43,8 +43,9 @@ function ReservationCalendar({
     reservationLabelFormatter,
     reservationCardProps = {},
     unitLabelById,
+    initialView = 'day',
 }) {
-    const [view, setView] = useState('day');
+    const [view, setView] = useState(initialView === 'month' ? 'month' : 'day');
     const [monthCursor, setMonthCursor] = useState(dayjs().startOf('month'));
     const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [selected, setSelected] = useState(null); // {date, time}

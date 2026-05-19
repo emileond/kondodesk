@@ -149,6 +149,12 @@ async function updateReservation(payload) {
     return res.data;
 }
 
+async function cancelReservation(payload) {
+    const res = await api.delete('reservations', { json: payload }).json();
+    if (!res?.success) throw new Error(res?.error || 'Failed to cancel reservation');
+    return res.data;
+}
+
 export async function fetchAmenityAvailability(params) {
     const { condo_id, amenity_id, unit_id, start, days, from, to, timezone_offset_minutes } =
         params || {};
@@ -245,6 +251,17 @@ export function useUpdateReservation() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: updateReservation,
+        onSuccess: () => {
+            qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'reservations' });
+            qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'availability' });
+        },
+    });
+}
+
+export function useCancelReservation() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: cancelReservation,
         onSuccess: () => {
             qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'reservations' });
             qc.invalidateQueries({ predicate: ({ queryKey }) => queryKey?.[0] === 'availability' });

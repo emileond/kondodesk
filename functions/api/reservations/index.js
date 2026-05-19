@@ -143,6 +143,19 @@ function overlap(aStart, aEnd, bStart, bEnd) {
     return aStart < bEnd && bStart < aEnd;
 }
 
+function canUserCancelReservation({ reservation, amenity, now }) {
+    const status = String(reservation?.status || '').toLowerCase();
+    if (status === 'cancelled' || status === 'canceled') return false;
+
+    const start = new Date(reservation?.start_time);
+    if (isNaN(start.getTime()) || start <= now) return false;
+
+    const requiresPayment = !!amenity?.requires_payment;
+    if (!requiresPayment) return true;
+
+    return status !== 'confirmed';
+}
+
 export async function onRequestGet(context) {
     try {
         const url = new URL(context.request.url);
@@ -496,6 +509,90 @@ export async function onRequestPatch(context) {
         const { data, error } = await supabase
             .from('reservations')
             .update({ status: nextStatus })
+            .eq('id', reservation_id)
+            .eq('condo_id', condo_id)
+            .select('*')
+            .single();
+
+        if (error) {
+            return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        return Response.json({ success: true, data });
+    } catch (err) {
+        console.error('API Execution Failed:', err);
+        return Response.json(
+            { success: false, error: err.message, stack: err.stack },
+            { status: 500 },
+        );
+    }
+}
+
+export async function onRequestDelete(context) {
+    try {
+        const body = await context.request.json();
+        const { reservation_id, condo_id, user_id } = body || {};
+        if (!reservation_id || !condo_id || !user_id) {
+            return Response.json(
+                { success: false, error: 'reservation_id, condo_id, user_id are required' },
+                { status: 400 },
+            );
+        }
+
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const { data: reservation, error: reservationError } = await supabase
+            .from('reservations')
+            .select('id, condo_id, user_id, amenity_id, status, start_time')
+            .eq('id', reservation_id)
+            .eq('condo_id', condo_id)
+            .single();
+
+        if (reservationError || !reservation) {
+            return Response.json(
+                { success: false, error: reservationError?.message || 'Reservation not found' },
+                { status: 404 },
+            );
+        }
+
+        if (String(reservation.user_id) !== String(user_id)) {
+            return Response.json(
+                { success: false, error: 'You can only cancel your own reservations' },
+                { status: 403 },
+            );
+        }
+
+        const { data: amenity, error: amenityError } = await supabase
+            .from('amenities')
+            .select('id, requires_payment')
+            .eq('id', reservation.amenity_id)
+            .eq('condo_id', condo_id)
+            .single();
+
+        if (amenityError || !amenity) {
+            return Response.json(
+                { success: false, error: amenityError?.message || 'Amenity not found' },
+                { status: 404 },
+            );
+        }
+
+        const allowed = canUserCancelReservation({
+            reservation,
+            amenity,
+            now: new Date(),
+        });
+        if (!allowed) {
+            return Response.json(
+                {
+                    success: false,
+                    error: 'Reservation cannot be cancelled under current conditions',
+                },
+                { status: 409 },
+            );
+        }
+
+        const { data, error } = await supabase
+            .from('reservations')
+            .update({ status: 'cancelled' })
             .eq('id', reservation_id)
             .eq('condo_id', condo_id)
             .select('*')

@@ -52,13 +52,16 @@ const createNote = async ({ note }) => {
 // Hook to create a new note
 export const useCreateNote = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
         mutationFn: createNote,
         onSuccess: () => {
-            // Invalidate all note-related queries for the workspace
+            // Invalidate all announcement queries for this condo/workspace
             queryClient.invalidateQueries({
-                queryKey: ['announcements', currentWorkspace?.workspace_id],
+                predicate: ({ queryKey }) =>
+                    queryKey?.[0] === 'announcements' &&
+                    (condoId ? queryKey?.[1] === condoId : true),
                 refetchType: 'all',
             });
         },
@@ -77,6 +80,7 @@ const updateNote = async ({ noteId, updates }) => {
 // Hook to update a note
 export const useUpdateNote = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
         mutationFn: updateNote,
@@ -84,9 +88,11 @@ export const useUpdateNote = (currentWorkspace) => {
             console.error('Error updating note:', error);
         },
         onSuccess: () => {
-            // Invalidate all note-related queries for the workspace
+            // Invalidate all announcement queries for this condo/workspace
             queryClient.invalidateQueries({
-                queryKey: ['announcements', currentWorkspace?.workspace_id],
+                predicate: ({ queryKey }) =>
+                    queryKey?.[0] === 'announcements' &&
+                    (condoId ? queryKey?.[1] === condoId : true),
                 refetchType: 'all',
             });
         },
@@ -94,27 +100,36 @@ export const useUpdateNote = (currentWorkspace) => {
 };
 
 // Function to delete a note
-const deleteNote = async ({ noteId }) => {
-    const { error } = await supabaseClient.from('announcements').delete().eq('id', noteId);
+const deleteNote = async ({ noteId, condoId }) => {
+    let query = supabaseClient.from('announcements').delete().eq('id', noteId);
+    if (condoId) {
+        query = query.eq('condo_id', condoId);
+    }
+
+    const { data, error } = await query.select('id');
 
     if (error) {
-        throw new Error('Failed to delete note');
+        throw error;
     }
+    return data;
 };
 
 // Hook to delete a note
 export const useDeleteNote = (currentWorkspace) => {
     const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
     return useMutation({
-        mutationFn: ({ noteId }) => deleteNote({ noteId }),
+        mutationFn: ({ noteId }) => deleteNote({ noteId, condoId }),
         onError: (error) => {
             console.error('Error deleting note:', error);
         },
         onSuccess: () => {
-            // Invalidate all note-related queries for the workspace
+            // Invalidate all announcement queries for this condo/workspace
             queryClient.invalidateQueries({
-                queryKey: ['announcements', currentWorkspace?.workspace_id],
+                predicate: ({ queryKey }) =>
+                    queryKey?.[0] === 'announcements' &&
+                    (condoId ? queryKey?.[1] === condoId : true),
                 refetchType: 'all',
             });
         },

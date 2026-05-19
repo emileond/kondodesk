@@ -99,11 +99,18 @@ const NoteCard = ({ note, currentWorkspace, canEdit = false }) => {
 
     // Handle delete confirmation
     const handleDeleteConfirm = () => {
+        const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
         deleteNote.mutate(
-            { noteId: note.id },
+            { noteId: note.id, condoId },
             {
-                onSuccess: () => toast('Note deleted'),
-                onError: (error) => toast.error('Failed to delete note: ' + error.message),
+                onSuccess: (deletedRows) => {
+                    if (!Array.isArray(deletedRows) || deletedRows.length === 0) {
+                        toast.error('No rows were deleted');
+                        return;
+                    }
+                    toast.success('Note deleted');
+                },
+                onError: (error) => toast.error(error?.message || 'Delete failed'),
             },
         );
         onClose();

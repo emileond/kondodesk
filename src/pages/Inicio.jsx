@@ -1,16 +1,17 @@
-import { Badge, Button, Card, CardBody, CardHeader, Chip, Skeleton } from '@heroui/react';
+import { Button, Card, CardBody, CardHeader, Chip, Skeleton } from '@heroui/react';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout.jsx';
 import PageLayout from '../components/layout/PageLayout.jsx';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import ReservationCard from '../components/reservations/ReservationCard.jsx';
-import NoteCard from '../components/notes/NoteCard.jsx';
 import { RiAddLine, RiCalendarEventLine, RiMegaphoneLine, RiAlertLine } from 'react-icons/ri';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import { useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
 import { useNotes } from '../hooks/react-query/notes/useNotes.js';
+import { useQuery } from '@tanstack/react-query';
+import { supabaseClient } from '../lib/supabase.js';
 import dayjs from 'dayjs';
 
 function EmptyState({ title, description, cta }) {
@@ -33,6 +34,38 @@ function CardSkeleton() {
             ))}
         </div>
     );
+}
+
+function getAnnouncementPreview(content, max = 180) {
+    if (!content) return '';
+
+    const extractText = (node) => {
+        if (!node) return '';
+        if (Array.isArray(node)) return node.map(extractText).filter(Boolean).join(' ');
+        if (typeof node === 'string') return node;
+        if (typeof node !== 'object') return '';
+
+        const ownText = typeof node.text === 'string' ? node.text : '';
+        const childText = extractText(node.content);
+        return [ownText, childText].filter(Boolean).join(' ').trim();
+    };
+
+    let parsed = content;
+    if (typeof content === 'string') {
+        try {
+            parsed = JSON.parse(content);
+        } catch {
+            parsed = content;
+        }
+    }
+
+    const plain = extractText(parsed)
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (plain.length <= max) return plain;
+    return `${plain.slice(0, max).trimEnd()}...`;
 }
 
 // Section label that looks like an agenda divider
@@ -89,12 +122,28 @@ function groupReservations(reservations) {
 function InicioPage() {
     const [currentWorkspace] = useCurrentWorkspace();
     const { data: currentUser } = useUser();
+    const [adminStatusFilter, setAdminStatusFilter] = useState('all');
     const { data: unitIds = [] } = useCondoMemberUnitIds(currentWorkspace, currentUser);
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
 
-    const notesFromISO = useMemo(
-        () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        [],
-    );
+    const { data: currentMember } = useQuery({
+        queryKey: ['condoMember', condoId, currentUser?.id],
+        queryFn: async () => {
+            const { data, error } = await supabaseClient
+                .from('condo_members')
+                .select('role')
+                .eq('condo_id', condoId)
+                .eq('user_id', currentUser?.id)
+                .maybeSingle();
+            if (error) throw new Error('Failed to fetch user role');
+            return data;
+        },
+        enabled: !!condoId && !!currentUser?.id,
+        staleTime: 1000 * 60 * 5,
+    });
+    const isAdmin = currentMember?.role === 'admin';
+
+    const notesFromISO = useMemo(() => dayjs().subtract(30, 'day').toISOString(), []);
     const { data: announcements = [], isLoading: notesLoading } = useNotes(currentWorkspace, {
         from: notesFromISO,
     });
@@ -102,19 +151,35 @@ function InicioPage() {
     const fromISO = useMemo(() => dayjs().startOf('day').toISOString(), []);
 
     const { data: upcomingReservations = [], isLoading: reservationsLoading } = useReservationsList({
-        condo_id: currentWorkspace?.condo_id,
-        unit_ids: unitIds,
+        condo_id: condoId,
+        is_admin: isAdmin,
+        unit_ids: isAdmin ? undefined : unitIds,
         from: fromISO,
     });
 
-    const agendaGroups = useMemo(
-        () => groupReservations(upcomingReservations),
+    const futureReservations = useMemo(
+        () => (upcomingReservations || []).filter((r) => dayjs(r?.start_time).isAfter(dayjs())),
         [upcomingReservations],
     );
 
+    const visibleFutureReservations = useMemo(() => {
+        if (!isAdmin || adminStatusFilter === 'all') return futureReservations;
+        return futureReservations.filter(
+            (r) => String(r?.status || '').toLowerCase() === adminStatusFilter,
+        );
+    }, [futureReservations, isAdmin, adminStatusFilter]);
+
+    const agendaGroups = useMemo(
+        () => groupReservations(visibleFutureReservations),
+        [visibleFutureReservations],
+    );
+
     const pendingCount = useMemo(
-        () => upcomingReservations.filter((r) => String(r?.status || '').toLowerCase() === 'pending').length,
-        [upcomingReservations],
+        () =>
+            visibleFutureReservations.filter(
+                (r) => String(r?.status || '').toLowerCase() === 'pending',
+            ).length,
+        [visibleFutureReservations],
     );
 
     return (
@@ -134,11 +199,18 @@ function InicioPage() {
                                 <ul className="flex flex-col gap-3">
                                     {announcements.map((a, i) => (
                                         <li key={a?.id || i} className="rounded-medium">
-                                            <NoteCard
-                                                note={a}
-                                                currentWorkspace={currentWorkspace}
-                                                canEdit={false}
-                                            />
+                                            <Link
+                                                to={`/notes?note=${encodeURIComponent(a?.id || '')}`}
+                                            >
+                                                <article className="rounded-xl border border-default-200 bg-content1 px-4 py-3 hover:bg-content2 transition-colors">
+                                                    <h4 className="text-sm font-semibold text-default-800 line-clamp-1">
+                                                        {a?.title || 'Aviso'}
+                                                    </h4>
+                                                    <p className="mt-1 text-xs text-default-500 line-clamp-3">
+                                                        {getAnnouncementPreview(a?.content)}
+                                                    </p>
+                                                </article>
+                                            </Link>
                                         </li>
                                     ))}
                                 </ul>
@@ -181,6 +253,32 @@ function InicioPage() {
                             </Button>
                         </CardHeader>
                         <CardBody className="max-sm:max-h-[70vh] max-sm:overflow-y-auto pt-3">
+                            {isAdmin && (
+                                <div className="mb-3 inline-flex rounded-lg border border-default-200 p-1 bg-content1">
+                                    {[
+                                        { key: 'all', label: 'Todas' },
+                                        { key: 'pending', label: 'Pendientes' },
+                                        { key: 'cancelled', label: 'Canceladas' },
+                                    ].map((opt) => (
+                                        <Button
+                                            key={opt.key}
+                                            size="sm"
+                                            variant={
+                                                adminStatusFilter === opt.key ? 'solid' : 'light'
+                                            }
+                                            color={
+                                                adminStatusFilter === opt.key
+                                                    ? 'primary'
+                                                    : 'default'
+                                            }
+                                            onPress={() => setAdminStatusFilter(opt.key)}
+                                            className="min-w-[106px]"
+                                        >
+                                            {opt.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
                             {reservationsLoading ? (
                                 <CardSkeleton />
                             ) : agendaGroups.length > 0 ? (
@@ -210,6 +308,9 @@ function InicioPage() {
                                                     reservation={r}
                                                     amenityName={r?.amenity?.name}
                                                     amenityIcon={r?.amenity?.icon}
+                                                    condoId={currentWorkspace?.condo_id}
+                                                    currentUserId={currentUser?.id}
+                                                    canManage={isAdmin}
                                                 />
                                             ))}
                                         </div>
@@ -217,8 +318,16 @@ function InicioPage() {
                                 </div>
                             ) : (
                                 <EmptyState
-                                    title="Aún no tienes reservas"
-                                    description="Reserva amenidades como el gimnasio, la terraza o la cancha de pádel."
+                                    title={
+                                        isAdmin
+                                            ? 'No hay reservas próximas'
+                                            : 'Aún no tienes reservas'
+                                    }
+                                    description={
+                                        isAdmin
+                                            ? 'No hay resultados para el filtro seleccionado.'
+                                            : 'Reserva amenidades como el gimnasio, la terraza o la cancha de pádel.'
+                                    }
                                     cta={
                                         <Button
                                             as={Link}
