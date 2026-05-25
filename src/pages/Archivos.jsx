@@ -10,12 +10,6 @@ import {
     ModalFooter,
     ModalHeader,
     Spinner,
-    Table,
-    TableBody,
-    TableCell,
-    TableColumn,
-    TableHeader,
-    TableRow,
     Tooltip,
 } from '@heroui/react';
 import { useDropzone } from 'react-dropzone';
@@ -78,6 +72,18 @@ function getFileIcon(type) {
     }
 
     return <RiFile2Line className={`${iconClassName} text-default-500`} />;
+}
+
+function isImageType(type) {
+    const normalizedType = String(type || '').toLowerCase();
+    return (
+        normalizedType.includes('image') ||
+        normalizedType.includes('png') ||
+        normalizedType.includes('jpg') ||
+        normalizedType.includes('jpeg') ||
+        normalizedType.includes('gif') ||
+        normalizedType.includes('webp')
+    );
 }
 
 function formatSize(size) {
@@ -169,19 +175,12 @@ function ArchivosPage() {
     });
 
     const sortedFiles = useMemo(() => {
-        return [...files].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        return [...files].sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.created_at || 0);
+            const dateB = new Date(b.updated_at || b.created_at || 0);
+            return dateB - dateA;
+        });
     }, [files]);
-
-    const columns = useMemo(
-        () => [
-            { key: 'name', label: 'Archivo' },
-            { key: 'type', label: 'Tipo' },
-            { key: 'size', label: 'Tamaño' },
-            { key: 'updated_at', label: 'Actualizado' },
-            { key: 'actions', label: 'Acciones' },
-        ],
-        [],
-    );
 
     const handlePreview = (file) => {
         setViewerFile(file);
@@ -325,70 +324,102 @@ function ArchivosPage() {
                             </div>
                         </div>
                     )}
-
-                    {!canManageFiles && (
-                        <Alert
-                            color="default"
-                            description="Tu rol solo permite ver y descargar archivos."
-                        />
+                    {isPending && (
+                        <div className="min-h-44 rounded-xl border border-default-200 bg-content1 flex items-center justify-center">
+                            <Spinner label="Cargando archivos..." />
+                        </div>
                     )}
+                    {!isPending && sortedFiles.length === 0 && (
+                        <div className="min-h-44 rounded-xl border border-default-200 bg-content1 flex items-center justify-center text-default-500">
+                            No hay archivos disponibles.
+                        </div>
+                    )}
+                    {!isPending && sortedFiles.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {sortedFiles.map((item) => {
+                                const filename = getFilenameFromUrl(item?.url);
+                                const previewUrl = filename
+                                    ? `/api/files?filename=${encodeURIComponent(filename)}`
+                                    : null;
 
-                    <div className="rounded-xl border border-default-200 bg-content1">
-                        <Table aria-label="Tabla de archivos">
-                            <TableHeader columns={columns}>
-                                {(column) => <TableColumn key={column.key}>{column.label}</TableColumn>}
-                            </TableHeader>
-                            <TableBody
-                                isLoading={isPending}
-                                loadingContent={<Spinner label="Cargando archivos..." />}
-                                emptyContent="No hay archivos disponibles."
-                                items={sortedFiles}
-                            >
-                                {(item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {getFileIcon(item.type)}
-                                                <span className="max-w-[280px] truncate">
-                                                    {item.name}
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="group rounded-xl border border-default-200 bg-content1 overflow-hidden cursor-pointer transition-all hover:border-primary-200 hover:shadow-sm"
+                                        onClick={() => handlePreview(item)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                handlePreview(item);
+                                            }
+                                        }}
+                                    >
+                                        <div className="w-full aspect-[16/10] bg-content2 group-hover:bg-content3 transition-colors flex items-center justify-center overflow-hidden">
+                                            {previewUrl && isImageType(item.type) ? (
+                                                <img
+                                                    src={previewUrl}
+                                                    alt={item.name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 text-default-500">
+                                                    <span className="text-4xl">
+                                                        {getFileIcon(item.type)}
+                                                    </span>
+                                                    <span className="text-xs">
+                                                        {item.type || 'Archivo'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-3 flex flex-col gap-2">
+                                            <p
+                                                className="text-sm font-medium line-clamp-2"
+                                                title={item.name}
+                                            >
+                                                {item.name}
+                                            </p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Chip size="sm" variant="flat">
+                                                    {formatSize(item.size)}
+                                                </Chip>
+                                                <span className="text-xs text-default-500">
+                                                    {new Date(
+                                                        item.updated_at || item.created_at,
+                                                    ).toLocaleDateString('es-MX')}
                                                 </span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip size="sm" variant="flat">
-                                                {item.type || 'Desconocido'}
-                                            </Chip>
-                                        </TableCell>
-                                        <TableCell>{formatSize(item.size)}</TableCell>
-                                        <TableCell>
-                                            {item.updated_at
-                                                ? new Date(item.updated_at).toLocaleString('es-MX')
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <Tooltip content="Ver archivo">
-                                                    <Button
-                                                        isIconOnly
-                                                        variant="light"
-                                                        size="sm"
-                                                        onPress={() => handlePreview(item)}
-                                                    >
-                                                        <RiEyeLine />
-                                                    </Button>
-                                                </Tooltip>
-                                                <Tooltip content="Descargar">
-                                                    <Button
-                                                        isIconOnly
-                                                        variant="light"
-                                                        size="sm"
-                                                        onPress={() => handleDownload(item)}
-                                                        isLoading={downloadInProgressId === item.id}
-                                                    >
-                                                        <RiDownload2Line />
-                                                    </Button>
-                                                </Tooltip>
-                                                {canManageFiles && (
+                                            {canManageFiles && (
+                                                <div
+                                                    className="flex items-center gap-1 pt-1"
+                                                    onClick={(event) => event.stopPropagation()}
+                                                >
+                                                    <Tooltip content="Ver archivo">
+                                                        <Button
+                                                            isIconOnly
+                                                            variant="light"
+                                                            size="sm"
+                                                            onPress={() => handlePreview(item)}
+                                                        >
+                                                            <RiEyeLine />
+                                                        </Button>
+                                                    </Tooltip>
+                                                    <Tooltip content="Descargar">
+                                                        <Button
+                                                            isIconOnly
+                                                            variant="light"
+                                                            size="sm"
+                                                            onPress={() => handleDownload(item)}
+                                                            isLoading={
+                                                                downloadInProgressId === item.id
+                                                            }
+                                                        >
+                                                            <RiDownload2Line />
+                                                        </Button>
+                                                    </Tooltip>
                                                     <Tooltip content="Renombrar">
                                                         <Button
                                                             isIconOnly
@@ -399,8 +430,6 @@ function ArchivosPage() {
                                                             <RiEdit2Line />
                                                         </Button>
                                                     </Tooltip>
-                                                )}
-                                                {canManageFiles && (
                                                     <Tooltip content="Reemplazar">
                                                         <Button
                                                             isIconOnly
@@ -411,8 +440,6 @@ function ArchivosPage() {
                                                             <RiUploadLine />
                                                         </Button>
                                                     </Tooltip>
-                                                )}
-                                                {canManageFiles && (
                                                     <Tooltip content="Eliminar">
                                                         <Button
                                                             isIconOnly
@@ -424,14 +451,14 @@ function ArchivosPage() {
                                                             <RiDeleteBinLine />
                                                         </Button>
                                                     </Tooltip>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </PageLayout>
 

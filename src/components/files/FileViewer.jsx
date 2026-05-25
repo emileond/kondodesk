@@ -122,6 +122,7 @@ function FileViewer({
             isOpen={isOpen}
             onOpenChange={onOpenChange}
             size="full"
+            hideCloseButton
             classNames={{ base: 'bg-black/90 text-white' }}
         >
             <ModalContent>
