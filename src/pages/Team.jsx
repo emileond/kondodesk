@@ -25,15 +25,16 @@ import {
     useAddWorkspaceMember,
     useUpdateWorkspaceMember,
     useCondoInvitations,
+    useDeleteCondoInvitation,
 } from '../hooks/react-query/condos/useWorkspaceMembers';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import MemberCard from '../components/team/MemberCard';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useEffect, useMemo, useState } from 'react';
+import { RiDeleteBin6Line } from 'react-icons/ri';
 import { useQuery } from '@tanstack/react-query';
 import { supabaseClient } from '../lib/supabase';
-import CreatableSelect from '../components/form/CreatableSelect.jsx';
 import { useCreateUnit, useUnitsList } from '../hooks/react-query/units/useUnits.js';
 
 function TeamPage() {
@@ -43,6 +44,8 @@ function TeamPage() {
     const { data: workspaceMembers } = useWorkspaceMembers(currentWorkspace);
     const { mutateAsync: addWorkspaceMember, isPending } = useAddWorkspaceMember(currentWorkspace);
     const { mutateAsync: updateWorkspaceMember } = useUpdateWorkspaceMember(currentWorkspace);
+    const { mutateAsync: deleteCondoInvitation, isPending: isDeletingInvitation } =
+        useDeleteCondoInvitation(currentWorkspace);
     const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
     const {
         isOpen: isInviteLinkOpen,
@@ -51,8 +54,10 @@ function TeamPage() {
         onClose: onInviteLinkClose,
     } = useDisclosure();
     const [editMember, setEditMember] = useState();
-    const [formKey, setFormKey] = useState(0);
     const [inviteLinkToShare, setInviteLinkToShare] = useState('');
+    const [inviteEmailToShare, setInviteEmailToShare] = useState('');
+    const [selectedUnitIds, setSelectedUnitIds] = useState([]);
+    const [newUnitAddress, setNewUnitAddress] = useState('');
 
     const { data: currentMember } = useQuery({
         queryKey: ['condoMember', condoId, user?.id],
@@ -198,6 +203,7 @@ function TeamPage() {
                                 return;
                             }
                             setInviteLinkToShare(generatedLink);
+                            setInviteEmailToShare(String(data.email || '').trim());
                             onInviteLinkOpen();
                             toast.success('Invitation created');
                         },
@@ -211,6 +217,8 @@ function TeamPage() {
         setEditMember(null);
         onClose();
         reset();
+        setSelectedUnitIds([]);
+        setNewUnitAddress('');
     };
 
     const handleCopyInviteLink = async () => {
@@ -227,11 +235,71 @@ function TeamPage() {
         }
     };
 
+    const handleShareInvite = async () => {
+        const link = String(inviteLinkToShare || '').trim();
+        if (!link) {
+            toast.error('No invitation link available');
+            return;
+        }
+
+        const message = `Te invito a unirte a Kondodesk. Completa tu registro aqui: ${link}`;
+        try {
+            if (navigator?.share) {
+                await navigator.share({
+                    title: 'Invitacion a Kondodesk',
+                    text: message,
+                    url: link,
+                });
+                return;
+            }
+        } catch {
+            // Ignore and fallback to copy.
+        }
+
+        await handleCopyInviteLink();
+    };
+
+    const handleShareWhatsapp = () => {
+        const link = String(inviteLinkToShare || '').trim();
+        if (!link) {
+            toast.error('No invitation link available');
+            return;
+        }
+        const text = encodeURIComponent(
+            `Te invito a unirte a Kondodesk. Completa tu registro aqui: ${link}`,
+        );
+        window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+    };
+
+    const handleShareEmail = () => {
+        const link = String(inviteLinkToShare || '').trim();
+        if (!link) {
+            toast.error('No invitation link available');
+            return;
+        }
+        const subject = encodeURIComponent('Invitacion a Kondodesk');
+        const body = encodeURIComponent(
+            `Hola,\n\nTe invito a unirte a Kondodesk. Completa tu registro aqui:\n${link}\n`,
+        );
+        window.location.href = `mailto:${encodeURIComponent(inviteEmailToShare || '')}?subject=${subject}&body=${body}`;
+    };
+
+    const handleDeleteInvitation = async (invitationId) => {
+        if (!canManageMembers) return;
+        try {
+            await deleteCondoInvitation({ condo_id: condoId, id: invitationId });
+            toast.success('Invitacion eliminada');
+        } catch (error) {
+            toast.error(error?.message || 'No se pudo eliminar la invitacion');
+        }
+    };
+
     const handleAddMember = () => {
         if (!canManageMembers) return;
         reset({ email: '', role: 'resident', unit_ids: [] });
+        setSelectedUnitIds([]);
+        setNewUnitAddress('');
         clearErrors();
-        setFormKey((prev) => prev + 1);
         setEditMember(null);
         onOpen();
     };
@@ -240,16 +308,40 @@ function TeamPage() {
         if (!canManageMembers) return;
         setValue('email', member.email);
         setValue('role', member.role);
-        setValue('unit_ids', Array.isArray(member.unit_ids) ? member.unit_ids : []);
+        const unitIds = Array.isArray(member.unit_ids) ? member.unit_ids : [];
+        setValue('unit_ids', unitIds);
+        setSelectedUnitIds(unitIds);
+        setNewUnitAddress('');
         clearErrors();
-        setFormKey((prev) => prev + 1);
         setEditMember(member);
         onOpen();
     };
 
+    const handleCreateUnitFromModal = async () => {
+        const address = String(newUnitAddress || '').trim();
+        if (!address) {
+            toast.error('Escribe una unidad');
+            return;
+        }
+        try {
+            const unit = await createUnit({
+                address,
+                condo_id: condoId,
+            });
+            const nextUnitIds = [...new Set([...selectedUnitIds, unit.id])];
+            setSelectedUnitIds(nextUnitIds);
+            setValue('unit_ids', nextUnitIds);
+            clearErrors('unit_ids');
+            setNewUnitAddress('');
+            toast.success('Unidad creada');
+        } catch (error) {
+            toast.error(error?.message || 'No se pudo crear la unidad');
+        }
+    };
+
     const columns = [
         { name: 'Name', uid: 'name' },
-        { name: 'Role', uid: 'role' },
+        { name: 'Rol', uid: 'role' },
         { name: 'Residencia', uid: 'unit_display' },
         { name: 'Status', uid: 'status' },
         ...(canManageMembers ? [{ name: 'Actions', uid: 'actions' }] : []),
@@ -308,10 +400,11 @@ function TeamPage() {
                             <Table aria-label="Pending invitations table">
                                 <TableHeader>
                                     <TableColumn>Email</TableColumn>
-                                    <TableColumn>Role</TableColumn>
+                                    <TableColumn>Rol</TableColumn>
                                     <TableColumn>Residencia</TableColumn>
                                     <TableColumn>Status</TableColumn>
                                     <TableColumn>Expira</TableColumn>
+                                    <TableColumn>Acciones</TableColumn>
                                 </TableHeader>
                                 <TableBody emptyContent="No hay invitaciones pendientes">
                                     {displayInvitations.map((invite) => (
@@ -330,6 +423,19 @@ function TeamPage() {
                                                           'es-MX',
                                                       )
                                                     : '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    color="danger"
+                                                    variant="light"
+                                                    isIconOnly
+                                                    isLoading={isDeletingInvitation}
+                                                    onPress={() =>
+                                                        handleDeleteInvitation(invite.id)
+                                                    }
+                                                >
+                                                    <RiDeleteBin6Line className="text-lg" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -371,7 +477,7 @@ function TeamPage() {
                                     />
                                     <Select
                                         {...register('role', { required: true })}
-                                        label="Role"
+                                        label="Rol"
                                         className="basis-1/3"
                                         isDisabled={!canManageMembers}
                                         defaultSelectedKeys={
@@ -383,37 +489,44 @@ function TeamPage() {
                                     </Select>
                                 </div>
                                 <div className="mt-2">
-                                    <CreatableSelect
-                                        key={formKey}
-                                        label="Units"
-                                        placeholder="Search units..."
-                                        options={unitOptions}
-                                        defaultValue={unitOptions.filter((option) =>
-                                            (Array.isArray(editMember?.unit_ids)
-                                                ? editMember.unit_ids
-                                                : []
-                                            ).includes(option.value),
-                                        )}
-                                        multiple
-                                        disabled={!canManageMembers}
-                                        onChange={(values) => {
-                                            setValue('unit_ids', values || []);
+                                    <Select
+                                        label="Unidad"
+                                        selectionMode="multiple"
+                                        variant="bordered"
+                                        selectedKeys={selectedUnitIds.map(String)}
+                                        isDisabled={!canManageMembers}
+                                        onSelectionChange={(keys) => {
+                                            const values = Array.from(keys).map((key) =>
+                                                String(key),
+                                            );
+                                            setSelectedUnitIds(values);
+                                            setValue('unit_ids', values);
                                             clearErrors('unit_ids');
                                         }}
-                                        onCreate={async (value) => {
-                                            const address = String(value || '').trim();
-                                            if (!address) return null;
-                                            const unit = await createUnit({
-                                                address,
-                                                condo_id: condoId,
-                                            });
-                                            return {
-                                                value: unit.id,
-                                                label: unit.address,
-                                            };
-                                        }}
-                                        triggerClassName="px-2"
-                                    />
+                                    >
+                                        {unitOptions.map((option) => (
+                                            <SelectItem key={String(option.value)}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </Select>
+                                    {canManageMembers && (
+                                        <div className="mt-2 flex gap-2">
+                                            <Input
+                                                label="Nueva unidad"
+                                                placeholder="Ej. Torre A 301"
+                                                value={newUnitAddress}
+                                                onValueChange={setNewUnitAddress}
+                                            />
+                                            <Button
+                                                color="primary"
+                                                variant="flat"
+                                                onPress={handleCreateUnitFromModal}
+                                            >
+                                                Crear
+                                            </Button>
+                                        </div>
+                                    )}
                                     {errors.unit_ids && (
                                         <p className="text-tiny text-danger mt-1">
                                             {errors.unit_ids.message}
@@ -432,7 +545,11 @@ function TeamPage() {
                         </form>
                     </ModalContent>
                 </Modal>
-                <Modal isOpen={isInviteLinkOpen} onOpenChange={onInviteLinkOpenChange}>
+                <Modal
+                    isOpen={isInviteLinkOpen}
+                    onOpenChange={onInviteLinkOpenChange}
+                    size="2xl"
+                >
                     <ModalContent>
                         <ModalHeader>Usuario invitado</ModalHeader>
                         <ModalBody>
@@ -450,8 +567,17 @@ function TeamPage() {
                             <Button variant="light" onPress={onInviteLinkClose}>
                                 Cerrar
                             </Button>
+                            <Button variant="flat" onPress={handleShareEmail}>
+                                Email
+                            </Button>
+                            <Button variant="flat" onPress={handleShareWhatsapp}>
+                                WhatsApp
+                            </Button>
                             <Button color="primary" onPress={handleCopyInviteLink}>
                                 Copiar enlace
+                            </Button>
+                            <Button color="secondary" onPress={handleShareInvite}>
+                                Compartir
                             </Button>
                         </ModalFooter>
                     </ModalContent>

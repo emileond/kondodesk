@@ -254,3 +254,38 @@ export const useCondoInvitations = (currentWorkspace, enabled = true) => {
         enabled: !!condoId && enabled,
     });
 };
+
+const deleteCondoInvitation = async ({ condo_id, id }) => {
+    if (!condo_id || !id) {
+        throw new Error('condo_id and invitation id are required');
+    }
+    const {
+        data: { session },
+    } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+        throw new Error('Missing session');
+    }
+
+    const res = await api
+        .delete('team/invitations', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            json: { condo_id, id },
+        })
+        .json();
+
+    if (!res?.success) {
+        throw new Error(res?.error || 'Failed to delete invitation');
+    }
+};
+
+export const useDeleteCondoInvitation = (currentWorkspace) => {
+    const queryClient = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
+
+    return useMutation({
+        mutationFn: deleteCondoInvitation,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['condoInvitations', condoId] });
+        },
+    });
+};

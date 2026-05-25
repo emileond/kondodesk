@@ -295,6 +295,50 @@ export async function onRequestPost(context) {
     }
 }
 
+export async function onRequestDelete(context) {
+    try {
+        const accessToken = getAccessToken(context.request);
+        if (!accessToken) {
+            return Response.json({ success: false, error: 'Missing access token' }, { status: 401 });
+        }
+
+        const { condo_id, id } = await context.request.json();
+        if (!condo_id || !id) {
+            return Response.json(
+                { success: false, error: 'condo_id and id are required' },
+                { status: 400 },
+            );
+        }
+
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const authResult = await authorizeAdmin(supabase, condo_id, accessToken);
+        if (authResult.error) {
+            return Response.json(
+                { success: false, error: authResult.error },
+                { status: authResult.status },
+            );
+        }
+
+        const { error } = await supabase
+            .from('condo_invitations')
+            .delete()
+            .eq('id', id)
+            .eq('condo_id', condo_id)
+            .eq('status', 'pending');
+
+        if (error) {
+            return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        return Response.json({ success: true }, { status: 200 });
+    } catch (err) {
+        return Response.json(
+            { success: false, error: err?.message || 'Unexpected error' },
+            { status: 500 },
+        );
+    }
+}
+
 export async function onRequestGet(context) {
     try {
         const accessToken = getAccessToken(context.request);
