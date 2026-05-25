@@ -38,17 +38,20 @@ export function formatDateTime(value, timezone) {
     const dt = new Date(value);
     if (isNaN(dt.getTime())) return 'N/A';
     const tz = resolveTimezone(timezone);
-    return new Intl.DateTimeFormat('es-MX', {
+    const datePart = new Intl.DateTimeFormat('es-MX', {
         weekday: 'long',
-        year: 'numeric',
-        month: 'long',
         day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: tz,
+    }).format(dt);
+    const timePart = new Intl.DateTimeFormat('es-MX', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
         timeZone: tz,
-        timeZoneName: 'short',
     }).format(dt);
+    return `${datePart} · ${timePart}`;
 }
 
 function getStatusTone(status) {
@@ -84,14 +87,11 @@ export function buildReservationEmailHtml({
     const safeBrandUrl = escapeHtml(brandUrl.replace(/\/+$/, ''));
     const safeCtaUrl = escapeHtml(ctaUrl || `${safeBrandUrl}/reservas`);
     const safeTitle = escapeHtml(title);
-    const safeGreeting = escapeHtml(greeting || 'Hola');
     const safeIntro = escapeHtml(intro);
     const detailRows = [
         ['Amenidad', amenityName || 'Amenidad'],
         ['Inicio', formatDateTime(reservation?.start_time, tz)],
         ['Fin', formatDateTime(reservation?.end_time, tz)],
-        ['Estado', tone.label],
-        ['Zona horaria', tz],
         ...extraRows,
     ]
         .map(
@@ -128,13 +128,12 @@ export function buildReservationEmailHtml({
             <tr>
               <td style="padding:24px 28px 10px 28px;border-bottom:1px solid #f3f4f6;">
                 <a href="${safeBrandUrl}" style="text-decoration:none;">
-                  <img src="${safeBrandUrl}/logo-dark.svg" alt="Kondodesk" width="170" style="display:block;border:0;outline:none;text-decoration:none;" />
+                  <img src="${safeBrandUrl}/logo.svg" alt="Kondodesk" width="170" style="display:block;border:0;outline:none;text-decoration:none;" />
                 </a>
               </td>
             </tr>
             <tr>
               <td style="padding:26px 28px;">
-                <p style="margin:0 0 10px 0;color:#111827;font-size:16px;">${safeGreeting},</p>
                 <h1 style="margin:0 0 10px 0;color:#111827;font-size:24px;line-height:1.25;">${safeTitle}</h1>
                 <p style="margin:0;color:#4b5563;font-size:15px;line-height:1.6;">${safeIntro}</p>
                 ${stepsHtml}

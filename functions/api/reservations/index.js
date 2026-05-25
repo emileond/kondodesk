@@ -453,7 +453,6 @@ async function notifyUserReservationStatusUpdated({
             intro: `El estado de tu reservación cambió de "${previous}" a "${next}".`,
             reservation,
             amenityName,
-            extraRows: [['Estado anterior', previous], ['Estado actual', next]],
             ctaLabel: 'Ver detalles',
             ctaUrl: reviewUrl,
             timezone,
