@@ -6,12 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:worker:functions": "wrangler pages functions build functions --outdir .wrangler/worker",
-    "build:worker": "npm run build && npm run build:worker:functions",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:cf": "npm run build:worker && wrangler dev",
-    "deploy:worker": "npm run build:worker && wrangler deploy --env production"
+    "dev:cf": "vite build && wrangler pages dev dist"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.4",

@@ -195,14 +195,54 @@ function buildReservationSummary({ amenityName, reservation }) {
 }
 
 async function sendEmail(env, { to, subject, text }) {
-    if (!env?.SEND_EMAIL || !isValidEmail(to)) return;
+    if (!isValidEmail(to)) return;
+    const accountId = env.CF_ACCOUNT_ID;
+    const apiToken = env.CF_EMAIL_API_TOKEN || env.CF_API_TOKEN;
+    if (!accountId || !apiToken) {
+        console.error('Cloudflare Email API env vars are missing: CF_ACCOUNT_ID / CF_API_TOKEN');
+        return;
+    }
+
     const fromAddress = env.EMAIL_FROM || 'reservas@kondodesk.com';
-    await env.SEND_EMAIL.send({
-        from: fromAddress,
-        to,
-        subject,
-        text,
-    });
+    const html = String(text || '')
+        .split('\n')
+        .map((line) =>
+            line
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;'),
+        )
+        .join('<br/>');
+
+    const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to,
+                from: fromAddress,
+                subject,
+                html,
+                text: text || '',
+            }),
+        },
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Cloudflare Email API failed (${response.status}): ${errorText}`);
+    }
+
+    const payload = await response.json();
+    if (!payload?.success) {
+        throw new Error(
+            `Cloudflare Email API error: ${payload?.errors?.[0]?.message || 'Unknown error'}`,
+        );
+    }
 }
 
 async function fetchProfileByUserId(supabase, userId) {
