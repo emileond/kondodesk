@@ -145,42 +145,42 @@ function UserMenu({ avatarOnly }) {
                             />
                         </DropdownItem>
                     </DropdownSection>
-                    <DropdownSection showDivider>
-                        <DropdownItem
-                            // className="taku-launcher"
-                            onPress={() => window.Taku('news:show')}
-                            startContent={<RiMegaphoneLine fontSize={USER_ICON_SIZE} />}
-                        >
-                            {`What's new`}
-                        </DropdownItem>
-                        <DropdownItem
-                            startContent={<RiQuestionLine fontSize={USER_ICON_SIZE} />}
-                            onPress={() => {
-                                handleHelpClick();
-                                setChatOpened(false);
-                            }}
-                        >
-                            Help
-                        </DropdownItem>
-                    </DropdownSection>
+                    {/*<DropdownSection showDivider>*/}
+                    {/*    <DropdownItem*/}
+                    {/*        // className="taku-launcher"*/}
+                    {/*        onPress={() => window.Taku('news:show')}*/}
+                    {/*        startContent={<RiMegaphoneLine fontSize={USER_ICON_SIZE} />}*/}
+                    {/*    >*/}
+                    {/*        {`What's new`}*/}
+                    {/*    </DropdownItem>*/}
+                    {/*    <DropdownItem*/}
+                    {/*        startContent={<RiQuestionLine fontSize={USER_ICON_SIZE} />}*/}
+                    {/*        onPress={() => {*/}
+                    {/*            handleHelpClick();*/}
+                    {/*            setChatOpened(false);*/}
+                    {/*        }}*/}
+                    {/*    >*/}
+                    {/*        Help*/}
+                    {/*    </DropdownItem>*/}
+                    {/*</DropdownSection>*/}
                     <DropdownSection>
-                        <DropdownItem
-                            startContent={<RiPaintBrushLine fontSize={USER_ICON_SIZE} />}
-                            onPress={onOpenChange}
-                        >
-                            Change theme
-                        </DropdownItem>
+                        {/*<DropdownItem*/}
+                        {/*    startContent={<RiPaintBrushLine fontSize={USER_ICON_SIZE} />}*/}
+                        {/*    onPress={onOpenChange}*/}
+                        {/*>*/}
+                        {/*    Change theme*/}
+                        {/*</DropdownItem>*/}
                         {[
                             {
-                                name: 'Profile',
+                                name: 'Perfil',
                                 path: '/settings/profile',
                                 startContent: <RiUserLine fontSize={USER_ICON_SIZE} />,
                             },
-                            {
-                                name: 'Invitations',
-                                path: '/settings/invitations',
-                                startContent: <RiInbox2Line fontSize={USER_ICON_SIZE} />,
-                            },
+                            // {
+                            //     name: 'Invitations',
+                            //     path: '/settings/invitations',
+                            //     startContent: <RiInbox2Line fontSize={USER_ICON_SIZE} />,
+                            // },
                             {
                                 name: 'Log Out',
                                 action: handleLogout,

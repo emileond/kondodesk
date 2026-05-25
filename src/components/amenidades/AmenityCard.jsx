@@ -85,13 +85,9 @@ function AmenityCard({ amenity }) {
     const timeLabel = rangeLabel || durationLabel;
 
     const currencyCode = currentWorkspace?.currency || currentWorkspace?.curreny || 'MXN';
-    const showCost = amenity.requires_payment;
-    const costLabel =
-        showCost && Number.isFinite(Number(amenity.cost))
-            ? formatCurrency(amenity.cost, currencyCode)
-            : showCost
-              ? 'Pago requerido'
-              : null;
+    const numericCost = Number(amenity.cost);
+    const hasCost = Number.isFinite(numericCost) && numericCost > 0;
+    const costLabel = hasCost ? formatCurrency(numericCost, currencyCode) : 'Sin costo';
 
     return (
         <div className="rounded-xl border border-default-200 bg-content1 overflow-hidden hover:border-primary-300 hover:shadow-sm transition-all flex flex-col">
@@ -107,9 +103,9 @@ function AmenityCard({ amenity }) {
             )}
 
             {/* Amenity name header — matches modal style */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-content2 border-b border-default-100">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 shrink-0">
-                    {getAmenityIcon(amenity.icon, 'text-primary-600 text-base')}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-default-100">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full border border-default-300 shrink-0">
+                    {getAmenityIcon(amenity.icon, 'text-default-500 text-base')}
                 </div>
                 <div className="text-base font-semibold text-default-800 truncate">{display}</div>
             </div>
@@ -124,7 +120,7 @@ function AmenityCard({ amenity }) {
                                 <span className="text-xs text-default-500">Costo</span>
                             </div>
                             <Chip
-                                color="success"
+                                color="default"
                                 variant="flat"
                                 size="sm"
                                 className="font-semibold"

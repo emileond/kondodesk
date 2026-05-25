@@ -100,8 +100,8 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                             }
                         >
                             {view === 'signup'
-                                ? 'Already have an account? Login'
-                                : "Don't have an account? Sign up"}
+                                ? '¿Ya tienes cuenta? Haz Login'
+                                : '¿Aún no estás registrado?'}
                         </Link>
                     </div>
                 )}
@@ -111,7 +111,7 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                         <p>{error}</p>
                     </div>
                 )}
-                <GoogleAuthButton />
+                {/*<GoogleAuthButton />*/}
                 <div className="w-full flex gap-3 items-center py-3">
                     <Divider className="shrink" />
                     <span>or</span>
@@ -135,7 +135,7 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                         },
                     })}
                     type="password"
-                    label="Password"
+                    label="Contraseña"
                     isInvalid={errors.password && true}
                     errorMessage={errors.password?.message}
                 />
@@ -154,7 +154,7 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                             },
                         })}
                         type="password"
-                        label="Confirm password"
+                        label="Confirmar contraseña"
                         isInvalid={errors.confirm_password && true}
                         errorMessage={errors.confirm_password?.message}
                     />
@@ -167,7 +167,7 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                     isLoading={isLoading}
                     className="mt-3"
                 >
-                    {view === 'signup' ? 'Create account' : 'Login'}
+                    {view === 'signup' ? 'Registrarse' : 'Login'}
                 </Button>
             </form>
         </div>

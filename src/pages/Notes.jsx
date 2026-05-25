@@ -11,6 +11,41 @@ import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useQuery } from '@tanstack/react-query';
 import { supabaseClient } from '../lib/supabase.js';
 import { useSearchParams } from 'react-router-dom';
+import { Card, CardBody, Chip } from '@heroui/react';
+import { RiCalendarEventLine, RiPushpinFill } from 'react-icons/ri';
+import { formatDate } from '../utils/dateUtils.js';
+
+function getAnnouncementPreview(content, max = 320) {
+    if (!content) return '';
+
+    const extractText = (node) => {
+        if (!node) return '';
+        if (Array.isArray(node)) return node.map(extractText).filter(Boolean).join(' ');
+        if (typeof node === 'string') return node;
+        if (typeof node !== 'object') return '';
+
+        const ownText = typeof node.text === 'string' ? node.text : '';
+        const childText = extractText(node.content);
+        return [ownText, childText].filter(Boolean).join(' ').trim();
+    };
+
+    let parsed = content;
+    if (typeof content === 'string') {
+        try {
+            parsed = JSON.parse(content);
+        } catch {
+            parsed = content;
+        }
+    }
+
+    const plain = extractText(parsed)
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (plain.length <= max) return plain;
+    return `${plain.slice(0, max).trimEnd()}...`;
+}
 
 const Notes = () => {
     const [currentWorkspace] = useCurrentWorkspace();
@@ -93,11 +128,57 @@ const Notes = () => {
                                         : ''
                                 }
                             >
-                                <NoteCard
-                                    note={note}
-                                    currentWorkspace={currentWorkspace}
-                                    canEdit={isAdmin}
-                                />
+                                {isAdmin ? (
+                                    <NoteCard
+                                        note={note}
+                                        currentWorkspace={currentWorkspace}
+                                        canEdit={isAdmin}
+                                    />
+                                ) : (
+                                    <Card className="border border-default-200 bg-content1">
+                                        <CardBody className="p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <h3 className="text-base font-semibold text-default-800">
+                                                        {note?.title || 'Aviso'}
+                                                    </h3>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-default-500">
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <RiCalendarEventLine className="text-sm" />
+                                                            {formatDate(note?.created_at, {
+                                                                dateStyle: 'long',
+                                                            })}
+                                                        </span>
+                                                        {note?.updated_at &&
+                                                            note.updated_at !== note.created_at && (
+                                                                <span>
+                                                                    Actualizado:{' '}
+                                                                    {formatDate(note.updated_at, {
+                                                                        dateStyle: 'long',
+                                                                    })}
+                                                                </span>
+                                                            )}
+                                                    </div>
+                                                </div>
+                                                {note?.is_pinned && (
+                                                    <Chip
+                                                        size="sm"
+                                                        variant="flat"
+                                                        color="warning"
+                                                        startContent={
+                                                            <RiPushpinFill className="text-xs" />
+                                                        }
+                                                    >
+                                                        Fijado
+                                                    </Chip>
+                                                )}
+                                            </div>
+                                            <p className="mt-3 whitespace-pre-wrap text-sm text-default-700">
+                                                {getAnnouncementPreview(note?.content)}
+                                            </p>
+                                        </CardBody>
+                                    </Card>
+                                )}
                             </div>
                         ))
                     ) : (
