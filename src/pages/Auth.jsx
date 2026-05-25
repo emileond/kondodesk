@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef } from 'react'; // 👈 1. Import useRef
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useWorkspaces } from '../hooks/react-query/condos/useWorkspaces.js';
-import { supabaseClient } from '../lib/supabase.js';
 import AuthForm from '../components/auth/AuthForm';
 import { Spinner } from '@heroui/react';
 
@@ -18,7 +17,6 @@ function AuthPage({ viewMode }) {
 
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const [searchParams, setSearchParams] = useSearchParams();
     const [statusMessage, setStatusMessage] = useState('Initializing...');
 
     // 2. Use a ref for the lock. It will not trigger re-renders.
@@ -33,27 +31,6 @@ function AuthPage({ viewMode }) {
         const processUser = async () => {
             // 4. Set the lock. This does NOT cause a re-render.
             isProcessing.current = true;
-
-            const invitationToken = searchParams.get('invitation_token');
-
-            if (invitationToken) {
-                setStatusMessage('Accepting your invitation...');
-                try {
-                    await supabaseClient.rpc('accept_workspace_invitation', {
-                        invitation_id: invitationToken,
-                    });
-                    toast.success('Welcome aboard! You have joined the workspace.');
-                    searchParams.delete('invitation_token');
-                    setSearchParams(searchParams, { replace: true });
-                    await queryClient.refetchQueries({ queryKey: ['workspaces'] });
-                    navigate('/home');
-                } catch (error) {
-                    toast.error(`Failed to accept invitation: ${error.message}`);
-                    isProcessing.current = false; // Unlock on error
-                    navigate('/');
-                }
-                return;
-            }
 
             if (workspaces && workspaces.length > 0) {
                 navigate('/home');
@@ -85,8 +62,6 @@ function AuthPage({ viewMode }) {
         isWorkspacesLoading,
         navigate,
         queryClient,
-        searchParams,
-        setSearchParams,
     ]);
 
     if (!user) {

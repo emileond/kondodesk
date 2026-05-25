@@ -6,7 +6,7 @@ async function fetchUnits({ condo_id, unit_ids, includeAll = false }) {
     if (!condo_id) return [];
     let query = supabaseClient
         .from('units')
-        .select('id, address, condo_id')
+        .select('id, address, status, condo_id')
         .eq('condo_id', condo_id);
     if (!includeAll) {
         if (!Array.isArray(unit_ids) || unit_ids.length === 0) return [];
@@ -107,11 +107,13 @@ export function useUnitsList(currentWorkspace, user, options = {}) {
 
 export function useCreateUnit(currentWorkspace) {
     const qc = useQueryClient();
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
     return useMutation({
         mutationFn: ({ address, condo_id }) =>
-            createUnit({ condo_id: condo_id || currentWorkspace?.condo_id, address }),
+            createUnit({ condo_id: condo_id || condoId, address }),
         onSuccess: (unit) => {
-            qc.invalidateQueries({ queryKey: ['units', unit?.condo_id] });
+            qc.invalidateQueries({ queryKey: ['units'] });
+            qc.invalidateQueries({ queryKey: ['units', unit?.condo_id || condoId] });
         },
     });
 }

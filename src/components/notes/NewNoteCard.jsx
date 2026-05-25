@@ -1,4 +1,4 @@
-import { Button, Card, CardBody, CardFooter, CardHeader, Divider, Input } from '@heroui/react';
+import { Button, Card, CardBody, CardFooter, CardHeader, Checkbox, Divider, Input } from '@heroui/react';
 import BlockEditor from '../editor/BlockEditor.jsx';
 import { useState } from 'react';
 import useCurrentWorkspace from '../../hooks/useCurrentWorkspace.js';
@@ -8,6 +8,7 @@ import { useCreateNote } from '../../hooks/react-query/notes/useNotes.js';
 const NewNoteCard = ({ onCancel, onSuccess }) => {
     const [currentWorkspace] = useCurrentWorkspace();
     const [noteData, setNoteData] = useState({ title: '', content: '' });
+    const [notifyResidents, setNotifyResidents] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     // Create note mutation
@@ -30,12 +31,18 @@ const NewNoteCard = ({ onCancel, onSuccess }) => {
                 note: {
                     title: noteData.title,
                     content: noteData.content,
-                    condo_id: currentWorkspace.condo_id,
+                    condo_id: currentWorkspace?.condo_id || currentWorkspace?.workspace_id,
                 },
+                notifyResidents,
             },
             {
-                onSuccess: () => {
+                onSuccess: (result) => {
                     toast.success('Note saved successfully!');
+                    if (notifyResidents && result?.notifyError) {
+                        toast.error('Aviso guardado, pero falló la notificación por correo');
+                    } else if (notifyResidents) {
+                        toast.success('Se notificó a los residentes por correo');
+                    }
                     setIsSaving(false);
                     onSuccess();
                 },
@@ -69,6 +76,11 @@ const NewNoteCard = ({ onCancel, onSuccess }) => {
                     placeholder="Start writing your notes here..."
                 />
             </CardBody>
+            <div className="px-6 pb-4">
+                <Checkbox isSelected={notifyResidents} onValueChange={setNotifyResidents}>
+                    Notificar residentes
+                </Checkbox>
+            </div>
             <Divider />
             <CardFooter className="flex justify-between">
                 <Button size="sm" variant="light" onPress={onCancel} isDisabled={isSaving}>

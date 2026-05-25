@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
+import ky from 'ky';
+
+const api = ky.create({ prefixUrl: '/api' });
 
 // Fetch email lists for a specific condo
 const fetchWorkspaceMembers = async (condo_id) => {
@@ -17,16 +20,42 @@ const fetchWorkspaceMembers = async (condo_id) => {
     const userIds = members
         .filter((member) => member.user_id !== null)
         .map((member) => member.user_id);
+    const memberIds = members.map((member) => member.id).filter((id) => id != null);
 
     // Fetch profiles for the corresponding user IDs
-    const { data: profiles, error: profilesError } = await supabaseClient
-        .from('profiles')
-        .select('user_id, email, avatar, name, profile_updated_at:updated_at')
-        .in('user_id', userIds);
+    const { data: profiles, error: profilesError } =
+        userIds.length > 0
+            ? await supabaseClient
+                  .from('profiles')
+                  .select('user_id, email, avatar, name, profile_updated_at:updated_at')
+                  .in('user_id', userIds)
+            : { data: [], error: null };
 
     if (profilesError) {
         console.log(profilesError);
         throw new Error('Failed to fetch profiles');
+    }
+
+    const { data: unitMemberships, error: unitMembershipsError } =
+        memberIds.length > 0
+            ? await supabaseClient
+                  .from('unit_members')
+                  .select('condo_member_id, unit_id')
+                  .in('condo_member_id', memberIds)
+            : { data: [], error: null };
+
+    if (unitMembershipsError) {
+        throw new Error('Failed to fetch unit memberships');
+    }
+
+    const unitIdsByMemberId = new Map();
+    for (const membership of unitMemberships || []) {
+        const memberId = membership?.condo_member_id;
+        const unitId = membership?.unit_id;
+        if (memberId == null || unitId == null) continue;
+        const current = unitIdsByMemberId.get(memberId) || [];
+        current.push(unitId);
+        unitIdsByMemberId.set(memberId, current);
     }
 
     // Merge condo members with their corresponding profile emails
@@ -36,9 +65,10 @@ const fetchWorkspaceMembers = async (condo_id) => {
         return {
             ...member, // This keeps the original 'updated_at' from condo_members
             avatar: correspondingProfile?.avatar,
-            email: correspondingProfile?.email || member?.invite_email,
+            email: correspondingProfile?.email || '',
             name: correspondingProfile?.name,
             profile_updated_at: correspondingProfile?.profile_updated_at,
+            unit_ids: unitIdsByMemberId.get(member.id) || [],
         };
     });
 };
@@ -56,42 +86,42 @@ export const useWorkspaceMembers = (currentWorkspace) => {
 
 // Function to add a new member
 const addWorkspaceMember = async ({
+    email,
     invite_email,
     role,
     condo_id,
     workspace_id,
-    invited_by,
     unit_ids,
 }) => {
     const condoId = condo_id || workspace_id;
-    if (!invite_email || !role || !condoId || !invited_by) {
+    const memberEmail = email || invite_email;
+    if (!memberEmail || !role || !condoId) {
         throw new Error('Missing required fields');
     }
-    const { error: rpcError } = await supabaseClient.rpc('check_seat_limit', {
-        p_workspace_id: condoId,
-        p_role: role,
-    });
-
-    if (rpcError) {
-        throw new Error(rpcError.message);
+    const {
+        data: { session },
+    } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+        throw new Error('Missing session');
     }
 
-    const { error } = await supabaseClient.from('condo_members').insert([
-        {
-            invite_email,
-            role,
-            condo_id: condoId,
-            unit_ids: Array.isArray(unit_ids) && unit_ids.length > 0 ? unit_ids : null,
-            status: 'pending',
-            invited_by: invited_by,
-            updated_at: new Date(),
-        },
-    ]);
+    const res = await api
+        .post('team/invitations', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            json: {
+                condo_id: condoId,
+                email: memberEmail,
+                role,
+                unit_ids: Array.isArray(unit_ids) ? unit_ids : [],
+            },
+        })
+        .json();
 
-    if (error) {
-        console.error('Error adding workspace member:', error);
-        throw new Error(error.message);
+    if (!res?.success) {
+        throw new Error(res?.error || 'Failed to add member');
     }
+
+    return res?.data;
 };
 
 // Hook to create a new member
@@ -103,27 +133,42 @@ export const useAddWorkspaceMember = (currentWorkspace) => {
         mutationFn: addWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch
-            queryClient.invalidateQueries(['workspaceMembers', condoId]);
+            queryClient.invalidateQueries({ queryKey: ['workspaceMembers', condoId] });
         },
     });
 };
 
 // Function to resend invite (force update)
-const updateWorkspaceMember = async ({ id, role }) => {
-    const { error } = await supabaseClient
-        .from('condo_members')
-        .update([
-            {
-                role,
-                updated_at: new Date(),
-            },
-        ])
-        .eq('id', id);
-
-    if (error) {
-        console.error('Error updating workspace member:', error);
-        throw new Error(error.message);
+const updateWorkspaceMember = async ({ id, role, unit_ids, condo_id, workspace_id }) => {
+    const condoId = condo_id || workspace_id;
+    if (!id || !condoId) {
+        throw new Error('Missing required fields');
     }
+
+    const {
+        data: { session },
+    } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+        throw new Error('Missing session');
+    }
+
+    const res = await api
+        .patch('team/members', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            json: {
+                id,
+                condo_id: condoId,
+                role,
+                unit_ids: Array.isArray(unit_ids) ? unit_ids : undefined,
+            },
+        })
+        .json();
+
+    if (!res?.success) {
+        throw new Error(res?.error || 'Failed to update member');
+    }
+
+    return res?.data;
 };
 
 // Hook to create a new member
@@ -135,32 +180,34 @@ export const useUpdateWorkspaceMember = (currentWorkspace) => {
         mutationFn: updateWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch
-            queryClient.invalidateQueries(['workspaceMembers', condoId]);
+            queryClient.invalidateQueries({ queryKey: ['workspaceMembers', condoId] });
         },
     });
 };
 
 // Function to delete an api key
-const deleteWorkspaceMember = async ({ id }) => {
-    if (!id) {
-        throw new Error('Member ID is required');
-    }
-    // Prevent owner deletion
-    const { data: member } = await supabaseClient
-        .from('condo_members')
-        .select('role')
-        .eq('id', id)
-        .single();
-
-    if (member?.role === 'owner') {
-        throw new Error('Cannot delete workspace owner');
+const deleteWorkspaceMember = async ({ id, condo_id, workspace_id }) => {
+    const condoId = condo_id || workspace_id;
+    if (!id || !condoId) {
+        throw new Error('Member ID and condo ID are required');
     }
 
-    const { error } = await supabaseClient.from('condo_members').delete().eq('id', id);
+    const {
+        data: { session },
+    } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+        throw new Error('Missing session');
+    }
 
-    if (error) {
-        console.error('Error deleting:', error);
-        throw new Error('Failed to delete member');
+    const res = await api
+        .delete('team/members', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            json: { id, condo_id: condoId },
+        })
+        .json();
+
+    if (!res?.success) {
+        throw new Error(res?.error || 'Failed to delete member');
     }
 };
 
@@ -173,7 +220,7 @@ export const useDeleteWorkspaceMember = (currentWorkspace) => {
         mutationFn: deleteWorkspaceMember,
         onSuccess: () => {
             // Invalidate and refetch the email lists query for the team
-            queryClient.invalidateQueries(['workspaceMembers', condoId]);
+            queryClient.invalidateQueries({ queryKey: ['workspaceMembers', condoId] });
         },
     });
 };

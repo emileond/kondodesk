@@ -43,6 +43,12 @@ const NoteCard = ({ note, currentWorkspace, canEdit = false }) => {
     const deleteNote = useDeleteNote(currentWorkspace);
 
     const contentRef = useRef(null);
+    const createdAt = note?.created_at ? new Date(note.created_at) : null;
+    const updatedAt = note?.updated_at ? new Date(note.updated_at) : null;
+    const hasUpdatedDate =
+        !!createdAt &&
+        !!updatedAt &&
+        Math.abs(updatedAt.getTime() - createdAt.getTime()) > 1000;
 
     // Handle card click to expand/collapse
     const handleCardClick = () => {
@@ -251,9 +257,20 @@ const NoteCard = ({ note, currentWorkspace, canEdit = false }) => {
                             </Button>
                         </>
                     ) : (
-                        <p className="text-sm text-default-600 py-2">
-                            {formatDate(note.updated_at, { dateStyle: 'long' })}
-                        </p>
+                        <div className="w-full py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-default-500">
+                            <span>
+                                Publicado:{' '}
+                                <span className="font-medium text-default-700">
+                                    {formatDate(note.created_at, { dateStyle: 'long' })}
+                                </span>
+                            </span>
+                            <span>
+                                {hasUpdatedDate ? 'Actualizado' : 'Última actualización'}:{' '}
+                                <span className="font-medium text-default-700">
+                                    {formatDate(note.updated_at, { dateStyle: 'long' })}
+                                </span>
+                            </span>
+                        </div>
                     )}
                 </CardFooter>
             </Card>

@@ -30,23 +30,24 @@ export async function onRequestPost(context) {
 
         const { data: member, error: memberError } = await supabase
             .from('condo_members')
-            .select('role')
+            .select('role, status')
             .eq('condo_id', condo_id)
             .eq('user_id', user.id)
+            .eq('status', 'active')
             .maybeSingle();
 
         if (memberError) {
             return Response.json({ success: false, error: memberError.message }, { status: 500 });
         }
 
-        if (member?.role !== 'admin') {
+        if (!member || !['owner', 'admin'].includes(member.role)) {
             return Response.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 
         const { data, error } = await supabase
             .from('units')
-            .insert([{ condo_id, address }])
-            .select('id, address, condo_id')
+            .insert([{ condo_id, address, status: 'active' }])
+            .select('id, address, status, condo_id')
             .single();
 
         if (error) {

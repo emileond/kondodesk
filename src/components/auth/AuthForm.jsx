@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Divider, Input, Link } from '@heroui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { PiWarningBold } from 'react-icons/pi';
 import { useLoginUser, useRegisterUser } from '../../hooks/react-query/user/useUser';
 import Logo from '../Logo';
-import GoogleAuthButton from './GoogleAuthButton.jsx';
 import { validateEmail } from '../../utils/validateEmail.js';
 
 function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
@@ -14,18 +13,12 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
     const {
         register,
         handleSubmit,
-        watch,
         formState: { errors },
     } = useForm();
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [view, setView] = useState();
-
-    useEffect(() => {
-        setView(viewMode);
-    }, [viewMode]);
-
-    const watchPassword = watch('password');
+    const [view, setView] = useState(viewMode);
+    const [submittedEmail, setSubmittedEmail] = useState('');
 
     const onSubmit = async (data) => {
         setIsLoading(true);
@@ -41,10 +34,8 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                 return;
             }
             try {
-                const inviteToken = localStorage.getItem('pendingInvitationToken');
-
-                await registerUser({ email, password, inviteToken });
-
+                await registerUser({ email, password });
+                setSubmittedEmail(email);
                 setView('signup-success');
             } catch (error) {
                 setError(error.message);
@@ -69,7 +60,7 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                 <h2 className="text-2xl font-bold">Check your email</h2>
                 <p>
                     We have sent a confirmation email to{' '}
-                    <span className="font-bold">{watch('email')}</span>
+                    <span className="font-bold">{submittedEmail}</span>
                 </p>
                 <p>
                     Please click on the link in the email to verify your email address and complete
@@ -143,11 +134,8 @@ function AuthForm({ viewMode = 'signup', hideHeader, hideLogo, onSuccess }) {
                     <Input
                         {...register('confirm_password', {
                             required: 'Confirm password is required',
-                            validate: (val) => {
-                                if (watchPassword !== val) {
-                                    return 'Passwords do not match';
-                                }
-                            },
+                            validate: (val, formValues) =>
+                                formValues?.password === val || 'Passwords do not match',
                             minLength: {
                                 value: 8,
                                 message: 'Password must be at least 8 characters',

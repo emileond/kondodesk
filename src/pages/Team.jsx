@@ -33,11 +33,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabaseClient } from '../lib/supabase';
 import CreatableSelect from '../components/form/CreatableSelect.jsx';
-import {
-    useCondoMemberUnitIds,
-    useCreateUnit,
-    useUnitsList,
-} from '../hooks/react-query/units/useUnits.js';
+import { useCreateUnit, useUnitsList } from '../hooks/react-query/units/useUnits.js';
 
 function TeamPage() {
     const { data: user } = useUser();
@@ -55,7 +51,7 @@ function TeamPage() {
         queryFn: async () => {
             const { data, error } = await supabaseClient
                 .from('condo_members')
-                .select('role, unit_ids')
+                .select('role')
                 .eq('condo_id', condoId)
                 .eq('user_id', user?.id)
                 .maybeSingle();
@@ -66,11 +62,9 @@ function TeamPage() {
         staleTime: 1000 * 60 * 5,
     });
 
-    const isAdmin = currentMember?.role === 'admin';
-    const { data: memberUnitIds = [] } = useCondoMemberUnitIds(currentWorkspace, user);
+    const canManageMembers = ['owner', 'admin'].includes(currentMember?.role);
     const { data: units = [] } = useUnitsList(currentWorkspace, user, {
-        includeAll: isAdmin,
-        unit_ids: isAdmin ? undefined : memberUnitIds,
+        includeAll: true,
     });
     const { mutateAsync: createUnit } = useCreateUnit(currentWorkspace);
 
@@ -107,26 +101,37 @@ function TeamPage() {
         handleSubmit,
         reset,
         setValue,
-        watch,
         setError,
         clearErrors,
         formState: { errors },
     } = useForm();
-
-    const selectedRole = watch('role');
-    const selectedUnitIds = watch('unit_ids') || [];
 
     useEffect(() => {
         register('unit_ids');
     }, [register]);
 
     const onSubmit = async (data) => {
+        if (!canManageMembers) {
+            toast.error('Only admins can manage users');
+            return;
+        }
+
+        const unitIds = Array.isArray(data.unit_ids) ? data.unit_ids : [];
+        if (unitIds.length === 0) {
+            setError('unit_ids', {
+                type: 'manual',
+                message: 'Select at least one unit',
+            });
+            return;
+        }
+
         if (editMember) {
             await updateWorkspaceMember(
                 {
                     id: editMember.id,
-                    role: isAdmin ? data.role : editMember?.role,
-                    workspace_id: editMember.workspace_id,
+                    role: data.role,
+                    unit_ids: unitIds,
+                    condo_id: condoId,
                 },
                 {
                     onSuccess: () => {
@@ -138,32 +143,24 @@ function TeamPage() {
                 },
             );
         } else {
-            // Check if email is already invited
+            // Check if email is already a member
+            const normalizedEmail = String(data.email || '').trim().toLowerCase();
             const isDuplicate = workspaceMembers?.some(
-                (member) => member.invite_email === data.email || member.email === data.email,
+                (member) => String(member.email || '').trim().toLowerCase() === normalizedEmail,
             );
             if (isDuplicate) {
-                toast.error('This user is already invited');
+                toast.error('This user is already a member');
             } else {
-                const unitIds = Array.isArray(data.unit_ids) ? data.unit_ids : [];
-                if (unitIds.length === 0) {
-                    setError('unit_ids', {
-                        type: 'manual',
-                        message: 'Select at least one unit',
-                    });
-                    return;
-                }
                 await addWorkspaceMember(
                     {
-                        invite_email: data.email,
-                        role: isAdmin ? data.role : 'resident',
-                        workspace_id: currentWorkspace?.workspace_id || currentWorkspace?.condo_id,
-                        invited_by: user.email,
+                        email: data.email,
+                        role: data.role,
+                        condo_id: condoId,
                         unit_ids: unitIds,
                     },
                     {
                         onSuccess: () => {
-                            toast.success('Team member invited');
+                            toast.success('Invitation sent');
                         },
                         onError: (error) => {
                             toast.error(error.message);
@@ -178,6 +175,7 @@ function TeamPage() {
     };
 
     const handleAddMember = () => {
+        if (!canManageMembers) return;
         reset({ email: '', role: 'resident', unit_ids: [] });
         clearErrors();
         setFormKey((prev) => prev + 1);
@@ -186,9 +184,12 @@ function TeamPage() {
     };
 
     const handleEditMember = (member) => {
+        if (!canManageMembers) return;
         setValue('email', member.email);
         setValue('role', member.role);
-        setValue('unit_ids', []);
+        setValue('unit_ids', Array.isArray(member.unit_ids) ? member.unit_ids : []);
+        clearErrors();
+        setFormKey((prev) => prev + 1);
         setEditMember(member);
         onOpen();
     };
@@ -198,7 +199,7 @@ function TeamPage() {
         { name: 'Role', uid: 'role' },
         { name: 'Residencia', uid: 'unit_display' },
         { name: 'Status', uid: 'status' },
-        { name: 'Actions', uid: 'actions' },
+        ...(canManageMembers ? [{ name: 'Actions', uid: 'actions' }] : []),
     ];
 
     return (
@@ -206,8 +207,12 @@ function TeamPage() {
             <PageLayout
                 title="Usuarios"
                 maxW="2xl"
-                primaryAction="Agregar usuario"
-                description="Invita usuarios a Kondodesk"
+                primaryAction={canManageMembers ? 'Agregar usuario' : undefined}
+                description={
+                    canManageMembers
+                        ? 'Agrega usuarios existentes a tu condominio'
+                        : 'Solo administradores pueden gestionar usuarios'
+                }
                 onClick={handleAddMember}
             >
                 <div className="flex flex-col gap-3 mb-12">
@@ -235,7 +240,8 @@ function TeamPage() {
                                                 member={member}
                                                 columnKey={columnKey}
                                                 onEditMember={(m) => handleEditMember(m)}
-                                                canDelete={isAdmin}
+                                                canEdit={canManageMembers}
+                                                canDelete={canManageMembers}
                                             />
                                         </TableCell>
                                     )}
@@ -248,7 +254,7 @@ function TeamPage() {
                     <ModalContent>
                         <form onSubmit={handleSubmit(onSubmit)}>
                             <ModalHeader>
-                                {editMember ? 'Edit team member' : 'Invite team member'}
+                                {editMember ? 'Edit team member' : 'Add team member'}
                             </ModalHeader>
                             <ModalBody>
                                 {isTeamLimitReached && !editMember && (
@@ -261,8 +267,8 @@ function TeamPage() {
                                 )}
                                 <p>
                                     {editMember
-                                        ? 'Update user role'
-                                        : 'Invite a new member to your workspace'}
+                                        ? 'Update user details'
+                                        : 'Invite a user by email'}
                                 </p>
                                 <div className="flex gap-3">
                                     <Input
@@ -279,79 +285,53 @@ function TeamPage() {
                                         {...register('role', { required: true })}
                                         label="Role"
                                         className="basis-1/3"
-                                        isDisabled={!isAdmin}
+                                        isDisabled={!canManageMembers}
                                         defaultSelectedKeys={
-                                            editMember
-                                                ? [editMember.role]
-                                                : [selectedRole || 'resident']
+                                            editMember ? [editMember.role] : ['resident']
                                         }
                                     >
                                         <SelectItem key="resident">Resident</SelectItem>
                                         <SelectItem key="admin">Admin</SelectItem>
                                     </Select>
                                 </div>
-                                {!editMember && (
-                                    <div className="mt-2">
-                                        {isAdmin ? (
-                                            <CreatableSelect
-                                                key={formKey}
-                                                label="Units"
-                                                placeholder="Search units..."
-                                                options={unitOptions}
-                                                multiple
-                                                onChange={(values) => {
-                                                    setValue('unit_ids', values || []);
-                                                    clearErrors('unit_ids');
-                                                }}
-                                                onCreate={async (value) => {
-                                                    const address = String(value || '').trim();
-                                                    if (!address) return null;
-                                                    const unit = await createUnit({
-                                                        address,
-                                                        condo_id: condoId,
-                                                    });
-                                                    return {
-                                                        value: unit.id,
-                                                        label: unit.address,
-                                                    };
-                                                }}
-                                                triggerClassName="px-2"
-                                            />
-                                        ) : (
-                                            <Select
-                                                key={formKey}
-                                                label="Residencias"
-                                                selectionMode="multiple"
-                                                variant="bordered"
-                                                selectedKeys={selectedUnitIds.map(String)}
-                                                onSelectionChange={(keys) => {
-                                                    const values = Array.from(keys).map((key) => {
-                                                        const parsed = Number(key);
-                                                        return Number.isNaN(parsed) ? key : parsed;
-                                                    });
-                                                    setValue('unit_ids', values);
-                                                    clearErrors('unit_ids');
-                                                }}
-                                            >
-                                                {unitOptions.map((option) => (
-                                                    <SelectItem key={String(option.value)}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </Select>
+                                <div className="mt-2">
+                                    <CreatableSelect
+                                        key={formKey}
+                                        label="Units"
+                                        placeholder="Search units..."
+                                        options={unitOptions}
+                                        defaultValue={unitOptions.filter((option) =>
+                                            (Array.isArray(editMember?.unit_ids)
+                                                ? editMember.unit_ids
+                                                : []
+                                            ).includes(option.value),
                                         )}
-                                        {errors.unit_ids && (
-                                            <p className="text-tiny text-danger mt-1">
-                                                {errors.unit_ids.message}
-                                            </p>
-                                        )}
-                                        {!isAdmin && unitOptions.length === 0 && (
-                                            <p className="text-tiny text-default-500 mt-1">
-                                                You can only invite residents to units you belong to.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                        multiple
+                                        disabled={!canManageMembers}
+                                        onChange={(values) => {
+                                            setValue('unit_ids', values || []);
+                                            clearErrors('unit_ids');
+                                        }}
+                                        onCreate={async (value) => {
+                                            const address = String(value || '').trim();
+                                            if (!address) return null;
+                                            const unit = await createUnit({
+                                                address,
+                                                condo_id: condoId,
+                                            });
+                                            return {
+                                                value: unit.id,
+                                                label: unit.address,
+                                            };
+                                        }}
+                                        triggerClassName="px-2"
+                                    />
+                                    {errors.unit_ids && (
+                                        <p className="text-tiny text-danger mt-1">
+                                            {errors.unit_ids.message}
+                                        </p>
+                                    )}
+                                </div>
                             </ModalBody>
                             <ModalFooter>
                                 <Button variant="light" onPress={onClose} isDisabled={isPending}>
