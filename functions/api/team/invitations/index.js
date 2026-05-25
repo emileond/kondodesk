@@ -261,16 +261,32 @@ export async function onRequestPost(context) {
 
         const baseUrl = context.env.VITE_PUBLIC_URL || new URL(context.request.url).origin;
         const invitationLink = `${baseUrl}/accept-invite?invitation_token=${encodeURIComponent(inviteRecord.token)}`;
+        let emailDelivery = { sent: true, error: null };
+        try {
+            await sendInvitationEmail({
+                env: context.env,
+                email: normalizedEmail,
+                invitationLink,
+                inviterName,
+                condoName: condo?.name || 'tu condominio',
+            });
+        } catch (emailError) {
+            emailDelivery = {
+                sent: false,
+                error: emailError?.message || 'Failed to send invitation email',
+            };
+            console.error('Invitation email delivery failed:', emailDelivery.error);
+        }
 
-        await sendInvitationEmail({
-            env: context.env,
-            email: normalizedEmail,
-            invitationLink,
-            inviterName,
-            condoName: condo?.name || 'tu condominio',
-        });
-
-        return Response.json({ success: true, data: inviteRecord }, { status: 200 });
+        return Response.json(
+            {
+                success: true,
+                data: inviteRecord,
+                invitation_link: invitationLink,
+                email_delivery: emailDelivery,
+            },
+            { status: 200 },
+        );
     } catch (err) {
         return Response.json(
             { success: false, error: err?.message || 'Unexpected error' },

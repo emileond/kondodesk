@@ -44,8 +44,15 @@ function TeamPage() {
     const { mutateAsync: addWorkspaceMember, isPending } = useAddWorkspaceMember(currentWorkspace);
     const { mutateAsync: updateWorkspaceMember } = useUpdateWorkspaceMember(currentWorkspace);
     const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+    const {
+        isOpen: isInviteLinkOpen,
+        onOpen: onInviteLinkOpen,
+        onOpenChange: onInviteLinkOpenChange,
+        onClose: onInviteLinkClose,
+    } = useDisclosure();
     const [editMember, setEditMember] = useState();
     const [formKey, setFormKey] = useState(0);
+    const [inviteLinkToShare, setInviteLinkToShare] = useState('');
 
     const { data: currentMember } = useQuery({
         queryKey: ['condoMember', condoId, user?.id],
@@ -184,8 +191,15 @@ function TeamPage() {
                         unit_ids: unitIds,
                     },
                     {
-                        onSuccess: () => {
-                            toast.success('Invitation sent');
+                        onSuccess: (result) => {
+                            const generatedLink = String(result?.invitation_link || '').trim();
+                            if (!generatedLink) {
+                                toast.error('Invitation created but share link is missing');
+                                return;
+                            }
+                            setInviteLinkToShare(generatedLink);
+                            onInviteLinkOpen();
+                            toast.success('Invitation created');
                         },
                         onError: (error) => {
                             toast.error(error.message);
@@ -197,6 +211,20 @@ function TeamPage() {
         setEditMember(null);
         onClose();
         reset();
+    };
+
+    const handleCopyInviteLink = async () => {
+        const link = String(inviteLinkToShare || '').trim();
+        if (!link) {
+            toast.error('No invitation link available');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(link);
+            toast.success('Link copied');
+        } catch {
+            toast.error('Could not copy link');
+        }
     };
 
     const handleAddMember = () => {
@@ -402,6 +430,30 @@ function TeamPage() {
                                 </Button>
                             </ModalFooter>
                         </form>
+                    </ModalContent>
+                </Modal>
+                <Modal isOpen={isInviteLinkOpen} onOpenChange={onInviteLinkOpenChange}>
+                    <ModalContent>
+                        <ModalHeader>Usuario invitado</ModalHeader>
+                        <ModalBody>
+                            <p className="text-sm text-default-600">
+                                Comparte este enlace con el usuario para que termine su registro.
+                            </p>
+                            <Input
+                                label="Invitation URL"
+                                value={inviteLinkToShare}
+                                isReadOnly
+                                className="mt-1"
+                            />
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="light" onPress={onInviteLinkClose}>
+                                Cerrar
+                            </Button>
+                            <Button color="primary" onPress={handleCopyInviteLink}>
+                                Copiar enlace
+                            </Button>
+                        </ModalFooter>
                     </ModalContent>
                 </Modal>
             </PageLayout>

@@ -121,7 +121,7 @@ const addWorkspaceMember = async ({
         throw new Error(res?.error || 'Failed to add member');
     }
 
-    return res?.data;
+    return res;
 };
 
 // Hook to create a new member
