@@ -7,7 +7,11 @@ import AppLayout from '../components/layout/AppLayout.jsx';
 import toast from 'react-hot-toast';
 import useCurrentWorkspace from '../hooks/useCurrentWorkspace';
 import { useAmenity, useAmenityRules } from '../hooks/react-query/amenities/useAmenities';
-import { useAmenityAvailability, useCreateReservation, useReservationsList } from '../hooks/react-query/reservations/useReservations.js';
+import {
+    useAmenityAvailability,
+    useCreateReservation,
+    useReservationsList,
+} from '../hooks/react-query/reservations/useReservations.js';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useCondoMemberUnitIds } from '../hooks/react-query/units/useUnits.js';
 import { RiMoneyDollarCircleLine, RiTimerLine } from 'react-icons/ri';
@@ -17,18 +21,6 @@ function titleCase(str = '') {
         .split(' ')
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
-}
-
-function parseTimeToMinutes(timeStr = '00:00') {
-    // accepts 'HH:mm' or 'HH:mm:ss'
-    const [h, m] = timeStr.split(':');
-    return parseInt(h || '0', 10) * 60 + parseInt(m || '0', 10);
-}
-
-function minutesToHHMM(total) {
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function formatTimeIntl(hour, minute) {

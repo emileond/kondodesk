@@ -20,5 +20,10 @@ VITE_PUBLIC_URL = "https://kondodesk.com"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_GQXTzCuH08Lh7NQ1wfECKQ_T6fZ6Ooc"
 VITE_SUPABASE_URL = "https://kvtczrsvivllfurxiobm.supabase.co"
 
+
+[[env.production.send_email]]
+name = "SEND_EMAIL"
+
+
 [[send_email]]
 name = "SEND_EMAIL"
