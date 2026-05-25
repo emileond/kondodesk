@@ -30,7 +30,7 @@ import ky from 'ky';
 import toast from 'react-hot-toast';
 import { useDeleteTaskAttachment } from '../../hooks/react-query/tasks/useTasksAttachments.js';
 
-const AttachmentChip = ({ id, name, url, type, size, task_id }) => {
+const AttachmentChip = ({ id, name, url, type, size, condo_id }) => {
     const { isOpen, onOpenChange } = useDisclosure();
     const [isLoading, setIsLoading] = useState(false);
     const { mutate: deleteAttachment, isPending } = useDeleteTaskAttachment();
@@ -83,7 +83,7 @@ const AttachmentChip = ({ id, name, url, type, size, task_id }) => {
 
             // Create a blob URL from the response and open it
             const response = await ky
-                .get(`/api/task/attachments?filename=${uniqueFilename}`, {
+                .get(`/api/files?filename=${uniqueFilename}`, {
                     timeout: 30000, // 30 seconds timeout
                 })
                 .blob();
@@ -113,7 +113,7 @@ const AttachmentChip = ({ id, name, url, type, size, task_id }) => {
             {
                 attachmentId: id,
                 url: url,
-                taskId: task_id,
+                condoId: condo_id,
             },
             {
                 // Close the confirmation modal on success

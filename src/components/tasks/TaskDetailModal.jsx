@@ -28,7 +28,8 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
     const [currentWorkspace] = useCurrentWorkspace();
     const { mutateAsync: updateTask, isPending } = useUpdateTask(currentWorkspace);
     const { data: members } = useWorkspaceMembers(currentWorkspace);
-    const { data: attachments = [] } = useTasksAttachments(task?.id);
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
+    const { data: attachments = [] } = useTasksAttachments(condoId);
     const queryClient = useQueryClient();
     const [currentStatus, setCurrentStatus] = useState(task.status);
     const [selectedDate, setSelectedDate] = useState(task?.date ? new Date(task.date) : null);
@@ -134,11 +135,10 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                 try {
                     const formData = new FormData();
                     formData.append('file', file);
-                    formData.append('task_id', task.id);
-                    formData.append('workspace_id', currentWorkspace?.workspace_id);
+                    formData.append('condo_id', condoId);
 
                     return await ky
-                        .post('/api/task/attachments', {
+                        .post('/api/files', {
                             body: formData,
                         })
                         .json();
@@ -147,7 +147,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                     toast.error(`Failed to upload ${file.name}`);
                     return null;
                 } finally {
-                    queryClient.invalidateQueries({ queryKey: ['taskAttachments', task.id] });
+                    queryClient.invalidateQueries({ queryKey: ['files', condoId] });
                 }
             });
 
@@ -162,7 +162,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
 
             setIsUploading(false);
         },
-        [task.id, currentWorkspace?.workspace_id, queryClient],
+        [condoId, queryClient],
     );
 
     const handleAttachmentClick = useCallback(() => {
@@ -315,7 +315,7 @@ const TaskDetailModal = ({ isOpen, onOpenChange, task, onAction }) => {
                                                 <AttachmentChip
                                                     key={file.id}
                                                     id={file.id}
-                                                    task_id={task.id}
+                                                    condo_id={condoId}
                                                     name={file?.name}
                                                     url={file?.url}
                                                     type={file?.type}

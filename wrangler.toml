@@ -4,6 +4,10 @@ pages_build_output_dir = "dist"
 compatibility_date = "2024-11-06"
 compatibility_flags = [ "nodejs_compat" ]
 
+[[r2_buckets]]
+binding = "ATTACHMENTS_BUCKET"
+bucket_name = "kondodesk-attachments"
+
 [env.production]
 compatibility_flags = [ "nodejs_compat" ]
 

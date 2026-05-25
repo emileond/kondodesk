@@ -40,6 +40,7 @@ import ReservaAmenityPage from './pages/ReservaAmenity.jsx';
 import InicioPage from './pages/Inicio.jsx';
 import MisReservasPage from './pages/MisReservas.jsx';
 import ReservaConfirmacionPage from './pages/ReservaConfirmacion.jsx';
+import ArchivosPage from './pages/Archivos.jsx';
 
 function App() {
     const { isLoading } = useUser();
@@ -258,6 +259,14 @@ function App() {
             element: (
                 <ProtectedRoute>
                     <MisReservasPage />
+                </ProtectedRoute>
+            ),
+        },
+        {
+            path: '/archivos',
+            element: (
+                <ProtectedRoute>
+                    <ArchivosPage />
                 </ProtectedRoute>
             ),
         },

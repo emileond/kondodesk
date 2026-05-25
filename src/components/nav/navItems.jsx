@@ -1,16 +1,11 @@
 import {
-    RiRefreshLine,
     RiCalendarEventLine,
-    RiQuillPenAiLine,
-    RiTerminalBoxLine,
     RiGroupLine,
     RiSettingsLine,
-    RiCalendarScheduleLine,
-    RiBriefcase2Line,
-    RiBookletLine,
     RiHome2Line,
     RiStarLine,
     RiMegaphoneLine,
+    RiFolder2Line,
 } from 'react-icons/ri';
 
 const ICON_SIZE = '1.2rem';
@@ -38,6 +33,12 @@ export const navItems = [
         name: 'Avisos',
         path: '/notes',
         startContent: <RiMegaphoneLine fontSize={ICON_SIZE} />,
+        endContent: null,
+    },
+    {
+        name: 'Archivos',
+        path: '/archivos',
+        startContent: <RiFolder2Line fontSize={ICON_SIZE} />,
         endContent: null,
     },
     {

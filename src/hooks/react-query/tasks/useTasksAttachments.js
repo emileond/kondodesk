@@ -2,46 +2,57 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseClient } from '../../../lib/supabase';
 import ky from 'ky';
 
-// Fetch attachments for a specific task
-const fetchTaskAttachments = async ({ task_id }) => {
-    if (!task_id) {
+const fetchAttachments = async ({ condo_id }) => {
+    if (!condo_id) {
         return [];
     }
 
     const { data, error } = await supabaseClient
-        .from('attachments')
+        .from('files')
         .select('*')
-        .eq('task_id', task_id)
+        .eq('condo_id', condo_id)
         .order('created_at', { ascending: false });
 
     if (error) {
-        throw new Error('Failed to fetch task attachments');
+        throw new Error('Failed to fetch attachments');
     }
 
     return data;
 };
 
-// Hook to fetch attachments for a specific task
-export const useTasksAttachments = (task_id) => {
+export const useAttachments = (condo_id) => {
     return useQuery({
-        queryKey: ['taskAttachments', task_id],
-        queryFn: () => fetchTaskAttachments({ task_id }),
+        queryKey: ['files', condo_id],
+        queryFn: () => fetchAttachments({ condo_id }),
         staleTime: 1000 * 60 * 5, // 5 minutes
-        enabled: !!task_id, // Only fetch if task_id is provided
+        enabled: !!condo_id,
     });
 };
 
-// Function to delete an attachment
-const deleteAttachment = async ({ attachmentId, url, taskId }) => {
+const renameAttachment = async ({ attachmentId, condoId, name }) => {
+    if (!attachmentId || !condoId || !name?.trim()) {
+        throw new Error('Attachment ID, condo ID, and name are required.');
+    }
+
+    const { error } = await supabaseClient
+        .from('files')
+        .update({ name: name.trim() })
+        .eq('id', attachmentId)
+        .eq('condo_id', condoId);
+
+    if (error) {
+        throw new Error('Failed to rename attachment.');
+    }
+};
+
+const deleteAttachment = async ({ attachmentId, url }) => {
     if (!attachmentId || !url) {
-        throw new Error('Attachment ID and Task ID are required for deletion.');
+        throw new Error('Attachment ID and URL are required for deletion.');
     }
     try {
-        // Extract filename from URL
         const filename = url ? url.split('/').pop() : null;
 
-        // Use the API endpoint to delete the file from R2 and Supabase
-        await ky.delete(`/api/task/attachments?filename=${filename}&id=${attachmentId}`, {
+        await ky.delete(`/api/files?filename=${filename}&id=${attachmentId}`, {
             timeout: 30000, // 30 seconds timeout
         });
     } catch (error) {
@@ -50,8 +61,24 @@ const deleteAttachment = async ({ attachmentId, url, taskId }) => {
     }
 };
 
-// Hook to delete an attachment
-export const useDeleteTaskAttachment = () => {
+export const useRenameAttachment = (condoId) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: renameAttachment,
+        onError: (error) => {
+            console.error('Error renaming attachment:', error);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['files', condoId],
+                refetchType: 'all',
+            });
+        },
+    });
+};
+
+export const useDeleteAttachment = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -60,13 +87,16 @@ export const useDeleteTaskAttachment = () => {
             console.error('Error deleting attachment:', error);
         },
         onSuccess: (_, variables) => {
-            // Get the task_id from the cache to invalidate the correct query
-            const taskId = variables.taskId;
+            const condoId = variables.condoId;
 
             queryClient.invalidateQueries({
-                queryKey: ['taskAttachments', taskId],
+                queryKey: ['files', condoId],
                 refetchType: 'all',
             });
         },
     });
 };
+
+// Backward compatible aliases
+export const useTasksAttachments = useAttachments;
+export const useDeleteTaskAttachment = useDeleteAttachment;

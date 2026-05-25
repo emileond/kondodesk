@@ -4,20 +4,14 @@ function arrayBufferToHex(buffer) {
     return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * This is the API endpoint for handling file downloads.
- * It retrieves a file from Cloudflare R2 and returns it to the client.
- */
 export async function onRequestGet(context) {
     try {
         const { request, env } = context;
 
-        // --- 1. Validate the R2 Bucket Binding ---
         if (!env.ATTACHMENTS_BUCKET) {
             throw new Error("R2 bucket binding 'ATTACHMENTS_BUCKET' not found.");
         }
 
-        // --- 2. Parse the URL to get the filename ---
         const url = new URL(request.url);
         const filename = url.searchParams.get('filename');
 
@@ -25,14 +19,11 @@ export async function onRequestGet(context) {
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: "Missing required parameter: filename is required.",
+                    error: 'Missing required parameter: filename is required.',
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
             );
         }
-
-        // --- 3. Get the file from R2 ---
-        console.log(`Attempting to fetch '${filename}' from R2 bucket...`);
 
         const object = await env.ATTACHMENTS_BUCKET.get(filename);
 
@@ -40,24 +31,18 @@ export async function onRequestGet(context) {
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: "File not found.",
+                    error: 'File not found.',
                 }),
                 { status: 404, headers: { 'Content-Type': 'application/json' } },
             );
         }
 
-        // --- 4. Return the file to the client ---
         const headers = new Headers();
         object.writeHttpMetadata(headers);
         headers.set('etag', object.httpEtag);
 
-        return new Response(object.body, {
-            headers,
-        });
+        return new Response(object.body, { headers });
     } catch (error) {
-        console.error('--- DOWNLOAD FAILED ---');
-        console.error(error);
-
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
         return new Response(
             JSON.stringify({
@@ -70,52 +55,38 @@ export async function onRequestGet(context) {
     }
 }
 
-/**
- * This is the API endpoint for handling file deletions.
- * It deletes a file from Cloudflare R2 and then removes the record from Supabase.
- */
 export async function onRequestDelete(context) {
     try {
         const { request, env } = context;
 
-        // --- 1. Validate the R2 Bucket Binding ---
         if (!env.ATTACHMENTS_BUCKET) {
             throw new Error("R2 bucket binding 'ATTACHMENTS_BUCKET' not found.");
         }
 
-        // --- 2. Parse the URL to get the parameters ---
         const url = new URL(request.url);
         const filename = url.searchParams.get('filename');
-        const attachmentId = url.searchParams.get('id');
+        const fileId = url.searchParams.get('id');
 
-        if (!filename || !attachmentId) {
+        if (!filename || !fileId) {
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: "Missing required parameters: filename and id are required.",
+                    error: 'Missing required parameters: filename and id are required.',
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
             );
         }
 
-        // --- 3. Delete the file from R2 ---
-        console.log(`Attempting to delete '${filename}' from R2 bucket...`);
-
         await env.ATTACHMENTS_BUCKET.delete(filename);
 
-        // --- 4. Delete the record from Supabase ---
-        console.log(`Deleting attachment record with ID: ${attachmentId} from Supabase...`);
-
         const supabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
-
-        const { error } = await supabaseClient.from('files').delete().eq('id', attachmentId);
+        const { error } = await supabaseClient.from('files').delete().eq('id', fileId);
 
         if (error) {
-            console.error('Error deleting attachment from database:', error);
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: 'Failed to delete attachment record from database.',
+                    error: 'Failed to delete file record from database.',
                     message: error.message,
                 }),
                 { status: 500, headers: { 'Content-Type': 'application/json' } },
@@ -125,19 +96,16 @@ export async function onRequestDelete(context) {
         return new Response(
             JSON.stringify({
                 success: true,
-                message: 'Attachment deleted successfully.',
+                message: 'File deleted successfully.',
             }),
             { headers: { 'Content-Type': 'application/json' } },
         );
     } catch (error) {
-        console.error('--- DELETE FAILED ---');
-        console.error(error);
-
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
         return new Response(
             JSON.stringify({
                 success: false,
-                error: 'Failed to delete attachment.',
+                error: 'Failed to delete file.',
                 message: errorMessage,
             }),
             { status: 500, headers: { 'Content-Type': 'application/json' } },
@@ -145,21 +113,14 @@ export async function onRequestDelete(context) {
     }
 }
 
-/**
- * This is the API endpoint for handling file uploads.
- * It receives a `multipart/form-data` request with a single 'file' field.
- */
 export async function onRequestPost(context) {
     try {
         const { request, env } = context;
 
-        // --- 1. Validate the R2 Bucket Binding ---
-        // This is a crucial check. If this fails, your `wrangler.toml` is wrong.
         if (!env.ATTACHMENTS_BUCKET) {
             throw new Error("R2 bucket binding 'ATTACHMENTS_BUCKET' not found.");
         }
 
-        // --- 2. Parse the Incoming File and Parameters ---
         const formData = await request.formData();
         const file = formData.get('file');
         const condo_id = formData.get('condo_id');
@@ -178,79 +139,55 @@ export async function onRequestPost(context) {
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: "Missing required parameter: condo_id is required.",
+                    error: 'Missing required parameter: condo_id is required.',
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
             );
         }
 
-        // --- 3. Generate a Unique Filename ---
         const timestamp = Date.now();
-        const fileBuffer = await file.arrayBuffer(); // Read file into memory
-        const hashBuffer = await crypto.subtle.digest('MD5', fileBuffer); // Hash the file contents
+        const fileBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('MD5', fileBuffer);
         const hash = arrayBufferToHex(hashBuffer);
         const fileExtension = file.name.split('.').pop() || 'bin';
         const uniqueFilename = `${timestamp}-${hash}.${fileExtension}`;
 
-        // --- 4. Upload the File to R2 ---
-        // This is the core operation.
-        console.log(`Attempting to upload '${uniqueFilename}' to R2 bucket...`);
-
         const uploadedObject = await env.ATTACHMENTS_BUCKET.put(uniqueFilename, fileBuffer, {
             httpMetadata: {
                 contentType: file.type,
-                // Add a 'contentDisposition' to suggest a filename when the user downloads it.
                 contentDisposition: `inline; filename="${file.name}"`,
             },
-            // You can add custom metadata for your application's logic
             customMetadata: {
                 originalFilename: file.name,
-                uploadedBy: 'user-id-placeholder', // Replace with actual user info if available
             },
         });
 
-        console.log('R2 put operation completed.');
-
-        // Sanity check to ensure the object was created successfully.
         if (uploadedObject.key !== uniqueFilename) {
             throw new Error(
                 'R2 upload failed: the returned key does not match the generated filename.',
             );
         }
 
-        // --- 5. Return the Publicly Accessible URL ---
-        // IMPORTANT: This URL will only work if you have a custom domain
-        // connected to your R2 bucket.
         const fileUrl = `https://attachments.weekfuse.com/${uniqueFilename}`;
+        const supabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 
-        console.log(`Successfully uploaded. File available at: ${fileUrl}`);
+        const { error } = await supabaseClient.from('files').insert({
+            condo_id,
+            url: fileUrl,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+        });
 
-        // --- 6. Save attachment details to the database ---
-        try {
-            const supabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
-
-            const fileData = {
-                condo_id,
-                url: fileUrl,
-                name: file.name,
-                type: file.type,
-                size: file.size,
-            };
-
-            const { data, error } = await supabaseClient
-                .from('files')
-                .insert(fileData)
-                .select();
-
-            if (error) {
-                console.error('Error saving attachment to database:', error);
-                // We continue even if there's a database error, as the file was uploaded successfully
-            } else {
-                console.log('Attachment saved to database:', data);
-            }
-        } catch (dbError) {
-            console.error('Database operation failed:', dbError);
-            // We continue even if there's a database error, as the file was uploaded successfully
+        if (error) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: 'Failed to save file in database.',
+                    message: error.message,
+                }),
+                { status: 500, headers: { 'Content-Type': 'application/json' } },
+            );
         }
 
         return new Response(
@@ -264,11 +201,6 @@ export async function onRequestPost(context) {
             { headers: { 'Content-Type': 'application/json' } },
         );
     } catch (error) {
-        // --- 6. Robust Error Handling ---
-        console.error('--- UPLOAD FAILED ---');
-        // Log the entire error object for maximum detail.
-        console.error(error);
-
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
         return new Response(
             JSON.stringify({
