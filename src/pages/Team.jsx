@@ -33,8 +33,11 @@ import MemberCard from '../components/team/MemberCard';
 import { useUser } from '../hooks/react-query/user/useUser.js';
 import { useEffect, useMemo, useState } from 'react';
 import { RiDeleteBin6Line } from 'react-icons/ri';
+import { RiHome4Line } from 'react-icons/ri';
+import { RiFileCopyLine } from 'react-icons/ri';
 import { useQuery } from '@tanstack/react-query';
 import { supabaseClient } from '../lib/supabase';
+import CreatableSelect from '../components/form/CreatableSelect.jsx';
 import { useCreateUnit, useUnitsList } from '../hooks/react-query/units/useUnits.js';
 
 function TeamPage() {
@@ -55,9 +58,7 @@ function TeamPage() {
     } = useDisclosure();
     const [editMember, setEditMember] = useState();
     const [inviteLinkToShare, setInviteLinkToShare] = useState('');
-    const [inviteEmailToShare, setInviteEmailToShare] = useState('');
-    const [selectedUnitIds, setSelectedUnitIds] = useState([]);
-    const [newUnitAddress, setNewUnitAddress] = useState('');
+    const [formKey, setFormKey] = useState(0);
 
     const { data: currentMember } = useQuery({
         queryKey: ['condoMember', condoId, user?.id],
@@ -203,7 +204,6 @@ function TeamPage() {
                                 return;
                             }
                             setInviteLinkToShare(generatedLink);
-                            setInviteEmailToShare(String(data.email || '').trim());
                             onInviteLinkOpen();
                             toast.success('Invitation created');
                         },
@@ -217,8 +217,6 @@ function TeamPage() {
         setEditMember(null);
         onClose();
         reset();
-        setSelectedUnitIds([]);
-        setNewUnitAddress('');
     };
 
     const handleCopyInviteLink = async () => {
@@ -235,55 +233,6 @@ function TeamPage() {
         }
     };
 
-    const handleShareInvite = async () => {
-        const link = String(inviteLinkToShare || '').trim();
-        if (!link) {
-            toast.error('No invitation link available');
-            return;
-        }
-
-        const message = `Te invito a unirte a Kondodesk. Completa tu registro aqui: ${link}`;
-        try {
-            if (navigator?.share) {
-                await navigator.share({
-                    title: 'Invitacion a Kondodesk',
-                    text: message,
-                    url: link,
-                });
-                return;
-            }
-        } catch {
-            // Ignore and fallback to copy.
-        }
-
-        await handleCopyInviteLink();
-    };
-
-    const handleShareWhatsapp = () => {
-        const link = String(inviteLinkToShare || '').trim();
-        if (!link) {
-            toast.error('No invitation link available');
-            return;
-        }
-        const text = encodeURIComponent(
-            `Te invito a unirte a Kondodesk. Completa tu registro aqui: ${link}`,
-        );
-        window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
-    };
-
-    const handleShareEmail = () => {
-        const link = String(inviteLinkToShare || '').trim();
-        if (!link) {
-            toast.error('No invitation link available');
-            return;
-        }
-        const subject = encodeURIComponent('Invitacion a Kondodesk');
-        const body = encodeURIComponent(
-            `Hola,\n\nTe invito a unirte a Kondodesk. Completa tu registro aqui:\n${link}\n`,
-        );
-        window.location.href = `mailto:${encodeURIComponent(inviteEmailToShare || '')}?subject=${subject}&body=${body}`;
-    };
-
     const handleDeleteInvitation = async (invitationId) => {
         if (!canManageMembers) return;
         try {
@@ -297,8 +246,7 @@ function TeamPage() {
     const handleAddMember = () => {
         if (!canManageMembers) return;
         reset({ email: '', role: 'resident', unit_ids: [] });
-        setSelectedUnitIds([]);
-        setNewUnitAddress('');
+        setFormKey((prev) => prev + 1);
         clearErrors();
         setEditMember(null);
         onOpen();
@@ -310,33 +258,10 @@ function TeamPage() {
         setValue('role', member.role);
         const unitIds = Array.isArray(member.unit_ids) ? member.unit_ids : [];
         setValue('unit_ids', unitIds);
-        setSelectedUnitIds(unitIds);
-        setNewUnitAddress('');
+        setFormKey((prev) => prev + 1);
         clearErrors();
         setEditMember(member);
         onOpen();
-    };
-
-    const handleCreateUnitFromModal = async () => {
-        const address = String(newUnitAddress || '').trim();
-        if (!address) {
-            toast.error('Escribe una unidad');
-            return;
-        }
-        try {
-            const unit = await createUnit({
-                address,
-                condo_id: condoId,
-            });
-            const nextUnitIds = [...new Set([...selectedUnitIds, unit.id])];
-            setSelectedUnitIds(nextUnitIds);
-            setValue('unit_ids', nextUnitIds);
-            clearErrors('unit_ids');
-            setNewUnitAddress('');
-            toast.success('Unidad creada');
-        } catch (error) {
-            toast.error(error?.message || 'No se pudo crear la unidad');
-        }
     };
 
     const columns = [
@@ -489,44 +414,38 @@ function TeamPage() {
                                     </Select>
                                 </div>
                                 <div className="mt-2">
-                                    <Select
+                                    <CreatableSelect
+                                        key={formKey}
                                         label="Unidad"
-                                        selectionMode="multiple"
-                                        variant="bordered"
-                                        selectedKeys={selectedUnitIds.map(String)}
-                                        isDisabled={!canManageMembers}
-                                        onSelectionChange={(keys) => {
-                                            const values = Array.from(keys).map((key) =>
-                                                String(key),
-                                            );
-                                            setSelectedUnitIds(values);
-                                            setValue('unit_ids', values);
+                                        placeholder="Buscar unidad..."
+                                        options={unitOptions}
+                                        defaultValue={unitOptions.filter((option) =>
+                                            (Array.isArray(editMember?.unit_ids)
+                                                ? editMember.unit_ids
+                                                : []
+                                            ).includes(option.value),
+                                        )}
+                                        icon={<RiHome4Line className="text-base" />}
+                                        multiple
+                                        disabled={!canManageMembers}
+                                        onChange={(values) => {
+                                            setValue('unit_ids', values || []);
                                             clearErrors('unit_ids');
                                         }}
-                                    >
-                                        {unitOptions.map((option) => (
-                                            <SelectItem key={String(option.value)}>
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </Select>
-                                    {canManageMembers && (
-                                        <div className="mt-2 flex gap-2">
-                                            <Input
-                                                label="Nueva unidad"
-                                                placeholder="Ej. Torre A 301"
-                                                value={newUnitAddress}
-                                                onValueChange={setNewUnitAddress}
-                                            />
-                                            <Button
-                                                color="primary"
-                                                variant="flat"
-                                                onPress={handleCreateUnitFromModal}
-                                            >
-                                                Crear
-                                            </Button>
-                                        </div>
-                                    )}
+                                        onCreate={async (value) => {
+                                            const address = String(value || '').trim();
+                                            if (!address) return null;
+                                            const unit = await createUnit({
+                                                address,
+                                                condo_id: condoId,
+                                            });
+                                            return {
+                                                value: unit.id,
+                                                label: unit.address,
+                                            };
+                                        }}
+                                        triggerClassName="px-4 py-5 min-h-12 text-base max-w-full w-full justify-start"
+                                    />
                                     {errors.unit_ids && (
                                         <p className="text-tiny text-danger mt-1">
                                             {errors.unit_ids.message}
@@ -556,28 +475,27 @@ function TeamPage() {
                             <p className="text-sm text-default-600">
                                 Comparte este enlace con el usuario para que termine su registro.
                             </p>
-                            <Input
-                                label="Invitation URL"
-                                value={inviteLinkToShare}
-                                isReadOnly
-                                className="mt-1"
-                            />
+                            <div className="mt-1 flex items-end gap-2">
+                                <Input
+                                    label="Invitation URL"
+                                    value={inviteLinkToShare}
+                                    isReadOnly
+                                    className="grow"
+                                />
+                                <Button
+                                    isIconOnly
+                                    color="primary"
+                                    variant="flat"
+                                    aria-label="Copiar enlace"
+                                    onPress={handleCopyInviteLink}
+                                >
+                                    <RiFileCopyLine className="text-lg" />
+                                </Button>
+                            </div>
                         </ModalBody>
                         <ModalFooter>
                             <Button variant="light" onPress={onInviteLinkClose}>
                                 Cerrar
-                            </Button>
-                            <Button variant="flat" onPress={handleShareEmail}>
-                                Email
-                            </Button>
-                            <Button variant="flat" onPress={handleShareWhatsapp}>
-                                WhatsApp
-                            </Button>
-                            <Button color="primary" onPress={handleCopyInviteLink}>
-                                Copiar enlace
-                            </Button>
-                            <Button color="secondary" onPress={handleShareInvite}>
-                                Compartir
                             </Button>
                         </ModalFooter>
                     </ModalContent>
