@@ -173,19 +173,6 @@ function ReservaAmenityPage() {
     function formatRange(dateStr, startHHMM) {
         const [sh, sm] = (startHHMM || '00:00').split(':').map((v) => parseInt(v || '0', 10));
         const dow = dayjs(dateStr).day();
-        const rule = ruleByDow[dow];
-        const isExclusive = Number(amenity?.max_capacity) === 1;
-        if (isExclusive && rule?.open_time && rule?.close_time) {
-            const [oh, om] = String(rule.open_time)
-                .slice(0, 5)
-                .split(':')
-                .map((v) => parseInt(v || '0', 10));
-            const [ch, cm] = String(rule.close_time)
-                .slice(0, 5)
-                .split(':')
-                .map((v) => parseInt(v || '0', 10));
-            return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
-        }
         const dur = Number(slotDurationByDow[dow] || 60);
         const end = dayjs().hour(sh).minute(sm).add(dur, 'minute');
         return `${formatTimeIntl(sh, sm)}-${formatTimeIntl(end.hour(), end.minute())}`;

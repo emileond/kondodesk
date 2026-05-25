@@ -34,21 +34,6 @@ function ReservaConfirmacionPage() {
     function computeRange() {
         // Prefer payload date + time + duration
         if (state?.date && state?.time) {
-            const isExclusive =
-                state?.amenity_is_exclusive ??
-                (Number(state?.amenity_max_capacity) === 1 ||
-                Number(reservation?.amenity?.max_capacity) === 1);
-            if (isExclusive && state?.rule_open_time && state?.rule_close_time) {
-                const [oh, om] = String(state.rule_open_time)
-                    .slice(0, 5)
-                    .split(':')
-                    .map((v) => parseInt(v || '0', 10));
-                const [ch, cm] = String(state.rule_close_time)
-                    .slice(0, 5)
-                    .split(':')
-                    .map((v) => parseInt(v || '0', 10));
-                return `${formatTimeIntl(oh, om)}-${formatTimeIntl(ch, cm)}`;
-            }
             const [sh, sm] = String(state.time || '00:00')
                 .split(':')
                 .map((v) => parseInt(v || '0', 10));
@@ -86,7 +71,7 @@ function ReservaConfirmacionPage() {
                 title="¡Tu reserva está lista!"
                 description={
                     isPending
-                        ? 'Tu reserva está creada, pero el pago sigue pendiente.'
+                        ? 'Tu reserva quedó registrada y está en revisión administrativa.'
                         : 'Hemos guardado los detalles de tu reserva.'
                 }
                 maxW="3xl"
@@ -106,7 +91,7 @@ function ReservaConfirmacionPage() {
                                 </h3>
                                 {isPending ? (
                                     <div className="rounded-medium border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
-                                        El pago de esta reserva sigue pendiente. Contacta al administrador para realizar el pago y confirmar la reserva.
+                                        Esta reservación está pendiente de aprobación. Un administrador la revisará y recibirás una notificación por correo cuando cambie su estado.
                                     </div>
                                 ) : (
                                     <p className="text-default-500">

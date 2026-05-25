@@ -33,9 +33,7 @@ function ReservationCalendar({
     costLabel,
     onCancelSelection,
     slotDurationByDow = {}, // map: 0..6 -> minutes
-    ruleByDow = {},
     reservationsByDate = {},
-    amenityMaxCapacity = null,
     showAvailability = true,
     allowSelection = true,
     showReservationsAlways = false,
@@ -103,19 +101,6 @@ function ReservationCalendar({
     function computeSlotLabels(dateStr, t) {
         const [sh, sm] = t.split(':').map((v) => parseInt(v || '0', 10));
         const dow = dayjs(dateStr).day();
-        const rule = ruleByDow[dow];
-        const isExcl = Number(amenityMaxCapacity) === 1;
-        if (isExcl && rule?.open_time && rule?.close_time) {
-            const [oh, om] = String(rule.open_time)
-                .slice(0, 5)
-                .split(':')
-                .map((v) => parseInt(v || '0', 10));
-            const [ch, cm] = String(rule.close_time)
-                .slice(0, 5)
-                .split(':')
-                .map((v) => parseInt(v || '0', 10));
-            return { start: formatTimeIntl(oh, om), end: formatTimeIntl(ch, cm) };
-        }
         const dur = Number(slotDurationByDow[dow] || 60);
         const endD = dayjs().hour(sh).minute(sm).add(dur, 'minute');
         return { start: formatTimeIntl(sh, sm), end: formatTimeIntl(endD.hour(), endD.minute()) };
@@ -158,7 +143,6 @@ function ReservationCalendar({
     const showReservations = showReservationsAlways
         ? dayReservations.length > 0
         : showReservedSlots;
-    const isExclusive = Number(amenityMaxCapacity) === 1;
 
     // Toolbar pieces
     const DayToolbar = (

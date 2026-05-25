@@ -85,6 +85,14 @@ function getDow(date, tzOffsetMinutes = null) {
     return shifted.getUTCDay();
 }
 
+function getMinutesOfDay(date, tzOffsetMinutes = null) {
+    if (!Number.isFinite(tzOffsetMinutes)) {
+        return date.getHours() * 60 + date.getMinutes();
+    }
+    const shifted = new Date(date.getTime() - tzOffsetMinutes * 60000);
+    return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
 function addMinutes(date, mins) {
     const d = new Date(date.getTime());
     d.setMinutes(d.getMinutes() + mins);
@@ -96,7 +104,7 @@ async function fetchAmenityAndRules(supabase, condo_id, amenity_id) {
         await Promise.all([
             supabase
                 .from('amenities')
-                .select('id, max_capacity, is_reservable, requires_payment, condo_id')
+                .select('id, name, max_capacity, is_reservable, requires_payment, condo_id')
                 .eq('id', amenity_id)
                 .eq('condo_id', condo_id)
                 .single(),
@@ -154,6 +162,204 @@ function canUserCancelReservation({ reservation, amenity, now }) {
     if (!requiresPayment) return true;
 
     return status !== 'confirmed';
+}
+
+function isValidEmail(email) {
+    return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function normalizeStatus(status) {
+    const value = String(status || '').toLowerCase();
+    if (value === 'approved') return 'confirmed';
+    if (value === 'canceled') return 'cancelled';
+    return value;
+}
+
+function statusLabel(status) {
+    const value = normalizeStatus(status);
+    if (value === 'confirmed') return 'aprobada';
+    if (value === 'pending') return 'pendiente de aprobación';
+    if (value === 'cancelled') return 'cancelada';
+    return value || 'actualizada';
+}
+
+function buildReservationSummary({ amenityName, reservation }) {
+    const startTime = reservation?.start_time || 'N/A';
+    const endTime = reservation?.end_time || 'N/A';
+    return [
+        `Amenidad: ${amenityName || 'Amenidad'}`,
+        `Inicio: ${startTime}`,
+        `Fin: ${endTime}`,
+        `Estado: ${statusLabel(reservation?.status)}`,
+    ].join('\n');
+}
+
+async function sendEmail(env, { to, subject, text }) {
+    if (!env?.SEND_EMAIL || !isValidEmail(to)) return;
+    const fromAddress = env.EMAIL_FROM || 'reservas@kondodesk.com';
+    await env.SEND_EMAIL.send({
+        from: fromAddress,
+        to,
+        subject,
+        text,
+    });
+}
+
+async function fetchProfileByUserId(supabase, userId) {
+    if (!userId) return null;
+    const { data } = await supabase
+        .from('profiles')
+        .select('user_id, email, name')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return data || null;
+}
+
+async function fetchAdminRecipients(supabase, condoId) {
+    const { data: adminMembers, error: adminMembersError } = await supabase
+        .from('condo_members')
+        .select('user_id, status')
+        .eq('condo_id', condoId)
+        .eq('role', 'admin')
+        .in('status', ['active', 'pending']);
+
+    if (adminMembersError) throw new Error(adminMembersError.message);
+
+    const adminUserIds = (adminMembers || []).map((m) => m.user_id).filter(Boolean);
+    let profilesByUserId = new Map();
+    if (adminUserIds.length > 0) {
+        const { data: adminProfiles, error: adminProfilesError } = await supabase
+            .from('profiles')
+            .select('user_id, email, name')
+            .in('user_id', adminUserIds);
+        if (adminProfilesError) throw new Error(adminProfilesError.message);
+        profilesByUserId = new Map(
+            (adminProfiles || []).map((profile) => [profile.user_id, profile]),
+        );
+    }
+
+    const recipients = [];
+    for (const member of adminMembers || []) {
+        const profile = member?.user_id ? profilesByUserId.get(member.user_id) : null;
+        const email = (profile?.email || '').trim();
+        if (!isValidEmail(email)) continue;
+        recipients.push({
+            email,
+            name: profile?.name || '',
+        });
+    }
+
+    const uniqueByEmail = new Map();
+    for (const recipient of recipients) {
+        uniqueByEmail.set(recipient.email.toLowerCase(), recipient);
+    }
+    return Array.from(uniqueByEmail.values());
+}
+
+async function notifyUserReservationCreated({
+    env,
+    recipient,
+    amenityName,
+    reservation,
+    needsAdminApproval,
+}) {
+    if (!isValidEmail(recipient?.email)) return;
+    const userName = recipient?.name || 'Hola';
+    const summary = buildReservationSummary({ amenityName, reservation });
+
+    const pendingCopy = [
+        `${userName},`,
+        '',
+        'Tu reservación fue creada y está pendiente de aprobación por administración.',
+        'Siguientes pasos:',
+        '1. El administrador revisará la solicitud.',
+        '2. Recibirás un correo cuando cambie a aprobada o cancelada.',
+        '',
+        summary,
+    ].join('\n');
+
+    const confirmedCopy = [
+        `${userName},`,
+        '',
+        'Tu reservación fue creada correctamente.',
+        '',
+        summary,
+    ].join('\n');
+
+    await sendEmail(env, {
+        to: recipient.email,
+        subject: needsAdminApproval
+            ? `Reserva pendiente de aprobación: ${amenityName || 'Amenidad'}`
+            : `Reserva confirmada: ${amenityName || 'Amenidad'}`,
+        text: needsAdminApproval ? pendingCopy : confirmedCopy,
+    });
+}
+
+async function notifyAdminsReservationPending({
+    env,
+    adminRecipients,
+    amenityName,
+    reservation,
+    requesterProfile,
+    appUrl,
+}) {
+    if (!Array.isArray(adminRecipients) || adminRecipients.length === 0) return;
+    const requester =
+        requesterProfile?.name || requesterProfile?.email || reservation?.user_id || 'usuario';
+    const summary = buildReservationSummary({ amenityName, reservation });
+    const reviewUrl = appUrl ? `${appUrl.replace(/\/+$/, '')}/reservas` : null;
+    const reviewLine = reviewUrl
+        ? `Revisa y actualiza el estado desde: ${reviewUrl}`
+        : 'Revisa y actualiza el estado desde el panel de reservaciones.';
+
+    await Promise.allSettled(
+        adminRecipients.map((admin) =>
+            sendEmail(env, {
+                to: admin.email,
+                subject: `Acción requerida: reserva pendiente (${amenityName || 'Amenidad'})`,
+                text: [
+                    `${admin.name || 'Hola'},`,
+                    '',
+                    'Se creó una reservación pendiente que requiere revisión administrativa.',
+                    `Solicitante: ${requester}`,
+                    '',
+                    summary,
+                    '',
+                    reviewLine,
+                ].join('\n'),
+            }),
+        ),
+    );
+}
+
+async function notifyUserReservationStatusUpdated({
+    env,
+    recipient,
+    amenityName,
+    reservation,
+    previousStatus,
+}) {
+    if (!isValidEmail(recipient?.email)) return;
+    const previous = statusLabel(previousStatus);
+    const next = statusLabel(reservation?.status);
+    const summary = buildReservationSummary({ amenityName, reservation });
+
+    await sendEmail(env, {
+        to: recipient.email,
+        subject: `Actualización de reserva: ${amenityName || 'Amenidad'}`,
+        text: [
+            `${recipient?.name || 'Hola'},`,
+            '',
+            `El estado de tu reservación cambió de "${previous}" a "${next}".`,
+            normalizeStatus(reservation?.status) === 'pending'
+                ? 'Siguiente paso: administración revisará la solicitud y te notificará el resultado.'
+                : '',
+            '',
+            summary,
+        ]
+            .filter(Boolean)
+            .join('\n'),
+    });
 }
 
 export async function onRequestGet(context) {
@@ -380,8 +586,8 @@ export async function onRequestPost(context) {
         // Validate within open/close
         const openM = parseTimeToMinutes(String(rule.open_time).slice(0, 5));
         const closeM = parseTimeToMinutes(String(rule.close_time).slice(0, 5));
-        const startM = start.getHours() * 60 + start.getMinutes();
-        const endM = end.getHours() * 60 + end.getMinutes();
+        const startM = getMinutesOfDay(start, tzOffsetMinutes);
+        const endM = getMinutesOfDay(end, tzOffsetMinutes);
         if (startM < openM || endM > closeM) {
             return Response.json(
                 { success: false, error: 'Time outside opening hours' },
@@ -472,6 +678,32 @@ export async function onRequestPost(context) {
             return Response.json({ success: false, error: error.message }, { status: 500 });
         }
 
+        try {
+            const requesterProfile = await fetchProfileByUserId(supabase, user_id);
+            const needsAdminApproval = status === 'pending';
+            await notifyUserReservationCreated({
+                env: context.env,
+                recipient: requesterProfile,
+                amenityName: amenity?.name,
+                reservation: data,
+                needsAdminApproval,
+            });
+
+            if (needsAdminApproval) {
+                const adminRecipients = await fetchAdminRecipients(supabase, condo_id);
+                await notifyAdminsReservationPending({
+                    env: context.env,
+                    adminRecipients,
+                    amenityName: amenity?.name,
+                    reservation: data,
+                    requesterProfile,
+                    appUrl: context.env.VITE_PUBLIC_URL,
+                });
+            }
+        } catch (notificationError) {
+            console.error('Reservation creation notification failed:', notificationError);
+        }
+
         return Response.json({ success: true, data });
     } catch (err) {
         console.error('API Execution Failed:', err);
@@ -493,9 +725,10 @@ export async function onRequestPatch(context) {
             );
         }
 
-        const normalizedStatus = String(status || '').toLowerCase();
+        const normalizedStatus = normalizeStatus(status);
         const statusMap = {
             confirmed: 'confirmed',
+            approved: 'confirmed',
             pending: 'pending',
             cancelled: 'cancelled',
             canceled: 'cancelled',
@@ -506,6 +739,23 @@ export async function onRequestPatch(context) {
         }
 
         const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const { data: currentReservation, error: currentReservationError } = await supabase
+            .from('reservations')
+            .select('id, condo_id, user_id, amenity_id, status, start_time, end_time')
+            .eq('id', reservation_id)
+            .eq('condo_id', condo_id)
+            .single();
+
+        if (currentReservationError || !currentReservation) {
+            return Response.json(
+                {
+                    success: false,
+                    error: currentReservationError?.message || 'Reservation not found',
+                },
+                { status: 404 },
+            );
+        }
+
         const { data, error } = await supabase
             .from('reservations')
             .update({ status: nextStatus })
@@ -516,6 +766,44 @@ export async function onRequestPatch(context) {
 
         if (error) {
             return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        const previousStatus = normalizeStatus(currentReservation.status);
+        if (previousStatus !== nextStatus) {
+            try {
+                const [userProfile, amenityResult] = await Promise.all([
+                    fetchProfileByUserId(supabase, currentReservation.user_id),
+                    supabase
+                        .from('amenities')
+                        .select('id, name')
+                        .eq('id', currentReservation.amenity_id)
+                        .eq('condo_id', condo_id)
+                        .maybeSingle(),
+                ]);
+
+                const amenityName = amenityResult?.data?.name;
+                await notifyUserReservationStatusUpdated({
+                    env: context.env,
+                    recipient: userProfile,
+                    amenityName,
+                    reservation: data,
+                    previousStatus,
+                });
+
+                if (nextStatus === 'pending') {
+                    const adminRecipients = await fetchAdminRecipients(supabase, condo_id);
+                    await notifyAdminsReservationPending({
+                        env: context.env,
+                        adminRecipients,
+                        amenityName,
+                        reservation: data,
+                        requesterProfile: userProfile,
+                        appUrl: context.env.VITE_PUBLIC_URL,
+                    });
+                }
+            } catch (notificationError) {
+                console.error('Reservation update notification failed:', notificationError);
+            }
         }
 
         return Response.json({ success: true, data });
@@ -563,7 +851,7 @@ export async function onRequestDelete(context) {
 
         const { data: amenity, error: amenityError } = await supabase
             .from('amenities')
-            .select('id, requires_payment')
+            .select('id, name, requires_payment')
             .eq('id', reservation.amenity_id)
             .eq('condo_id', condo_id)
             .single();
@@ -600,6 +888,19 @@ export async function onRequestDelete(context) {
 
         if (error) {
             return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        try {
+            const requesterProfile = await fetchProfileByUserId(supabase, reservation.user_id);
+            await notifyUserReservationStatusUpdated({
+                env: context.env,
+                recipient: requesterProfile,
+                amenityName: amenity?.name,
+                reservation: data,
+                previousStatus: reservation.status,
+            });
+        } catch (notificationError) {
+            console.error('Reservation cancellation notification failed:', notificationError);
         }
 
         return Response.json({ success: true, data });
