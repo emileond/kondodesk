@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+    buildReservationEmailHtml,
+    formatDateTime,
+    normalizeStatus,
+    resolveTimezone,
+    statusLabel,
+} from './emailTemplate';
 
 // Cloudflare Pages Function: /api/reservations
 // Supports:
@@ -168,24 +175,10 @@ function isValidEmail(email) {
     return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-function normalizeStatus(status) {
-    const value = String(status || '').toLowerCase();
-    if (value === 'approved') return 'confirmed';
-    if (value === 'canceled') return 'cancelled';
-    return value;
-}
-
-function statusLabel(status) {
-    const value = normalizeStatus(status);
-    if (value === 'confirmed') return 'aprobada';
-    if (value === 'pending') return 'pendiente de aprobación';
-    if (value === 'cancelled') return 'cancelada';
-    return value || 'actualizada';
-}
-
-function buildReservationSummary({ amenityName, reservation }) {
-    const startTime = reservation?.start_time || 'N/A';
-    const endTime = reservation?.end_time || 'N/A';
+function buildReservationSummary({ amenityName, reservation, timezone }) {
+    const tz = resolveTimezone(timezone);
+    const startTime = formatDateTime(reservation?.start_time, tz);
+    const endTime = formatDateTime(reservation?.end_time, tz);
     return [
         `Amenidad: ${amenityName || 'Amenidad'}`,
         `Inicio: ${startTime}`,
@@ -194,7 +187,7 @@ function buildReservationSummary({ amenityName, reservation }) {
     ].join('\n');
 }
 
-async function sendEmail(env, { to, subject, text }) {
+async function sendEmail(env, { to, subject, text, html }) {
     if (!isValidEmail(to)) return;
     const accountId = env.CF_ACCOUNT_ID;
     const apiToken = env.CF_EMAIL_API_TOKEN || env.CF_API_TOKEN;
@@ -204,15 +197,19 @@ async function sendEmail(env, { to, subject, text }) {
     }
 
     const fromAddress = env.EMAIL_FROM || 'reservas@kondodesk.com';
-    const html = String(text || '')
-        .split('\n')
-        .map((line) =>
-            line
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;'),
-        )
-        .join('<br/>');
+    const htmlContent =
+        html ||
+        String(text || '')
+            .split('\n')
+            .map((line) =>
+                line
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;'),
+            )
+            .join('<br/>');
 
     const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
@@ -226,7 +223,7 @@ async function sendEmail(env, { to, subject, text }) {
                 to,
                 from: fromAddress,
                 subject,
-                html,
+                html: htmlContent,
                 text: text || '',
             }),
         },
@@ -253,6 +250,17 @@ async function fetchProfileByUserId(supabase, userId) {
         .eq('user_id', userId)
         .maybeSingle();
     return data || null;
+}
+
+async function fetchCondoTimezone(supabase, condoId) {
+    const fallback = 'America/Mexico_City';
+    if (!condoId) return fallback;
+    const { data } = await supabase
+        .from('condos')
+        .select('id, timezone')
+        .eq('id', condoId)
+        .maybeSingle();
+    return resolveTimezone(data?.timezone || fallback);
 }
 
 async function fetchAdminRecipients(supabase, condoId) {
@@ -302,10 +310,13 @@ async function notifyUserReservationCreated({
     amenityName,
     reservation,
     needsAdminApproval,
+    timezone,
 }) {
     if (!isValidEmail(recipient?.email)) return;
     const userName = recipient?.name || 'Hola';
-    const summary = buildReservationSummary({ amenityName, reservation });
+    const summary = buildReservationSummary({ amenityName, reservation, timezone });
+    const appUrl = env.VITE_PUBLIC_URL || 'https://kondodesk.com';
+    const reviewUrl = `${appUrl.replace(/\/+$/, '')}/reservas`;
 
     const pendingCopy = [
         `${userName},`,
@@ -332,6 +343,25 @@ async function notifyUserReservationCreated({
             ? `Reserva pendiente de aprobación: ${amenityName || 'Amenidad'}`
             : `Reserva confirmada: ${amenityName || 'Amenidad'}`,
         text: needsAdminApproval ? pendingCopy : confirmedCopy,
+        html: buildReservationEmailHtml({
+            appUrl,
+            title: needsAdminApproval ? 'Reserva pendiente de aprobación' : 'Reserva confirmada',
+            greeting: userName,
+            intro: needsAdminApproval
+                ? 'Tu reservación fue creada correctamente y ahora está en revisión administrativa.'
+                : 'Tu reservación fue creada y confirmada correctamente.',
+            reservation,
+            amenityName,
+            ctaLabel: 'Abrir mis reservaciones',
+            ctaUrl: reviewUrl,
+            timezone,
+            nextSteps: needsAdminApproval
+                ? [
+                      'El administrador revisará la solicitud.',
+                      'Recibirás una nueva notificación por correo cuando se apruebe o cancele.',
+                  ]
+                : [],
+        }),
     });
 }
 
@@ -342,11 +372,12 @@ async function notifyAdminsReservationPending({
     reservation,
     requesterProfile,
     appUrl,
+    timezone,
 }) {
     if (!Array.isArray(adminRecipients) || adminRecipients.length === 0) return;
     const requester =
         requesterProfile?.name || requesterProfile?.email || reservation?.user_id || 'usuario';
-    const summary = buildReservationSummary({ amenityName, reservation });
+    const summary = buildReservationSummary({ amenityName, reservation, timezone });
     const reviewUrl = appUrl ? `${appUrl.replace(/\/+$/, '')}/reservas` : null;
     const reviewLine = reviewUrl
         ? `Revisa y actualiza el estado desde: ${reviewUrl}`
@@ -367,6 +398,19 @@ async function notifyAdminsReservationPending({
                     '',
                     reviewLine,
                 ].join('\n'),
+                html: buildReservationEmailHtml({
+                    appUrl: appUrl || 'https://kondodesk.com',
+                    title: 'Nueva reserva pendiente por revisar',
+                    greeting: admin.name || 'Hola',
+                    intro: 'Se creó una reservación pendiente que requiere validación administrativa.',
+                    reservation,
+                    amenityName,
+                    extraRows: [['Solicitante', requester]],
+                    ctaLabel: 'Revisar reserva',
+                    ctaUrl: reviewUrl || 'https://kondodesk.com/reservas',
+                    timezone,
+                    nextSteps: ['Abre el panel de reservaciones.', 'Aprueba o cancela la solicitud.'],
+                }),
             }),
         ),
     );
@@ -378,11 +422,14 @@ async function notifyUserReservationStatusUpdated({
     amenityName,
     reservation,
     previousStatus,
+    timezone,
 }) {
     if (!isValidEmail(recipient?.email)) return;
     const previous = statusLabel(previousStatus);
     const next = statusLabel(reservation?.status);
-    const summary = buildReservationSummary({ amenityName, reservation });
+    const summary = buildReservationSummary({ amenityName, reservation, timezone });
+    const appUrl = env.VITE_PUBLIC_URL || 'https://kondodesk.com';
+    const reviewUrl = `${appUrl.replace(/\/+$/, '')}/reservas`;
 
     await sendEmail(env, {
         to: recipient.email,
@@ -399,6 +446,25 @@ async function notifyUserReservationStatusUpdated({
         ]
             .filter(Boolean)
             .join('\n'),
+        html: buildReservationEmailHtml({
+            appUrl,
+            title: 'Actualización de estado de reservación',
+            greeting: recipient?.name || 'Hola',
+            intro: `El estado de tu reservación cambió de "${previous}" a "${next}".`,
+            reservation,
+            amenityName,
+            extraRows: [['Estado anterior', previous], ['Estado actual', next]],
+            ctaLabel: 'Ver detalles',
+            ctaUrl: reviewUrl,
+            timezone,
+            nextSteps:
+                normalizeStatus(reservation?.status) === 'pending'
+                    ? [
+                          'Administración revisará de nuevo la solicitud.',
+                          'Te enviaremos otro correo cuando exista un nuevo cambio de estado.',
+                      ]
+                    : [],
+        }),
     });
 }
 
@@ -719,7 +785,10 @@ export async function onRequestPost(context) {
         }
 
         try {
-            const requesterProfile = await fetchProfileByUserId(supabase, user_id);
+            const [requesterProfile, condoTimezone] = await Promise.all([
+                fetchProfileByUserId(supabase, user_id),
+                fetchCondoTimezone(supabase, condo_id),
+            ]);
             const needsAdminApproval = status === 'pending';
             await notifyUserReservationCreated({
                 env: context.env,
@@ -727,6 +796,7 @@ export async function onRequestPost(context) {
                 amenityName: amenity?.name,
                 reservation: data,
                 needsAdminApproval,
+                timezone: condoTimezone,
             });
 
             if (needsAdminApproval) {
@@ -738,6 +808,7 @@ export async function onRequestPost(context) {
                     reservation: data,
                     requesterProfile,
                     appUrl: context.env.VITE_PUBLIC_URL,
+                    timezone: condoTimezone,
                 });
             }
         } catch (notificationError) {
@@ -811,7 +882,7 @@ export async function onRequestPatch(context) {
         const previousStatus = normalizeStatus(currentReservation.status);
         if (previousStatus !== nextStatus) {
             try {
-                const [userProfile, amenityResult] = await Promise.all([
+                const [userProfile, amenityResult, condoTimezone] = await Promise.all([
                     fetchProfileByUserId(supabase, currentReservation.user_id),
                     supabase
                         .from('amenities')
@@ -819,6 +890,7 @@ export async function onRequestPatch(context) {
                         .eq('id', currentReservation.amenity_id)
                         .eq('condo_id', condo_id)
                         .maybeSingle(),
+                    fetchCondoTimezone(supabase, condo_id),
                 ]);
 
                 const amenityName = amenityResult?.data?.name;
@@ -828,6 +900,7 @@ export async function onRequestPatch(context) {
                     amenityName,
                     reservation: data,
                     previousStatus,
+                    timezone: condoTimezone,
                 });
 
                 if (nextStatus === 'pending') {
@@ -839,6 +912,7 @@ export async function onRequestPatch(context) {
                         reservation: data,
                         requesterProfile: userProfile,
                         appUrl: context.env.VITE_PUBLIC_URL,
+                        timezone: condoTimezone,
                     });
                 }
             } catch (notificationError) {
@@ -931,13 +1005,17 @@ export async function onRequestDelete(context) {
         }
 
         try {
-            const requesterProfile = await fetchProfileByUserId(supabase, reservation.user_id);
+            const [requesterProfile, condoTimezone] = await Promise.all([
+                fetchProfileByUserId(supabase, reservation.user_id),
+                fetchCondoTimezone(supabase, condo_id),
+            ]);
             await notifyUserReservationStatusUpdated({
                 env: context.env,
                 recipient: requesterProfile,
                 amenityName: amenity?.name,
                 reservation: data,
                 previousStatus: reservation.status,
+                timezone: condoTimezone,
             });
         } catch (notificationError) {
             console.error('Reservation cancellation notification failed:', notificationError);
