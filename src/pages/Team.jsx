@@ -24,6 +24,7 @@ import {
     useWorkspaceMembers,
     useAddWorkspaceMember,
     useUpdateWorkspaceMember,
+    useCondoInvitations,
 } from '../hooks/react-query/condos/useWorkspaceMembers';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -63,6 +64,10 @@ function TeamPage() {
     });
 
     const canManageMembers = ['owner', 'admin'].includes(currentMember?.role);
+    const { data: pendingInvitations = [] } = useCondoInvitations(
+        currentWorkspace,
+        canManageMembers,
+    );
     const { data: units = [] } = useUnitsList(currentWorkspace, user, {
         includeAll: true,
     });
@@ -88,6 +93,21 @@ function TeamPage() {
             return { ...member, unit_display: unitLabel };
         });
     }, [workspaceMembers, unitAddressById]);
+    const displayInvitations = useMemo(() => {
+        return (pendingInvitations || []).map((invite) => {
+            const unitIds = Array.isArray(invite.unit_ids) ? invite.unit_ids : [];
+            const unitLabel =
+                unitIds.length > 0
+                    ? unitIds
+                          .map((id) => unitAddressById.get(String(id)) || String(id))
+                          .join(', ')
+                    : '—';
+            return {
+                ...invite,
+                unit_display: unitLabel,
+            };
+        });
+    }, [pendingInvitations, unitAddressById]);
 
     const teamMembersCount =
         workspaceMembers?.filter(
@@ -148,8 +168,13 @@ function TeamPage() {
             const isDuplicate = workspaceMembers?.some(
                 (member) => String(member.email || '').trim().toLowerCase() === normalizedEmail,
             );
+            const isAlreadyInvited = pendingInvitations?.some(
+                (invite) => String(invite.email || '').trim().toLowerCase() === normalizedEmail,
+            );
             if (isDuplicate) {
                 toast.error('This user is already a member');
+            } else if (isAlreadyInvited) {
+                toast.error('This user already has a pending invitation');
             } else {
                 await addWorkspaceMember(
                     {
@@ -249,6 +274,41 @@ function TeamPage() {
                             )}
                         </TableBody>
                     </Table>
+                    {canManageMembers && (
+                        <div className="mt-6">
+                            <h3 className="text-lg font-semibold mb-2">Invitaciones pendientes</h3>
+                            <Table aria-label="Pending invitations table">
+                                <TableHeader>
+                                    <TableColumn>Email</TableColumn>
+                                    <TableColumn>Role</TableColumn>
+                                    <TableColumn>Residencia</TableColumn>
+                                    <TableColumn>Status</TableColumn>
+                                    <TableColumn>Expira</TableColumn>
+                                </TableHeader>
+                                <TableBody emptyContent="No hay invitaciones pendientes">
+                                    {displayInvitations.map((invite) => (
+                                        <TableRow key={`invite-${invite.id}`}>
+                                            <TableCell>{invite.email || '—'}</TableCell>
+                                            <TableCell className="capitalize">
+                                                {invite.role || 'resident'}
+                                            </TableCell>
+                                            <TableCell>{invite.unit_display}</TableCell>
+                                            <TableCell className="capitalize">
+                                                {invite.status || 'pending'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {invite.expires_at
+                                                    ? new Date(invite.expires_at).toLocaleDateString(
+                                                          'es-MX',
+                                                      )
+                                                    : '—'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </div>
                 <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl">
                     <ModalContent>

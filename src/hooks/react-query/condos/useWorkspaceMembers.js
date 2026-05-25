@@ -224,3 +224,33 @@ export const useDeleteWorkspaceMember = (currentWorkspace) => {
         },
     });
 };
+
+const fetchCondoInvitations = async (condo_id) => {
+    if (!condo_id) return [];
+    const {
+        data: { session },
+    } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) return [];
+
+    const res = await api
+        .get(`team/invitations?condo_id=${encodeURIComponent(String(condo_id))}`, {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        .json();
+
+    if (!res?.success) {
+        throw new Error(res?.error || 'Failed to fetch invitations');
+    }
+
+    return Array.isArray(res?.data) ? res.data : [];
+};
+
+export const useCondoInvitations = (currentWorkspace, enabled = true) => {
+    const condoId = currentWorkspace?.condo_id || currentWorkspace?.workspace_id;
+    return useQuery({
+        queryKey: ['condoInvitations', condoId],
+        queryFn: () => fetchCondoInvitations(condoId),
+        staleTime: 1000 * 60 * 5,
+        enabled: !!condoId && enabled,
+    });
+};

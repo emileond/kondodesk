@@ -278,3 +278,42 @@ export async function onRequestPost(context) {
         );
     }
 }
+
+export async function onRequestGet(context) {
+    try {
+        const accessToken = getAccessToken(context.request);
+        if (!accessToken) {
+            return Response.json({ success: false, error: 'Missing access token' }, { status: 401 });
+        }
+
+        const url = new URL(context.request.url);
+        const condo_id = url.searchParams.get('condo_id');
+        if (!condo_id) {
+            return Response.json({ success: false, error: 'condo_id is required' }, { status: 400 });
+        }
+
+        const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_KEY);
+        const authResult = await authorizeAdmin(supabase, condo_id, accessToken);
+        if (authResult.error) {
+            return Response.json({ success: false, error: authResult.error }, { status: authResult.status });
+        }
+
+        const { data, error } = await supabase
+            .from('condo_invitations')
+            .select('id, email, role, unit_ids, status, invited_at, expires_at')
+            .eq('condo_id', condo_id)
+            .eq('status', 'pending')
+            .order('invited_at', { ascending: false });
+
+        if (error) {
+            return Response.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        return Response.json({ success: true, data: data || [] }, { status: 200 });
+    } catch (err) {
+        return Response.json(
+            { success: false, error: err?.message || 'Unexpected error' },
+            { status: 500 },
+        );
+    }
+}
