@@ -39,6 +39,7 @@
     "@tiptap/react": "^3.11.1",
     "@tiptap/starter-kit": "^3.11.1",
     "@trigger.dev/sdk": "4.0.2",
+    "@zavudev/sdk": "^0.43.0",
     "boring-avatars": "^2.0.1",
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
