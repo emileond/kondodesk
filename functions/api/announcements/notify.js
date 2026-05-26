@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import Zavu from '@zavudev/sdk';
 import { buildAnnouncementEmailHtml, buildAnnouncementEmailText } from './emailTemplate';
 
 function isValidEmail(email) {
@@ -8,40 +9,19 @@ function isValidEmail(email) {
 async function sendEmail(env, { to, subject, text, html }) {
     if (!isValidEmail(to)) return;
 
-    const accountId = env.CF_ACCOUNT_ID;
-    const apiToken = env.CF_EMAIL_API_TOKEN || env.CF_API_TOKEN;
-    if (!accountId || !apiToken) {
-        throw new Error('Cloudflare Email API env vars missing: CF_ACCOUNT_ID / CF_API_TOKEN');
+    const apiKey = env.ZEVU_API_KEY;
+    if (!apiKey) {
+        throw new Error('Zavu email API env var is missing: ZEVU_API_KEY');
     }
 
-    const fromAddress = env.EMAIL_FROM || 'reservas@kondodesk.com';
-    const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
-        {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                to,
-                from: fromAddress,
-                subject,
-                html: html || '',
-                text: text || '',
-            }),
-        },
-    );
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cloudflare Email API failed (${response.status}): ${errorText}`);
-    }
-
-    const payload = await response.json();
-    if (!payload?.success) {
-        throw new Error(payload?.errors?.[0]?.message || 'Cloudflare Email API error');
-    }
+    const zavu = new Zavu({ apiKey });
+    await zavu.messages.send({
+        to,
+        channel: 'email',
+        subject,
+        text: text || '',
+        htmlBody: html || '',
+    });
 }
 
 export async function onRequestPost(context) {

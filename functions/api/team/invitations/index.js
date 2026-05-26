@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import Zavu from '@zavudev/sdk';
 import {
     buildTeamInvitationEmailHtml,
     teamInvitationSubject,
@@ -58,13 +59,11 @@ async function getValidUnitIdsForCondo(supabase, condoId, unitIds) {
 }
 
 async function sendInvitationEmail({ env, email, invitationLink, inviterName, condoName }) {
-    const accountId = env.CF_ACCOUNT_ID;
-    const apiToken = env.CF_EMAIL_API_TOKEN || env.CF_API_TOKEN;
-    if (!accountId || !apiToken) {
-        throw new Error('Cloudflare Email API env vars are missing: CF_ACCOUNT_ID / CF_API_TOKEN');
+    const apiKey = env.ZEVU_API_KEY;
+    if (!apiKey) {
+        throw new Error('Zavu email API env var is missing: ZEVU_API_KEY');
     }
 
-    const fromAddress = env.EMAIL_FROM || 'reservas@kondodesk.com';
     const textBody = teamInvitationText({ inviterName, condoName, invitationLink });
     const htmlBody = buildTeamInvitationEmailHtml({
         appUrl: env.VITE_PUBLIC_URL || 'https://kondodesk.com',
@@ -73,35 +72,14 @@ async function sendInvitationEmail({ env, email, invitationLink, inviterName, co
         invitationLink,
     });
 
-    const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
-        {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                to: email,
-                from: fromAddress,
-                subject: teamInvitationSubject({ condoName }),
-                html: htmlBody,
-                text: textBody,
-            }),
-        },
-    );
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cloudflare Email API failed (${response.status}): ${errorText}`);
-    }
-
-    const payload = await response.json();
-    if (!payload?.success) {
-        throw new Error(
-            `Cloudflare Email API error: ${payload?.errors?.[0]?.message || 'Unknown error'}`,
-        );
-    }
+    const zavu = new Zavu({ apiKey });
+    await zavu.messages.send({
+        to: email,
+        channel: 'email',
+        subject: teamInvitationSubject({ condoName }),
+        text: textBody,
+        htmlBody,
+    });
 }
 
 export async function onRequestPost(context) {
